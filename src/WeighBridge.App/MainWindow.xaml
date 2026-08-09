@@ -1,0 +1,443 @@
+<!--
+  MainWindow
+
+  The application shell, and the only window the application ever shows: navigating
+  replaces the content of the NavigationHost instead of opening a second window.
+
+  Four regions, top to bottom:
+    - a custom title bar (logo, product name, history commands, clock, window buttons)
+    - a collapsible left navigation panel listing the seven modules
+    - the content area, where the current ViewModel becomes visual
+    - a status bar carrying the version and the five subsystem indicators
+
+  Chrome comes from WindowChrome rather than a hand-rolled borderless window, so
+  dragging, double-click to maximise, Aero Snap and correct work-area maximising keep
+  working while the caption stays ours to style. Interactive controls inside the
+  caption band opt back out of the chrome with WindowChrome.IsHitTestVisibleInChrome,
+  which is an inherited property - setting it on a panel covers everything inside it.
+-->
+<Window x:Class="WeighBridge.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:WeighBridge.App.Controls"
+        xmlns:converters="clr-namespace:WeighBridge.App.Converters"
+        xmlns:navigation="clr-namespace:WeighBridge.App.Navigation"
+        xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=viewModels:MainWindowViewModel}"
+        Title="{Binding Title}"
+        Width="1280"
+        Height="800"
+        MinWidth="{StaticResource Size.MinWindowWidth}"
+        MinHeight="{StaticResource Size.MinWindowHeight}"
+        Style="{StaticResource Window.Base}"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None">
+
+  <WindowChrome.WindowChrome>
+    <WindowChrome CaptionHeight="{StaticResource Size.TitleBarHeight}"
+                  CornerRadius="0"
+                  GlassFrameThickness="0"
+                  ResizeBorderThickness="6"
+                  UseAeroCaptionButtons="False" />
+  </WindowChrome.WindowChrome>
+
+  <Window.Resources>
+    <converters:ResourceKeyConverter x:Key="Converter.ResourceKey" />
+
+    <!--  Title-bar text roles. Kept local: they are shell chrome, not a reusable role.  -->
+    <Style x:Key="TitleBar.Glyph" TargetType="TextBlock" BasedOn="{StaticResource Text.Icon}">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Margin" Value="0,0,6,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Tertiary}" />
+    </Style>
+
+    <Style x:Key="TitleBar.Text" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    </Style>
+
+    <!--  Collapses the site label and its separator when no site is configured.  -->
+    <Style x:Key="TitleBar.SitePanel" TargetType="StackPanel">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding SiteName}" Value="">
+          <Setter Property="Visibility" Value="Collapsed" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <!--  One button that reports the window's real state instead of tracking it in code.  -->
+    <Style x:Key="TitleBar.MaximizeButton" TargetType="Button" BasedOn="{StaticResource Button.WindowControl}">
+      <Setter Property="Content" Value="{StaticResource Icon.Maximize}" />
+      <Setter Property="ToolTip" Value="Maximize" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
+          <Setter Property="Content" Value="{StaticResource Icon.Restore}" />
+          <Setter Property="ToolTip" Value="Restore" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <!--
+      Status indicator colour.
+
+      Driven by triggers with DynamicResource rather than by a value converter: a
+      converter returns the brush instance that was current when it ran, so the dots
+      would keep the previous theme's colours after a theme switch.
+    -->
+    <Style x:Key="StatusBar.Indicator" TargetType="Ellipse">
+      <Setter Property="Width" Value="{StaticResource Size.StatusDot}" />
+      <Setter Property="Height" Value="{StaticResource Size.StatusDot}" />
+      <Setter Property="Margin" Value="0,0,7,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Fill" Value="{DynamicResource Brush.Neutral.Default}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding State}" Value="Connected">
+          <Setter Property="Fill" Value="{DynamicResource Brush.Success.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Connecting">
+          <Setter Property="Fill" Value="{DynamicResource Brush.Info.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Degraded">
+          <Setter Property="Fill" Value="{DynamicResource Brush.Warning.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="Disconnected">
+          <Setter Property="Fill" Value="{DynamicResource Brush.Danger.Default}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <!--  Sized down from Button.Icon's 36 px so it fits the 32 px status bar.  -->
+    <Style x:Key="StatusBar.IconButton" TargetType="Button" BasedOn="{StaticResource Button.Icon}">
+      <Setter Property="Width" Value="26" />
+      <Setter Property="Height" Value="26" />
+      <Setter Property="MinWidth" Value="26" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}" />
+    </Style>
+  </Window.Resources>
+
+  <!--
+    The outer border draws the window edge that WindowStyle="None" removes. It is
+    dropped while maximised, where an edge would sit off-screen against the work area.
+  -->
+  <Border Background="{DynamicResource Brush.Surface.Window}"
+          BorderBrush="{DynamicResource Brush.Border.Default}">
+    <Border.Style>
+      <Style TargetType="Border">
+        <Setter Property="BorderThickness" Value="1" />
+        <Style.Triggers>
+          <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
+            <Setter Property="BorderThickness" Value="0" />
+          </DataTrigger>
+        </Style.Triggers>
+      </Style>
+    </Border.Style>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!--  ============================================================
+            Title bar
+            ============================================================  -->
+      <Border Grid.Row="0"
+              Height="{StaticResource Size.TitleBarHeight}"
+              Background="{DynamicResource Brush.Surface.TitleBar}"
+              BorderBrush="{DynamicResource Brush.Border.Subtle}"
+              BorderThickness="0,0,0,1">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+
+          <!--  Identity  -->
+          <StackPanel Grid.Column="0"
+                      Margin="14,0,0,0"
+                      VerticalAlignment="Center"
+                      Orientation="Horizontal">
+            <Image Width="22"
+                   Height="22"
+                   Margin="0,0,10,0"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   Source="{StaticResource Image.AppLogo}" />
+
+            <TextBlock VerticalAlignment="Center"
+                       Style="{StaticResource Text.Heading}"
+                       Text="{Binding ApplicationName}" />
+
+            <StackPanel VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Style="{StaticResource TitleBar.SitePanel}">
+              <TextBlock Margin="10,0,10,0"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource Brush.Border.Strong}"
+                         Style="{StaticResource Text.Body}"
+                         Text="/" />
+              <TextBlock Style="{StaticResource TitleBar.Text}" Text="{Binding SiteName}" />
+            </StackPanel>
+          </StackPanel>
+
+          <!--  History commands  -->
+          <StackPanel Grid.Column="1"
+                      Margin="20,0,0,0"
+                      VerticalAlignment="Center"
+                      Orientation="Horizontal"
+                      WindowChrome.IsHitTestVisibleInChrome="True">
+            <Button Command="{Binding GoBackCommand}"
+                    Content="{StaticResource Icon.Back}"
+                    Style="{StaticResource Button.Icon}"
+                    ToolTip="Back" />
+            <Button Command="{Binding GoForwardCommand}"
+                    Content="{StaticResource Icon.Forward}"
+                    Style="{StaticResource Button.Icon}"
+                    ToolTip="Forward" />
+            <Button Command="{Binding RefreshCommand}"
+                    Content="{StaticResource Icon.Refresh}"
+                    Style="{StaticResource Button.Icon}"
+                    ToolTip="Reload the current page" />
+          </StackPanel>
+
+          <!--  Column 2 is left empty on purpose: it is the caption drag area.  -->
+
+          <!--  Session and clock  -->
+          <StackPanel Grid.Column="3"
+                      Margin="0,0,8,0"
+                      VerticalAlignment="Center"
+                      Orientation="Horizontal"
+                      WindowChrome.IsHitTestVisibleInChrome="True">
+            <TextBlock Style="{StaticResource TitleBar.Glyph}" Text="{StaticResource Icon.User}" />
+            <TextBlock Margin="0,0,16,0"
+                       Style="{StaticResource TitleBar.Text}"
+                       Text="{Binding CurrentUserName}" />
+
+            <TextBlock Style="{StaticResource TitleBar.Glyph}" Text="{StaticResource Icon.Calendar}" />
+            <TextBlock Margin="0,0,16,0"
+                       Style="{StaticResource TitleBar.Text}"
+                       Text="{Binding CurrentDate}" />
+
+            <TextBlock Style="{StaticResource TitleBar.Glyph}" Text="{StaticResource Icon.Clock}" />
+            <TextBlock MinWidth="62"
+                       Style="{StaticResource TitleBar.Text}"
+                       Text="{Binding CurrentTime}" />
+
+            <Button Margin="12,0,0,0"
+                    Command="{Binding ToggleThemeCommand}"
+                    Content="{StaticResource Icon.Theme}"
+                    Style="{StaticResource Button.Icon}"
+                    ToolTip="Switch between the light and dark theme" />
+          </StackPanel>
+
+          <!--  Window controls  -->
+          <StackPanel Grid.Column="4"
+                      Orientation="Horizontal"
+                      WindowChrome.IsHitTestVisibleInChrome="True">
+            <Button Click="OnMinimizeClicked"
+                    Content="{StaticResource Icon.Minimize}"
+                    Style="{StaticResource Button.WindowControl}"
+                    ToolTip="Minimize" />
+            <Button Click="OnMaximizeRestoreClicked" Style="{StaticResource TitleBar.MaximizeButton}" />
+            <Button Click="OnCloseClicked"
+                    Content="{StaticResource Icon.Close}"
+                    Style="{StaticResource Button.WindowControl.Close}"
+                    ToolTip="Close" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!--  ============================================================
+            Body: navigation panel and content area
+            ============================================================  -->
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Background="{DynamicResource Brush.Surface.Navigation}"
+                BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                BorderThickness="0,0,1,0">
+          <!--
+            The width is animated rather than set, so collapsing reads as a movement
+            instead of a jump. The animation holds its end value, which is why the
+            Setter below only supplies the expanded starting width.
+          -->
+          <Border.Style>
+            <Style TargetType="Border">
+              <Setter Property="Width" Value="{StaticResource Size.NavigationWidth}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsNavigationCollapsed}" Value="True">
+                  <DataTrigger.EnterActions>
+                    <BeginStoryboard>
+                      <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="Width"
+                                         To="{StaticResource Size.NavigationCollapsedWidth}"
+                                         Duration="{StaticResource Duration.Normal}">
+                          <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut" />
+                          </DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                      </Storyboard>
+                    </BeginStoryboard>
+                  </DataTrigger.EnterActions>
+                  <DataTrigger.ExitActions>
+                    <BeginStoryboard>
+                      <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="Width"
+                                         To="{StaticResource Size.NavigationWidth}"
+                                         Duration="{StaticResource Duration.Normal}">
+                          <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut" />
+                          </DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                      </Storyboard>
+                    </BeginStoryboard>
+                  </DataTrigger.ExitActions>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Button Grid.Row="0"
+                    Margin="10,10,0,6"
+                    HorizontalAlignment="Left"
+                    Command="{Binding ToggleNavigationCommand}"
+                    Content="{StaticResource Icon.Menu}"
+                    Style="{StaticResource Button.Icon}"
+                    ToolTip="Expand or collapse the navigation panel" />
+
+            <ScrollViewer Grid.Row="1"
+                          Style="{StaticResource ScrollViewer.Default}"
+                          VerticalScrollBarVisibility="Auto">
+              <ItemsControl Focusable="False" ItemsSource="{Binding NavigationItems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type viewModels:ShellNavigationItem}">
+                    <!--
+                      GroupName gives the panel mutual exclusion regardless of how the
+                      items are containerised; IsChecked is still two-way bound so the
+                      highlight follows Back and Forward, not only clicks.
+                    -->
+                    <controls:NavigationItem Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             CommandParameter="{Binding}"
+                                             GroupName="ShellNavigation"
+                                             Icon="{Binding IconKey, Converter={StaticResource Converter.ResourceKey}}"
+                                             IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                             IsCollapsed="{Binding DataContext.IsNavigationCollapsed, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             Label="{Binding Label}"
+                                             ToolTip="{Binding Label}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="2" Margin="0,6,0,0">
+              <Separator Style="{StaticResource Separator.Horizontal}" />
+              <TextBlock Margin="14,10,14,10"
+                         Style="{StaticResource Text.Caption}"
+                         Text="{Binding DisplayVersion}"
+                         TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!--  The single place where a ViewModel becomes visual.  -->
+        <navigation:NavigationHost x:Name="ContentHost"
+                                   Grid.Column="1"
+                                   ViewModel="{Binding CurrentViewModel}" />
+      </Grid>
+
+      <!--  ============================================================
+            Status bar
+            ============================================================  -->
+      <Border Grid.Row="2"
+              Height="{StaticResource Size.StatusBarHeight}"
+              Background="{DynamicResource Brush.Surface.StatusBar}"
+              BorderBrush="{DynamicResource Brush.Border.Subtle}"
+              BorderThickness="0,1,0,0">
+        <Grid Margin="16,0,8,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+
+          <TextBlock Grid.Column="0"
+                     VerticalAlignment="Center"
+                     Style="{StaticResource Text.Caption}"
+                     Text="{Binding DisplayVersion}" />
+
+          <ItemsControl Grid.Column="2"
+                        Focusable="False"
+                        ItemsSource="{Binding Subsystems}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <!--  Transparent background so the tooltip has something to hit-test.  -->
+                <StackPanel Margin="0,0,18,0"
+                            Background="Transparent"
+                            Orientation="Horizontal">
+                  <StackPanel.ToolTip>
+                    <ToolTip Style="{StaticResource ToolTip.Default}">
+                      <StackPanel MaxWidth="320">
+                        <TextBlock Style="{StaticResource Text.Label}" Text="{Binding Name}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Style="{StaticResource Text.Body}"
+                                   Text="{Binding DisplayText}" />
+                        <TextBlock Margin="0,2,0,0"
+                                   Style="{StaticResource Text.Caption}"
+                                   Text="{Binding Detail}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Margin="0,2,0,0"
+                                   Style="{StaticResource Text.Caption}"
+                                   Text="{Binding LastCheckedAt, StringFormat='Last checked {0:HH:mm:ss}'}" />
+                      </StackPanel>
+                    </ToolTip>
+                  </StackPanel.ToolTip>
+
+                  <Ellipse Style="{StaticResource StatusBar.Indicator}" />
+                  <TextBlock VerticalAlignment="Center"
+                             Style="{StaticResource Text.Caption}"
+                             Text="{Binding Name}" />
+                  <TextBlock Margin="5,0,0,0"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource Brush.Text.Secondary}"
+                             Style="{StaticResource Text.Caption}"
+                             Text="{Binding DisplayText}" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Button Grid.Column="3"
+                  Command="{Binding RefreshStatusCommand}"
+                  Content="{StaticResource Icon.Refresh}"
+                  Style="{StaticResource StatusBar.IconButton}"
+                  ToolTip="Re-check every subsystem now" />
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</Window>

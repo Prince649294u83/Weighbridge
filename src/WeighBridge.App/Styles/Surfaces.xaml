@@ -1,0 +1,208 @@
+<!--
+  Surfaces.xaml
+  Chrome that frames content rather than accepting input: ScrollBar, ScrollViewer,
+  ToolTip, Separator, ProgressBar and the base Window style.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Slim overlay-style scrollbar. The thumb is 4px at rest and widens to 8px on hover,
+    mirroring the Windows 11 behaviour - it stays out of the way while scanning a long
+    weighment list but is easy to grab.
+  -->
+  <Style x:Key="ScrollBar.Thumb" TargetType="Thumb">
+    <Setter Property="OverridesDefaultStyle" Value="True" />
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Thumb">
+          <Border Background="{DynamicResource Brush.Border.Strong}"
+                  CornerRadius="{StaticResource Radius.Pill}"
+                  SnapsToDevicePixels="True" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Invisible page-track button: clicking the track still pages, with no visuals. -->
+  <Style x:Key="ScrollBar.PageButton" TargetType="RepeatButton">
+    <Setter Property="OverridesDefaultStyle" Value="True" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RepeatButton">
+          <Rectangle Fill="Transparent" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="ScrollBar.Default" TargetType="ScrollBar">
+    <Setter Property="OverridesDefaultStyle" Value="True" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Width" Value="12" />
+    <Setter Property="MinWidth" Value="12" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Grid x:Name="Root" Background="Transparent">
+            <Track x:Name="PART_Track"
+                   Margin="4,4"
+                   IsDirectionReversed="True">
+              <Track.DecreaseRepeatButton>
+                <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ScrollBar.PageButton}" />
+              </Track.DecreaseRepeatButton>
+              <Track.Thumb>
+                <Thumb x:Name="Thumb" Width="4" Style="{StaticResource ScrollBar.Thumb}" />
+              </Track.Thumb>
+              <Track.IncreaseRepeatButton>
+                <RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource ScrollBar.PageButton}" />
+              </Track.IncreaseRepeatButton>
+            </Track>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+              <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+              <Setter TargetName="Thumb" Property="Width" Value="Auto" />
+              <Setter TargetName="Thumb" Property="Height" Value="4" />
+              <Setter Property="Height" Value="12" />
+              <Setter Property="MinHeight" Value="12" />
+              <Setter Property="Width" Value="Auto" />
+              <Setter Property="MinWidth" Value="0" />
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="IsMouseOver" Value="True" />
+                <Condition Property="Orientation" Value="Vertical" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="Thumb" Property="Width" Value="8" />
+            </MultiTrigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="IsMouseOver" Value="True" />
+                <Condition Property="Orientation" Value="Horizontal" />
+              </MultiTrigger.Conditions>
+              <Setter TargetName="Thumb" Property="Height" Value="8" />
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ScrollBar" BasedOn="{StaticResource ScrollBar.Default}" />
+
+  <Style x:Key="ScrollViewer.Default" TargetType="ScrollViewer">
+    <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    <Setter Property="PanningMode" Value="VerticalOnly" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+
+  <!-- Custom tooltip: no default Win32 tooltip chrome anywhere in the app. -->
+  <Style x:Key="ToolTip.Default" TargetType="ToolTip">
+    <Setter Property="OverridesDefaultStyle" Value="True" />
+    <Setter Property="HasDropShadow" Value="False" />
+    <Setter Property="Placement" Value="Bottom" />
+    <Setter Property="VerticalOffset" Value="6" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToolTip">
+          <Border Padding="10,6"
+                  Background="{DynamicResource Brush.Surface.Raised}"
+                  BorderBrush="{DynamicResource Brush.Border.Default}"
+                  BorderThickness="1"
+                  CornerRadius="{StaticResource Radius.SM}"
+                  Effect="{DynamicResource Elevation.Card}">
+            <ContentPresenter>
+              <ContentPresenter.Resources>
+                <Style TargetType="TextBlock">
+                  <Setter Property="FontFamily" Value="{StaticResource Font.Primary}" />
+                  <Setter Property="FontSize" Value="{StaticResource Font.Size.Small}" />
+                  <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                  <Setter Property="TextWrapping" Value="Wrap" />
+                  <Setter Property="MaxWidth" Value="320" />
+                </Style>
+              </ContentPresenter.Resources>
+            </ContentPresenter>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ToolTip" BasedOn="{StaticResource ToolTip.Default}" />
+
+  <Style x:Key="Separator.Horizontal" TargetType="Separator">
+    <Setter Property="OverridesDefaultStyle" Value="True" />
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Border.Subtle}" />
+    <Setter Property="Margin" Value="0,8" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Separator">
+          <Border Background="{TemplateBinding Background}" SnapsToDevicePixels="True" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="Separator" BasedOn="{StaticResource Separator.Horizontal}" />
+
+  <!-- Vertical hairline used between title-bar segments and status-bar cells. -->
+  <Style x:Key="Divider.Vertical" TargetType="Border">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Margin" Value="8,6" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Border.Subtle}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+
+  <Style x:Key="ProgressBar.Default" TargetType="ProgressBar">
+    <Setter Property="Height" Value="6" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Sunken}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Default}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ProgressBar">
+          <Border Background="{TemplateBinding Background}"
+                  CornerRadius="{StaticResource Radius.Pill}"
+                  SnapsToDevicePixels="True">
+            <Grid ClipToBounds="True">
+              <!--
+                PART_Track / PART_Indicator are required names: ProgressBar's own code
+                measures them to convert Value into indicator width.
+              -->
+              <Rectangle x:Name="PART_Track" Fill="Transparent" />
+              <Border x:Name="PART_Indicator"
+                      HorizontalAlignment="Left"
+                      Background="{TemplateBinding Foreground}"
+                      CornerRadius="{StaticResource Radius.Pill}" />
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ProgressBar" BasedOn="{StaticResource ProgressBar.Default}" />
+
+  <!--
+    Base style for every window in the application, including dialogs. Sets the
+    Fluent surface colour and default typography so a new window inherits the design
+    system without repeating setters. Chrome-less shell windows extend this.
+  -->
+  <Style x:Key="Window.Base" TargetType="Window">
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Window}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+    <Setter Property="FontFamily" Value="{StaticResource Font.Primary}" />
+    <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
+    <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
+    <Setter Property="UseLayoutRounding" Value="True" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+
+</ResourceDictionary>

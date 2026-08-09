@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    WeighBridge.Hardware
+    Weight indicator / camera integration layer. Module 0.1 ships disconnected
+    placeholder implementations so the shell can display hardware status without
+    any serial port or camera driver being present.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WeighBridge.Hardware</RootNamespace>
+    <AssemblyName>WeighBridge.Hardware</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WeighBridge.Core\WeighBridge.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+</Project>

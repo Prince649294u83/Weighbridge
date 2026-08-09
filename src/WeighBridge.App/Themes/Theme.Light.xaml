@@ -1,0 +1,106 @@
+<!--
+    Light theme: maps palette primitives onto semantic roles.
+
+    Theme.Dark.xaml defines exactly the same keys. ThemeService swaps this dictionary
+    at runtime, and because every style references brushes with DynamicResource the
+    whole shell re-colours without a restart.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Themes/Palette.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+    <!--  ===== Surfaces =====  -->
+    <SolidColorBrush x:Key="Brush.Surface.Window" Color="{StaticResource Neutral.10}" />
+    <SolidColorBrush x:Key="Brush.Surface.Card" Color="{StaticResource Neutral.0}" />
+    <SolidColorBrush x:Key="Brush.Surface.Raised" Color="{StaticResource Neutral.0}" />
+    <SolidColorBrush x:Key="Brush.Surface.Sunken" Color="{StaticResource Neutral.5}" />
+    <SolidColorBrush x:Key="Brush.Surface.TitleBar" Color="{StaticResource Neutral.0}" />
+    <SolidColorBrush x:Key="Brush.Surface.Navigation" Color="{StaticResource Neutral.5}" />
+    <SolidColorBrush x:Key="Brush.Surface.StatusBar" Color="{StaticResource Neutral.0}" />
+    <SolidColorBrush x:Key="Brush.Surface.Overlay" Color="#66000000" />
+    <SolidColorBrush x:Key="Brush.Surface.Hover" Color="{StaticResource Neutral.10}" />
+    <SolidColorBrush x:Key="Brush.Surface.Pressed" Color="{StaticResource Neutral.20}" />
+    <SolidColorBrush x:Key="Brush.Surface.Selected" Color="{StaticResource Primary.10}" />
+    <SolidColorBrush x:Key="Brush.Surface.Disabled" Color="{StaticResource Neutral.10}" />
+
+    <!--  ===== Text =====  -->
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="{StaticResource Neutral.90}" />
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="{StaticResource Neutral.60}" />
+    <SolidColorBrush x:Key="Brush.Text.Tertiary" Color="{StaticResource Neutral.50}" />
+    <SolidColorBrush x:Key="Brush.Text.Disabled" Color="{StaticResource Neutral.40}" />
+    <SolidColorBrush x:Key="Brush.Text.OnAccent" Color="{StaticResource Neutral.0}" />
+    <SolidColorBrush x:Key="Brush.Text.Accent" Color="{StaticResource Primary.70}" />
+    <SolidColorBrush x:Key="Brush.Text.Placeholder" Color="{StaticResource Neutral.40}" />
+
+    <!--  ===== Borders =====  -->
+    <SolidColorBrush x:Key="Brush.Border.Default" Color="{StaticResource Neutral.20}" />
+    <SolidColorBrush x:Key="Brush.Border.Strong" Color="{StaticResource Neutral.30}" />
+    <SolidColorBrush x:Key="Brush.Border.Subtle" Color="{StaticResource Neutral.10}" />
+    <SolidColorBrush x:Key="Brush.Border.Focus" Color="{StaticResource Primary.60}" />
+    <SolidColorBrush x:Key="Brush.Border.Accent" Color="{StaticResource Primary.70}" />
+
+    <!--  ===== Accent / Primary action =====  -->
+    <SolidColorBrush x:Key="Brush.Accent.Default" Color="{StaticResource Primary.70}" />
+    <SolidColorBrush x:Key="Brush.Accent.Hover" Color="{StaticResource Primary.80}" />
+    <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="{StaticResource Primary.90}" />
+    <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="{StaticResource Primary.10}" />
+    <SolidColorBrush x:Key="Brush.Accent.Disabled" Color="{StaticResource Primary.30}" />
+
+    <!--  ===== Semantic states =====  -->
+    <SolidColorBrush x:Key="Brush.Success.Default" Color="{StaticResource Success.70}" />
+    <SolidColorBrush x:Key="Brush.Success.Hover" Color="{StaticResource Success.80}" />
+    <SolidColorBrush x:Key="Brush.Success.Pressed" Color="{StaticResource Success.80}" />
+    <SolidColorBrush x:Key="Brush.Success.Subtle" Color="{StaticResource Success.10}" />
+    <SolidColorBrush x:Key="Brush.Success.Text" Color="{StaticResource Success.80}" />
+
+    <SolidColorBrush x:Key="Brush.Warning.Default" Color="{StaticResource Warning.60}" />
+    <SolidColorBrush x:Key="Brush.Warning.Hover" Color="{StaticResource Warning.70}" />
+    <SolidColorBrush x:Key="Brush.Warning.Pressed" Color="{StaticResource Warning.80}" />
+    <SolidColorBrush x:Key="Brush.Warning.Subtle" Color="{StaticResource Warning.10}" />
+    <SolidColorBrush x:Key="Brush.Warning.Text" Color="{StaticResource Warning.80}" />
+
+    <SolidColorBrush x:Key="Brush.Danger.Default" Color="{StaticResource Danger.60}" />
+    <SolidColorBrush x:Key="Brush.Danger.Hover" Color="{StaticResource Danger.70}" />
+    <SolidColorBrush x:Key="Brush.Danger.Pressed" Color="{StaticResource Danger.80}" />
+    <SolidColorBrush x:Key="Brush.Danger.Subtle" Color="{StaticResource Danger.10}" />
+    <SolidColorBrush x:Key="Brush.Danger.Text" Color="{StaticResource Danger.80}" />
+
+    <SolidColorBrush x:Key="Brush.Info.Default" Color="{StaticResource Info.60}" />
+    <SolidColorBrush x:Key="Brush.Info.Subtle" Color="{StaticResource Info.10}" />
+    <SolidColorBrush x:Key="Brush.Info.Text" Color="{StaticResource Info.80}" />
+
+    <SolidColorBrush x:Key="Brush.Neutral.Default" Color="{StaticResource Neutral.40}" />
+    <SolidColorBrush x:Key="Brush.Neutral.Subtle" Color="{StaticResource Neutral.10}" />
+
+    <!--  ===== Window control buttons =====  -->
+    <SolidColorBrush x:Key="Brush.WindowButton.Hover" Color="{StaticResource Neutral.10}" />
+    <SolidColorBrush x:Key="Brush.WindowButton.Pressed" Color="{StaticResource Neutral.20}" />
+    <SolidColorBrush x:Key="Brush.WindowButton.CloseHover" Color="{StaticResource Danger.60}" />
+    <SolidColorBrush x:Key="Brush.WindowButton.ClosePressed" Color="{StaticResource Danger.80}" />
+
+    <!--  ===== Elevation: soft shadows for cards and dialogs =====  -->
+    <DropShadowEffect x:Key="Elevation.Card"
+                      BlurRadius="16"
+                      Direction="270"
+                      Opacity="0.10"
+                      ShadowDepth="2"
+                      Color="#000000" />
+
+    <DropShadowEffect x:Key="Elevation.Raised"
+                      BlurRadius="24"
+                      Direction="270"
+                      Opacity="0.14"
+                      ShadowDepth="4"
+                      Color="#000000" />
+
+    <DropShadowEffect x:Key="Elevation.Dialog"
+                      BlurRadius="40"
+                      Direction="270"
+                      Opacity="0.24"
+                      ShadowDepth="8"
+                      Color="#000000" />
+
+</ResourceDictionary>

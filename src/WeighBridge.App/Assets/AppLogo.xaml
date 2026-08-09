@@ -1,0 +1,62 @@
+<!--
+    Application logo.
+
+    Authored as a DrawingImage rather than shipped as a bitmap so it stays sharp at
+    every DPI and needs no binary asset in source control. The mark is a weighing
+    scale on the accent tile: it reads at 16 px in the title bar and at 256 px in an
+    about box from the same definition.
+
+    The tile colour is fixed rather than themed — a brand mark must look the same in
+    the light and dark themes, and the white glyph has sufficient contrast on both.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <DrawingImage x:Key="Image.AppLogo">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+
+                <!--  Rounded accent tile  -->
+                <GeometryDrawing Brush="#2563EB">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry RadiusX="7"
+                                           RadiusY="7"
+                                           Rect="0,0,32,32" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!--  Beam, mast and base of the scale  -->
+                <GeometryDrawing Brush="#FFFFFF">
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <EllipseGeometry Center="16,7"
+                                             RadiusX="2"
+                                             RadiusY="2" />
+                            <RectangleGeometry RadiusX="0.9"
+                                               RadiusY="0.9"
+                                               Rect="6.5,9.4,19,1.8" />
+                            <RectangleGeometry RadiusX="0.9"
+                                               RadiusY="0.9"
+                                               Rect="15.1,10.4,1.8,12" />
+                            <RectangleGeometry RadiusX="1"
+                                               RadiusY="1"
+                                               Rect="10,22.4,12,2" />
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!--  The two pans, drawn as open trapezoids  -->
+                <GeometryDrawing Brush="#DBEAFE">
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <PathGeometry Figures="M 3.2,11.6 L 12.2,11.6 L 9.7,17.4 L 5.7,17.4 Z" />
+                            <PathGeometry Figures="M 19.8,11.6 L 28.8,11.6 L 26.3,17.4 L 22.3,17.4 Z" />
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+</ResourceDictionary>

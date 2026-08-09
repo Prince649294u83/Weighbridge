@@ -1,0 +1,71 @@
+<!--
+    Design tokens: the primitive palette.
+
+    These are raw colour values only. Nothing in the application binds to them
+    directly — semantic brushes in Theme.Light.xaml / Theme.Dark.xaml map these
+    primitives onto roles, and controls bind to the roles. That indirection is what
+    makes the theme swappable at runtime.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--  Primary — industrial blue  -->
+    <Color x:Key="Primary.10">#EFF6FF</Color>
+    <Color x:Key="Primary.20">#DBEAFE</Color>
+    <Color x:Key="Primary.30">#BFDBFE</Color>
+    <Color x:Key="Primary.40">#93C5FD</Color>
+    <Color x:Key="Primary.50">#60A5FA</Color>
+    <Color x:Key="Primary.60">#3B82F6</Color>
+    <Color x:Key="Primary.70">#2563EB</Color>
+    <Color x:Key="Primary.80">#1D4ED8</Color>
+    <Color x:Key="Primary.90">#1E40AF</Color>
+    <Color x:Key="Primary.100">#172554</Color>
+
+    <!--  Neutral — surfaces, borders and text  -->
+    <Color x:Key="Neutral.0">#FFFFFF</Color>
+    <Color x:Key="Neutral.5">#FAFAFA</Color>
+    <Color x:Key="Neutral.10">#F4F4F5</Color>
+    <Color x:Key="Neutral.20">#E4E4E7</Color>
+    <Color x:Key="Neutral.30">#D4D4D8</Color>
+    <Color x:Key="Neutral.40">#A1A1AA</Color>
+    <Color x:Key="Neutral.50">#71717A</Color>
+    <Color x:Key="Neutral.60">#52525B</Color>
+    <Color x:Key="Neutral.70">#3F3F46</Color>
+    <Color x:Key="Neutral.80">#27272A</Color>
+    <Color x:Key="Neutral.90">#18181B</Color>
+    <Color x:Key="Neutral.95">#111113</Color>
+    <Color x:Key="Neutral.100">#09090B</Color>
+
+    <!--  Success — connected indicators, completed weighments  -->
+    <Color x:Key="Success.10">#ECFDF5</Color>
+    <Color x:Key="Success.20">#D1FAE5</Color>
+    <Color x:Key="Success.50">#34D399</Color>
+    <Color x:Key="Success.60">#10B981</Color>
+    <Color x:Key="Success.70">#059669</Color>
+    <Color x:Key="Success.80">#047857</Color>
+
+    <!--  Warning — degraded subsystems, unstable weight  -->
+    <Color x:Key="Warning.10">#FFFBEB</Color>
+    <Color x:Key="Warning.20">#FEF3C7</Color>
+    <Color x:Key="Warning.50">#FBBF24</Color>
+    <Color x:Key="Warning.60">#F59E0B</Color>
+    <Color x:Key="Warning.70">#D97706</Color>
+    <Color x:Key="Warning.80">#B45309</Color>
+
+    <!--  Danger — disconnected hardware, destructive actions  -->
+    <Color x:Key="Danger.10">#FEF2F2</Color>
+    <Color x:Key="Danger.20">#FEE2E2</Color>
+    <Color x:Key="Danger.50">#F87171</Color>
+    <Color x:Key="Danger.60">#EF4444</Color>
+    <Color x:Key="Danger.70">#DC2626</Color>
+    <Color x:Key="Danger.80">#B91C1C</Color>
+
+    <!--  Information — neutral notices  -->
+    <Color x:Key="Info.10">#EFF6FF</Color>
+    <Color x:Key="Info.20">#DBEAFE</Color>
+    <Color x:Key="Info.50">#60A5FA</Color>
+    <Color x:Key="Info.60">#3B82F6</Color>
+    <Color x:Key="Info.70">#2563EB</Color>
+    <Color x:Key="Info.80">#1D4ED8</Color>
+
+</ResourceDictionary>

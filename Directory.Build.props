@@ -1,0 +1,41 @@
+<Project>
+
+  <!--
+    Solution-wide build settings.
+    Every project in WeighBridge Modern inherits these properties, which keeps the
+    language level, nullability contract and assembly metadata identical everywhere.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework Condition="'$(TargetFramework)' == ''">net8.0</TargetFramework>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- Assembly / product metadata shared by every artefact. -->
+  <PropertyGroup>
+    <Product>WeighBridge Modern</Product>
+    <Company>WeighBridge Modern</Company>
+    <Authors>WeighBridge Modern Engineering</Authors>
+    <Copyright>Copyright © WeighBridge Modern</Copyright>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+  <!--
+    The application is Windows-only by design (WPF + industrial hardware).
+    Suppressing CA1416 noise is unnecessary because every Windows-specific project
+    targets net8.0-windows explicitly.
+  -->
+  <PropertyGroup>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+</Project>

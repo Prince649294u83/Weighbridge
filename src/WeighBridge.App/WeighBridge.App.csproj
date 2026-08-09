@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    WeighBridge.App
+    The WPF presentation layer and composition root. This is the only project that
+    references a UI framework. It owns Views, ViewModels, the design system and the
+    concrete Navigation/Dialog/Theme implementations that require WPF.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>WeighBridge.App</RootNamespace>
+    <AssemblyName>WeighBridge.App</AssemblyName>
+    <!-- Per-Monitor V2 DPI awareness is declared in app.manifest: industrial floor
+         PCs are frequently run at 125-200% scaling across mismatched monitors. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Deliberately no SupportedOSPlatformVersion. The plain "net8.0-windows" moniker
+         implies TargetPlatformVersion 7.0, and raising the supported version above it is
+         an error. Nothing here calls a WinRT or Windows 10-only API, so the Win32/WPF
+         surface that moniker provides is exactly what is needed. -->
+    <UseWindowsForms>false</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WeighBridge.Core\WeighBridge.Core.csproj" />
+    <ProjectReference Include="..\WeighBridge.Domain\WeighBridge.Domain.csproj" />
+    <ProjectReference Include="..\WeighBridge.Hardware\WeighBridge.Hardware.csproj" />
+    <ProjectReference Include="..\WeighBridge.Infrastructure\WeighBridge.Infrastructure.csproj" />
+    <ProjectReference Include="..\WeighBridge.Printing\WeighBridge.Printing.csproj" />
+    <ProjectReference Include="..\WeighBridge.Reporting\WeighBridge.Reporting.csproj" />
+    <ProjectReference Include="..\WeighBridge.Services\WeighBridge.Services.csproj" />
+    <ProjectReference Include="..\WeighBridge.Settings\WeighBridge.Settings.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,172 @@
+<dialogs:DialogWindowBase x:Class="WeighBridge.App.Dialogs.MessageDialog"
+                          xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                          xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                          xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                          xmlns:dialogs="clr-namespace:WeighBridge.App.Dialogs"
+                          xmlns:converters="clr-namespace:WeighBridge.App.Converters"
+                          mc:Ignorable="d"
+                          d:DataContext="{d:DesignInstance Type=dialogs:MessageDialogViewModel}"
+                          Title="{Binding Title}"
+                          Width="460"
+                          MinHeight="200">
+
+  <Window.Resources>
+    <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
+
+    <!--  Severity drives the glyph and its colour; everything else is identical.  -->
+    <Style x:Key="Dialog.Glyph" TargetType="TextBlock" BasedOn="{StaticResource Text.Icon}">
+      <Setter Property="FontSize" Value="22" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Text" Value="{StaticResource Icon.Information}" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Info.Text}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Severity}" Value="Success">
+          <Setter Property="Text" Value="{StaticResource Icon.Success}" />
+          <Setter Property="Foreground" Value="{DynamicResource Brush.Success.Text}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Warning">
+          <Setter Property="Text" Value="{StaticResource Icon.Warning}" />
+          <Setter Property="Foreground" Value="{DynamicResource Brush.Warning.Text}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Error">
+          <Setter Property="Text" Value="{StaticResource Icon.Error}" />
+          <Setter Property="Foreground" Value="{DynamicResource Brush.Danger.Text}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Question">
+          <Setter Property="Text" Value="{StaticResource Icon.Question}" />
+          <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Accent}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Dialog.GlyphRing" TargetType="Border">
+      <Setter Property="Width" Value="44" />
+      <Setter Property="Height" Value="44" />
+      <Setter Property="CornerRadius" Value="{StaticResource Radius.Pill}" />
+      <Setter Property="Background" Value="{DynamicResource Brush.Info.Subtle}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Severity}" Value="Success">
+          <Setter Property="Background" Value="{DynamicResource Brush.Success.Subtle}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Warning">
+          <Setter Property="Background" Value="{DynamicResource Brush.Warning.Subtle}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Error">
+          <Setter Property="Background" Value="{DynamicResource Brush.Danger.Subtle}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Question">
+          <Setter Property="Background" Value="{DynamicResource Brush.Accent.Subtle}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <!--  Margin leaves room for the drop shadow, which would otherwise be clipped.  -->
+  <Border Margin="16"
+          Background="{DynamicResource Brush.Surface.Card}"
+          BorderBrush="{DynamicResource Brush.Border.Default}"
+          BorderThickness="1"
+          CornerRadius="{StaticResource Radius.LG}"
+          Effect="{DynamicResource Elevation.Dialog}">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!--  Header: glyph, title, message  -->
+      <Grid Grid.Row="0"
+            Margin="24,24,24,0"
+            Background="Transparent"
+            MouseLeftButtonDown="OnHeaderMouseLeftButtonDown">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Margin="0,0,16,0"
+                VerticalAlignment="Top"
+                Style="{StaticResource Dialog.GlyphRing}">
+          <TextBlock Style="{StaticResource Dialog.Glyph}" />
+        </Border>
+
+        <StackPanel Grid.Column="1">
+          <TextBlock Style="{StaticResource Text.Subtitle}"
+                     Text="{Binding Title}"
+                     TextWrapping="Wrap" />
+          <TextBlock Margin="0,8,0,0"
+                     Style="{StaticResource Text.Body.Wrapped}"
+                     Foreground="{DynamicResource Brush.Text.Secondary}"
+                     Text="{Binding Message}" />
+        </StackPanel>
+      </Grid>
+
+      <!--  Optional technical detail  -->
+      <StackPanel Grid.Row="1"
+                  Margin="24,16,24,0"
+                  Visibility="{Binding HasDetails, Converter={StaticResource Converter.BooleanToVisibility}}">
+        <Button x:Name="DetailsToggle"
+                HorizontalAlignment="Left"
+                Padding="0"
+                Style="{StaticResource Button.Text}"
+                Click="OnToggleDetailsClicked"
+                Content="Show technical details" />
+
+        <Border x:Name="DetailsPanel"
+                MaxHeight="160"
+                Margin="0,8,0,0"
+                Background="{DynamicResource Brush.Surface.Sunken}"
+                CornerRadius="{StaticResource Radius.SM}"
+                Visibility="Collapsed">
+          <ScrollViewer Margin="12" VerticalScrollBarVisibility="Auto">
+            <TextBlock FontFamily="{StaticResource Font.Mono}"
+                       FontSize="{StaticResource Font.Size.Small}"
+                       Foreground="{DynamicResource Brush.Text.Secondary}"
+                       Text="{Binding Details}"
+                       TextWrapping="Wrap" />
+          </ScrollViewer>
+        </Border>
+      </StackPanel>
+
+      <!--  Command bar  -->
+      <Border Grid.Row="2"
+              Margin="0,24,0,0"
+              Padding="24,16"
+              Background="{DynamicResource Brush.Surface.Sunken}"
+              CornerRadius="0,0,14,14">
+        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+          <Button x:Name="CancelButton"
+                  MinWidth="96"
+                  Margin="0,0,12,0"
+                  Style="{StaticResource Button.Secondary}"
+                  Click="OnCancelClicked"
+                  Content="{Binding CancelText}"
+                  IsCancel="True"
+                  Visibility="{Binding HasCancel, Converter={StaticResource Converter.BooleanToVisibility}}" />
+
+          <Button x:Name="ConfirmButton"
+                  MinWidth="96"
+                  Click="OnConfirmClicked"
+                  Content="{Binding ConfirmText}"
+                  IsDefault="True">
+            <Button.Style>
+              <Style TargetType="Button" BasedOn="{StaticResource Button.Primary}">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsDestructive}" Value="True">
+                    <!--  A destructive confirmation must not look like a routine OK.  -->
+                    <Setter Property="Background" Value="{DynamicResource Brush.Danger.Default}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Danger.Default}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Button.Style>
+          </Button>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Border>
+</dialogs:DialogWindowBase>

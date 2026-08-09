@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    WeighBridge.Services
+    Application services that orchestrate the layers below: navigation, system
+    status monitoring and the composition root helper for the service layer.
+    Deliberately free of WPF references so navigation logic is unit-testable.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WeighBridge.Services</RootNamespace>
+    <AssemblyName>WeighBridge.Services</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WeighBridge.Core\WeighBridge.Core.csproj" />
+    <ProjectReference Include="..\WeighBridge.Domain\WeighBridge.Domain.csproj" />
+    <ProjectReference Include="..\WeighBridge.Hardware\WeighBridge.Hardware.csproj" />
+    <ProjectReference Include="..\WeighBridge.Infrastructure\WeighBridge.Infrastructure.csproj" />
+    <ProjectReference Include="..\WeighBridge.Printing\WeighBridge.Printing.csproj" />
+    <ProjectReference Include="..\WeighBridge.Reporting\WeighBridge.Reporting.csproj" />
+    <ProjectReference Include="..\WeighBridge.Settings\WeighBridge.Settings.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+</Project>

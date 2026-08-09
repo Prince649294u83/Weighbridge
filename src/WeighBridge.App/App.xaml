@@ -1,0 +1,53 @@
+<!--
+    Application definition and the root of the design system.
+
+    Merge order matters and is not arbitrary:
+
+      1. Tokens    - raw sizes, spacings, radii, durations and font families. No colour.
+      2. Theme     - the swappable dictionary. It merges Palette.xaml itself and maps
+                     those primitives onto semantic brush roles. ThemeService finds this
+                     entry by its "Themes/Theme." source and replaces it in place, which
+                     is why it must be merged as its own dictionary rather than inlined.
+      3. Icons     - Segoe Fluent glyph codepoints, kept out of C# behind string keys.
+      4. Styles    - typography, buttons, inputs, surfaces and the DataGrid. These read
+                     tokens with StaticResource and brushes with DynamicResource, so they
+                     must come after 1 and 2.
+      5. Controls  - default styles for the custom templated controls, keyed by type.
+                     Last, because their templates consume the styles above.
+
+    No StartupUri: the shell is created by the Bootstrapper through the container so it
+    can receive its dependencies. See App.xaml.cs.
+-->
+<Application x:Class="WeighBridge.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+
+                <!--  1. Design tokens  -->
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Themes/Tokens.xaml" />
+
+                <!--  2. Active theme. Replaced at runtime by ThemeService.  -->
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Themes/Theme.Light.xaml" />
+
+                <!--  3. Glyphs and brand assets  -->
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Resources/Icons.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Assets/AppLogo.xaml" />
+
+                <!--  4. Styles  -->
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Styles/Typography.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Styles/Buttons.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Styles/Inputs.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Styles/Surfaces.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Styles/DataGrid.xaml" />
+
+                <!--  5. Custom control default styles  -->
+                <ResourceDictionary Source="pack://application:,,,/WeighBridge.App;component/Styles/Controls.xaml" />
+
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>

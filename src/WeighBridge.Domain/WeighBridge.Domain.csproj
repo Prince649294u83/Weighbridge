@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    WeighBridge.Domain
+    The innermost layer. Contains entity base types, value objects and domain enums.
+    Has NO dependencies on any other project or third-party package by design.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>WeighBridge.Domain</RootNamespace>
+    <AssemblyName>WeighBridge.Domain</AssemblyName>
+  </PropertyGroup>
+
+</Project>
