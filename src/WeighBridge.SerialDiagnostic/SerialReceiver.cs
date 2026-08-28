@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using WeighBridge.Hardware.WeightIndicators;
 
 namespace WeighBridge.SerialDiagnostic
 {
@@ -11,6 +13,9 @@ namespace WeighBridge.SerialDiagnostic
     {
         private readonly SerialDiagnosticOptions _options;
         private readonly SerialCapture _capture;
+        private readonly DelimitedFrameExtractor _extractor = new();
+        private readonly GenericAsciiProtocolParser _parser = new();
+        private readonly List<byte> _accumulator = new(8192);
 
         // Telemetry Counters
         public int TotalBytesReceived { get; private set; }
@@ -145,9 +150,68 @@ namespace WeighBridge.SerialDiagnostic
 
             if (_options.Parser)
             {
-                // To be implemented: Pipe to frame extractor and parser
-                // For now, update counters dummy values or leave 0
+                _accumulator.AddRange(new ReadOnlySpan<byte>(buffer, 0, count));
+
+                var frames = ExtractFrames();
+
+                foreach (var frameBytes in frames)
+                {
+                    FramesExtracted++;
+                    
+                    var frameHex = BitConverter.ToString(frameBytes).Replace("-", " ");
+                    var frameAsciiBuilder = new StringBuilder(frameBytes.Length);
+                    foreach (byte b in frameBytes)
+                    {
+                        char c = (char)b;
+                        if (char.IsControl(c) || c > 127) frameAsciiBuilder.Append('.');
+                        else frameAsciiBuilder.Append(c);
+                    }
+
+                    Console.WriteLine($"FRAME extracted: {frameBytes.Length} bytes");
+                    Console.WriteLine($"FRAME HEX   : {frameHex}");
+                    Console.WriteLine($"FRAME ASCII : {frameAsciiBuilder}");
+                    
+                    await _capture.LogMessageAsync($"FRAME: {frameBytes.Length} bytes -> ASCII: {frameAsciiBuilder} | HEX: {frameHex}");
+
+                    if (_parser.TryParse(frameBytes, DateTime.UtcNow, out var reading))
+                    {
+                        FramesParsed++;
+                        LastWeight = $"{reading.Value:F1} {reading.Unit} ({(reading.IsStable ? "Stable" : "Unstable")})";
+                        Console.WriteLine($"PARSED -> {LastWeight}");
+                        await _capture.LogMessageAsync($"PARSED: {LastWeight}");
+                    }
+                    else
+                    {
+                        FramesRejected++;
+                        Console.WriteLine("PARSED -> [Rejected: Invalid Protocol Format]");
+                        await _capture.LogMessageAsync("REJECTED frame");
+                    }
+                    
+                    Console.WriteLine();
+                }
             }
+        }
+
+        private List<byte[]> ExtractFrames()
+        {
+            var frames = new List<byte[]>();
+            var bufferArray = _accumulator.ToArray();
+            var span = new ReadOnlySpan<byte>(bufferArray);
+            int totalConsumed = 0;
+
+            while (_extractor.TryExtractFrame(span, out var frame, out int consumed))
+            {
+                frames.Add(frame.ToArray());
+                span = span.Slice(consumed);
+                totalConsumed += consumed;
+            }
+
+            if (totalConsumed > 0)
+            {
+                _accumulator.RemoveRange(0, totalConsumed);
+            }
+
+            return frames;
         }
 
         public void PrintTelemetry()
