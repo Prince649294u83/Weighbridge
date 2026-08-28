@@ -23,9 +23,17 @@ namespace WeighBridge.SerialDiagnostic
 
             if (!string.IsNullOrEmpty(options.Replay))
             {
-                // To be implemented: Replay mode
-                Console.WriteLine($"Running in OFFLINE REPLAY mode using {options.Replay}");
-                Console.WriteLine("To be implemented.");
+                Console.WriteLine($"Running in OFFLINE REPLAY mode using {options.Replay}\n");
+                
+                using var cts = new CancellationTokenSource();
+                Console.CancelKeyPress += (s, e) => { e.Cancel = true; cts.Cancel(); };
+                
+                using var capture = new SerialCapture("SerialReplay", options);
+                var receiver = new SerialReceiver(options, capture);
+                var replayer = new OfflineReplayer(options, receiver);
+                
+                await replayer.RunReplayAsync(cts.Token);
+                receiver.PrintTelemetry();
             }
             else
             {

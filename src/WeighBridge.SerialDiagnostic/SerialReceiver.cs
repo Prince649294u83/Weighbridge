@@ -17,9 +17,11 @@ namespace WeighBridge.SerialDiagnostic
         public int TotalNullBytes { get; private set; }
         public int FramesExtracted { get; private set; }
         public int FramesParsed { get; private set; }
-        public int FramesRejected { get; private set; }
-        public string LastWeight { get; private set; } = "N/A";
-        public DateTime? LastTimestamp { get; private set; }
+        public int FramesRejected { get; internal set; }
+        public string LastWeight { get; internal set; } = "N/A";
+        public DateTime? LastTimestamp { get; internal set; }
+
+        public SerialCapture Capture => _capture;
 
         public SerialReceiver(SerialDiagnosticOptions options, SerialCapture capture)
         {
@@ -112,7 +114,7 @@ namespace WeighBridge.SerialDiagnostic
             }
         }
 
-        private async Task ProcessChunkAsync(byte[] buffer, int count, int msSinceLastRx)
+        public async Task ProcessChunkAsync(byte[] buffer, int count, int msSinceLastRx)
         {
             // Format HEX and ASCII for Console
             var hex = BitConverter.ToString(buffer, 0, count).Replace("-", " ");
