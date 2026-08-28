@@ -1,12 +1,14 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Application;
 using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Dialogs;
 using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Navigation;
+using WeighBridge.Core.Security;
 using WeighBridge.Core.Settings;
 using WeighBridge.Core.Status;
 using WeighBridge.Core.Theming;
@@ -20,7 +22,7 @@ namespace WeighBridge.App.ViewModels;
 /// </summary>
 /// <remarks>
 /// The shell owns no module behaviour. It resolves the destination a navigation item
-/// names, hands it to <see cref="INavigationService"/> and reflects the outcome — so a
+/// names, hands it to <see cref="INavigationService"/> and reflects the outcome â€” so a
 /// module is added by registering a ViewModel and listing it here, with no change to
 /// how the shell works.
 /// </remarks>
@@ -32,6 +34,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly IDialogService _dialogService;
     private readonly IApplicationInfoService _applicationInfo;
+    private readonly IDatabaseInitializer _databaseInitializer;
+    private readonly IAuthenticationService _authentication;
     private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<MainWindowViewModel> _logger;
 
@@ -51,6 +55,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         ISettingsService settingsService,
         IDialogService dialogService,
         IApplicationInfoService applicationInfo,
+        IDatabaseInitializer databaseInitializer,
+        IPermissionService permissions,
+        IAuthenticationService authentication,
         IOptions<ApplicationOptions> applicationOptions,
         ILogger<MainWindowViewModel> logger)
     {
@@ -60,10 +67,13 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _settingsService = settingsService;
         _dialogService = dialogService;
         _applicationInfo = applicationInfo;
+        _databaseInitializer = databaseInitializer;
+        _authentication = authentication;
         _applicationOptions = applicationOptions.Value;
         _logger = logger;
 
         Title = _applicationOptions.Name;
+        CurrentUserName = permissions.CurrentOperator.DisplayName;
 
         NavigationItems =
         [
@@ -73,8 +83,17 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             new ShellNavigationItem(ApplicationModule.Reports, "Reports", "Icon.Reports", typeof(ReportsViewModel)),
             new ShellNavigationItem(ApplicationModule.Masters, "Masters", "Icon.Masters", typeof(MastersViewModel)),
             new ShellNavigationItem(ApplicationModule.Settings, "Settings", "Icon.Settings", typeof(SettingsViewModel)),
-            new ShellNavigationItem(ApplicationModule.Administration, "Administration", "Icon.Administration", typeof(AdministrationViewModel)),
         ];
+
+        // Administration is user management and nothing else, so an operator without
+        // UsersManage has no reason to reach it. Evaluated once because the shell is only
+        // built after a successful login; the enforcement that actually stops a write is
+        // AdministrationViewModel.AuthoriseUserManagementAsync, not this list.
+        if (permissions.HasPermission(Permissions.UsersManage))
+        {
+            NavigationItems.Add(new ShellNavigationItem(
+                ApplicationModule.Administration, "Administration", "Icon.Administration", typeof(AdministrationViewModel)));
+        }
 
         _isNavigationCollapsed = _settingsService.Preferences.IsNavigationCollapsed;
 
@@ -87,6 +106,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         RefreshStatusCommand = new AsyncRelayCommand(
             () => _statusService.RefreshAsync(),
             onError: OnCommandFailed);
+        SignOutCommand = new AsyncRelayCommand(SignOutAsync, onError: OnCommandFailed);
 
         _navigationService.Navigated += OnNavigated;
     }
@@ -114,10 +134,18 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public string DisplayVersion => _applicationInfo.DisplayVersion;
 
     /// <summary>
-    /// Signed-in operator. Module 0.1 shows the Windows account; the Login module will
-    /// replace the source without changing this binding.
+    /// Signed-in operator, shown in the title bar.
     /// </summary>
-    public string CurrentUserName => _applicationInfo.CurrentUserName;
+    /// <remarks>
+    /// Read once, for the same reason the Administration item is: a shell exists only for
+    /// the duration of one session. Signing out closes this window and
+    /// <c>App</c> builds a new shell for whoever signs in next, so the operator cannot
+    /// change while this window exists — which is also what keeps the navigation rail
+    /// honest, since it is filtered by permission in the constructor. It used to report
+    /// <see cref="IApplicationInfoService.CurrentUserName"/> — the Windows account — which
+    /// on a shared terminal named the machine's login rather than whoever was signed in.
+    /// </remarks>
+    public string CurrentUserName { get; }
 
     /// <summary>Optional site label shown beside the product name.</summary>
     public string SiteName => _applicationOptions.SiteName;
@@ -172,13 +200,34 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     public ICommand RefreshStatusCommand { get; }
 
+    /// <summary>Signs the operator out and returns the terminal to the login dialog.</summary>
+    public ICommand SignOutCommand { get; }
+
+    /// <summary>
+    /// Raised once the operator has been signed out and the shell should close.
+    /// </summary>
+    /// <remarks>
+    /// The ViewModel cannot close a window, so the window subscribes to this and closes
+    /// itself. The window also records that the close was a sign-out, which is how
+    /// <c>App</c> tells "show the login dialog again" apart from "the operator is finished
+    /// and the process should end".
+    /// </remarks>
+    public event EventHandler? SignOutRequested;
+
     /// <summary>
     /// Opens the startup module and begins subsystem monitoring. Called once by the
     /// shell after the window is shown, so a slow first probe cannot delay display.
     /// </summary>
+    /// <remarks>
+    /// The database is prepared in the background from <c>App.OnStartup</c>, and the first
+    /// module to open reads from it, so the schema has to be waited for here. Without this
+    /// the first launch on a new machine raced the migration and the module opened onto
+    /// "no such table". Awaiting the initialiser joins that run rather than starting one.
+    /// </remarks>
     public async Task InitializeAsync()
     {
         await _statusService.StartMonitoringAsync().ConfigureAwait(true);
+        await _databaseInitializer.InitializeAsync().ConfigureAwait(true);
 
         var startup = ResolveStartupItem();
         await NavigateToItemAsync(startup).ConfigureAwait(true);
@@ -200,7 +249,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Prefers the module the operator last used, then the configured startup module,
-    /// and finally the first item — so a renamed or removed module cannot leave the
+    /// and finally the first item â€” so a renamed or removed module cannot leave the
     /// shell with nothing to show.
     /// </summary>
     private ShellNavigationItem ResolveStartupItem()
@@ -252,6 +301,42 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     private Task RefreshCurrentAsync() => _navigationService.RefreshAsync();
+
+    /// <summary>
+    /// Confirms, signs the operator out, and asks the window to close.
+    /// </summary>
+    /// <remarks>
+    /// Confirmed first because a weighbridge terminal is shared and the button sits next to
+    /// the clock: an accidental sign-out mid-weighment costs the operator the form they were
+    /// filling in.
+    ///
+    /// The identity is cleared before the window closes, so nothing that runs during
+    /// teardown — a queued save, a health probe — is authorised as the operator who has
+    /// just left.
+    /// </remarks>
+    private async Task SignOutAsync()
+    {
+        var confirmed = await _dialogService.ShowConfirmationAsync(
+            "Sign out?",
+            $"{CurrentUserName} will be signed out and the login screen will be shown. Unsaved work on the current page will be lost.",
+            "Sign out",
+            "Stay signed in").ConfigureAwait(true);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        // Persisted here rather than left to the window's Closed handler: the preferences are
+        // written by the same service the next session reads them from, and a sign-out is a
+        // natural save point.
+        await _settingsService.SaveAsync().ConfigureAwait(true);
+
+        _authentication.SignOut();
+        _logger.LogInformation("Operator signed out from the shell; returning to the login dialog");
+
+        SignOutRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     private void ToggleNavigation()
     {

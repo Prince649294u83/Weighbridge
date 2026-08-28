@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore.Storage;
 using WeighBridge.Core.Abstractions;
+using WeighBridge.Core.Security;
 using WeighBridge.Domain.Common;
 using WeighBridge.Infrastructure.Persistence;
 
@@ -10,9 +11,10 @@ namespace WeighBridge.Infrastructure.Repositories;
 /// EF Core unit of work. Owns one <see cref="WeighBridgeDbContext"/> and hands out
 /// repositories that share its change tracker.
 /// </summary>
-public sealed class UnitOfWork(WeighBridgeDbContext context) : IUnitOfWork
+public sealed class UnitOfWork(WeighBridgeDbContext context, SignedInOperator? signedInOperator = null) : IUnitOfWork
 {
     private readonly WeighBridgeDbContext _context = context ?? throw new ArgumentNullException(nameof(context));
+    private readonly SignedInOperator? _signedInOperator = signedInOperator;
     private readonly ConcurrentDictionary<Type, object> _repositories = new();
 
     private IDbContextTransaction? _transaction;
@@ -23,7 +25,7 @@ public sealed class UnitOfWork(WeighBridgeDbContext context) : IUnitOfWork
         where TEntity : EntityBase, IAggregateRoot
         => (IRepository<TEntity>)_repositories.GetOrAdd(
             typeof(TEntity),
-            _ => new EfRepository<TEntity>(_context));
+            _ => new EfRepository<TEntity>(_context, _signedInOperator));
 
     /// <inheritdoc />
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

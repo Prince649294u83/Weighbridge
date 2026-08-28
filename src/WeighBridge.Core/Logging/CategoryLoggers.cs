@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WeighBridge.Core.Application;
+using WeighBridge.Core.Security;
 
 namespace WeighBridge.Core.Logging;
 
@@ -12,8 +13,11 @@ namespace WeighBridge.Core.Logging;
 /// and cannot silently write into the audit trail. The behaviour lives entirely in
 /// <see cref="CategoryLoggerBase"/>; these only name their category.
 /// </remarks>
-public sealed class ApplicationLogger(ILoggerFactory loggerFactory, IApplicationInfoService applicationInfo)
-    : CategoryLoggerBase(LogCategory.Application, loggerFactory, applicationInfo);
+public sealed class ApplicationLogger(
+    ILoggerFactory loggerFactory,
+    IApplicationInfoService applicationInfo,
+    SignedInOperator? signedInOperator = null)
+    : CategoryLoggerBase(LogCategory.Application, loggerFactory, applicationInfo, signedInOperator);
 
 /// <summary>
 /// Weighbridge indicator, camera and printer traffic.
@@ -23,12 +27,18 @@ public sealed class ApplicationLogger(ILoggerFactory loggerFactory, IApplication
 /// reports a problem, and a support engineer needs to read the device conversation without
 /// the rest of the application's chatter interleaved.
 /// </remarks>
-public sealed class HardwareLogger(ILoggerFactory loggerFactory, IApplicationInfoService applicationInfo)
-    : CategoryLoggerBase(LogCategory.Hardware, loggerFactory, applicationInfo);
+public sealed class HardwareLogger(
+    ILoggerFactory loggerFactory,
+    IApplicationInfoService applicationInfo,
+    SignedInOperator? signedInOperator = null)
+    : CategoryLoggerBase(LogCategory.Hardware, loggerFactory, applicationInfo, signedInOperator);
 
 /// <summary>Database operations, timings and transaction outcomes.</summary>
-public sealed class DatabaseLogger(ILoggerFactory loggerFactory, IApplicationInfoService applicationInfo)
-    : CategoryLoggerBase(LogCategory.Database, loggerFactory, applicationInfo);
+public sealed class DatabaseLogger(
+    ILoggerFactory loggerFactory,
+    IApplicationInfoService applicationInfo,
+    SignedInOperator? signedInOperator = null)
+    : CategoryLoggerBase(LogCategory.Database, loggerFactory, applicationInfo, signedInOperator);
 
 /// <summary>
 /// Operator interaction: navigation, commands and dialogs.
@@ -39,8 +49,11 @@ public sealed class DatabaseLogger(ILoggerFactory loggerFactory, IApplicationInf
 /// noise otherwise — so the category is off in normal running and turned on when a site
 /// reports a problem.
 /// </remarks>
-public sealed class UIInteractionLogger(ILoggerFactory loggerFactory, IApplicationInfoService applicationInfo)
-    : CategoryLoggerBase(LogCategory.UserInterface, loggerFactory, applicationInfo)
+public sealed class UIInteractionLogger(
+    ILoggerFactory loggerFactory,
+    IApplicationInfoService applicationInfo,
+    SignedInOperator? signedInOperator = null)
+    : CategoryLoggerBase(LogCategory.UserInterface, loggerFactory, applicationInfo, signedInOperator)
 {
     /// <summary>Records a navigation between pages.</summary>
     public void Navigated(string from, string to)

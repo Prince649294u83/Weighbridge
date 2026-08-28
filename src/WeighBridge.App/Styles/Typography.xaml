@@ -88,6 +88,16 @@
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
 
+  <!--
+    Numeric identifier shown beside other content - a slip number next to the vehicle it
+    belongs to. Text.Numeric.Large is a full-width readout: nine monospaced characters at
+    the display size are over 200px, which leaves nothing for whatever sits next to it.
+  -->
+  <Style x:Key="Text.Numeric.Emphasis" TargetType="TextBlock" BasedOn="{StaticResource Text.Numeric}">
+    <Setter Property="FontSize" Value="{StaticResource Font.Size.Title}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
   <!-- Segoe Fluent Icons glyph. Content comes from Resources/Icons.xaml. -->
   <Style x:Key="Text.Icon" TargetType="TextBlock" BasedOn="{StaticResource Text.Base}">
     <Setter Property="FontFamily" Value="{StaticResource Font.Icons}" />

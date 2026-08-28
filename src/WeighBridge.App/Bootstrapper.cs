@@ -23,8 +23,8 @@ using WeighBridge.Printing.DependencyInjection;
 using WeighBridge.Reporting.DependencyInjection;
 using WeighBridge.Services.DependencyInjection;
 using WeighBridge.Services.Health;
-using WeighBridge.Settings.DependencyInjection;
 using WeighBridge.Settings.Configuration;
+using WeighBridge.Settings.DependencyInjection;
 
 namespace WeighBridge.App;
 
@@ -78,11 +78,16 @@ public sealed class Bootstrapper : IAsyncDisposable
 
         // 3. Configuration. Optional despite step 2: a file deleted between the two must
         //    still leave the application startable on the options classes' own defaults.
-        var configuration = new ConfigurationBuilder()
+        //    Secrets (camera passwords, server API keys) are stored DPAPI-protected in the
+        //    file and are decrypted into this view here, so no consumer ever sees the
+        //    protected form.
+        var rawConfiguration = new ConfigurationBuilder()
             .SetBasePath(_paths.DataRoot)
             .AddJsonFile(configurationFile, optional: true, reloadOnChange: true)
             .AddEnvironmentVariables("WEIGHBRIDGE_")
             .Build();
+
+        var configuration = SecretAwareConfiguration.WithDecryptedSecrets(rawConfiguration);
 
         // 4. Container.
         var fileLoggingOptions = ReadFileLoggingOptions(configuration);
@@ -100,6 +105,18 @@ public sealed class Bootstrapper : IAsyncDisposable
 
         _fileLoggerProvider = _services.GetService<FileLoggerProvider>();
         _logger = _services.GetRequiredService<ILogger<Bootstrapper>>();
+
+        // Fire-and-forget commands without a handler of their own report here, once:
+        // logged for the record and surfaced to the operator instead of vanishing into
+        // an unobserved task.
+        var notifications = _services.GetService<Core.Notifications.INotificationService>();
+        Core.Mvvm.AsyncRelayCommand.UnhandledExecutionError += ex =>
+        {
+            _logger.LogError(ex, "A screen action failed without its own error handler");
+            notifications?.NotifyError(
+                "Action failed",
+                "Something went wrong on this screen. The log has the detail.");
+        };
 
         var info = _services.GetRequiredService<IApplicationInfoService>();
 
@@ -121,14 +138,33 @@ public sealed class Bootstrapper : IAsyncDisposable
         // 6. Theme.
         _services.GetRequiredService<IThemeService>().Initialize();
 
-        // 7. Infrastructure background work. Registered and started here rather than by
-        //    the module that benefits from it, so every loop in the process has one owner
-        //    and shutdown has one place to stop them all.
+        _logger.LogInformation("Configuration, preferences and theme ready; awaiting database initialisation");
+
+        // Deliberately no background work started yet. The health task probes the database,
+        // and starting it here used to mean probing a database that had not been migrated —
+        // noisy errors before login on a cold machine. StartBackgroundTasksAsync is the
+        // caller's next step after InitializeDatabaseAsync succeeds.
+    }
+
+    /// <summary>
+    /// Starts the infrastructure background loops once the services they probe exist in a
+    /// usable state — after database initialisation, never before it.
+    /// </summary>
+    public void StartBackgroundTasks()
+    {
+        if (_services is null)
+        {
+            throw new InvalidOperationException("The bootstrapper has not been started yet.");
+        }
+
+        // Infrastructure background work. Registered and started here rather than by the
+        // module that benefits from it, so every loop in the process has one owner and
+        // shutdown has one place to stop them all.
         var tasks = _services.GetRequiredService<IBackgroundTaskManager>();
         tasks.Register(_services.GetRequiredService<HealthRefreshTask>());
         tasks.StartAll();
 
-        _logger.LogInformation("Background task manager started {Count} task(s)", tasks.Tasks.Count);
+        _logger?.LogInformation("Background task manager started {Count} task(s)", tasks.Tasks.Count);
     }
 
     /// <summary>
@@ -153,14 +189,15 @@ public sealed class Bootstrapper : IAsyncDisposable
     }
 
     /// <summary>
-    /// Prepares the database without blocking startup.
+    /// Prepares the database, and reports whether it is usable.
     /// </summary>
     /// <remarks>
-    /// Deliberately fire-and-forget from the caller's point of view: a database on a slow
-    /// network share must not hold the window off the screen. The status bar shows
-    /// "Disconnected" until the first probe lands, which is the honest state.
+    /// Awaited before the login dialog, because authentication queries the database. The
+    /// caller decides what a failure means; returning the result rather than swallowing it
+    /// is what lets startup stop with the database named, instead of continuing to a login
+    /// dialog whose first query throws.
     /// </remarks>
-    public async Task InitializeDatabaseAsync(CancellationToken cancellationToken = default)
+    public async Task<DatabaseInitializationResult> InitializeDatabaseAsync(CancellationToken cancellationToken = default)
     {
         var initializer = Services.GetRequiredService<IDatabaseInitializer>();
         var status = Services.GetRequiredService<ISystemStatusService>();
@@ -170,12 +207,14 @@ public sealed class Bootstrapper : IAsyncDisposable
         if (!result.Succeeded)
         {
             status.Database.Update(Domain.Enums.ConnectionState.Disconnected, result.Message);
-            return;
+            return result;
         }
 
         // Let the health check establish the state rather than assuming success here, so
         // the indicator and its tooltip come from a single source.
         await status.RefreshAsync(cancellationToken).ConfigureAwait(false);
+
+        return result;
     }
 
     /// <summary>
@@ -198,6 +237,12 @@ public sealed class Bootstrapper : IAsyncDisposable
 
             await _services.GetRequiredService<ISystemStatusService>().StopMonitoringAsync().ConfigureAwait(false);
 
+            // Hardware next, and here rather than left to the container: disposing the
+            // container is the last stage of shutdown and it takes the log writer with it,
+            // so a serial port released there is released after the completion marker with
+            // nothing able to record it.
+            await _services.GetRequiredService<IWeightIndicatorService>().DisconnectAsync().ConfigureAwait(false);
+
             // WindowPlacementService captures on Closing but defers the write, so the
             // save has to happen here - after the window is gone, before the log closes.
             await _services.GetRequiredService<IWindowPlacementService>().SaveAsync().ConfigureAwait(false);
@@ -210,6 +255,16 @@ public sealed class Bootstrapper : IAsyncDisposable
         }
 
         _logger?.LogInformation("==== Shutdown complete ====");
+
+        // The audit writer's queue drains through its own Dispose, which the container
+        // would call last — after the DbContext factory it needs was already disposed.
+        // Disposing it explicitly here guarantees the final records reach the database
+        // while every dependency is still alive.
+        if (_services.GetService<AuditLogger>() is { } auditLogger)
+        {
+            auditLogger.Dispose();
+        }
+
         _fileLoggerProvider?.Flush();
     }
 
@@ -271,9 +326,12 @@ public sealed class Bootstrapper : IAsyncDisposable
         services.AddSingleton<IWindowPlacementService, WindowPlacementService>();
         services.AddSingleton<IViewLocator, ViewLocator>();
 
-        // Shell.
-        services.AddSingleton<MainWindowViewModel>();
-        services.AddSingleton<MainWindow>();
+        // Shell. Transient, not singleton: signing out closes the shell and the next
+        // sign-in gets a new one. The navigation rail is filtered by permission in the
+        // ViewModel's constructor, so a shell held for the process lifetime would show the
+        // first operator's modules to everyone who signed in after them.
+        services.AddTransient<MainWindowViewModel>();
+        services.AddTransient<MainWindow>();
 
         // Module ViewModels. Transient so revisiting a module starts it clean; the
         // navigation service builds them through the container on every navigation.
@@ -284,6 +342,9 @@ public sealed class Bootstrapper : IAsyncDisposable
         services.AddTransient<MastersViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<AdministrationViewModel>();
+        
+        // Dialogs
+        services.AddTransient<LoginDialogViewModel>();
     }
 
     /// <summary>

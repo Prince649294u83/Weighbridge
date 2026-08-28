@@ -28,4 +28,15 @@ public interface IAuditLogger : IApplicationLogger
     /// is worth a supervisor's attention.
     /// </remarks>
     void RecordDenied(string action, string entity, string reason, string? entityId = null);
+
+    /// <summary>
+    /// Records an action that attempted real work and failed — not an operator typo, but
+    /// something that broke partway through.
+    /// </summary>
+    /// <remarks>
+    /// A failure is exactly when the trail matters most: data may have moved halfway and
+    /// nobody was told. Recorded alongside the success entries so a disputed day shows
+    /// what did and did not complete.
+    /// </remarks>
+    void RecordFailed(string action, string entity, string reason, string? entityId = null);
 }

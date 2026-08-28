@@ -7,8 +7,25 @@ namespace WeighBridge.Core.Mvvm;
 /// is running and surfaces faults through an optional error handler instead of
 /// crashing on an unobserved <see cref="Task"/> exception.
 /// </summary>
+/// <remarks>
+/// When a command was built without its own <c>onError</c> handler, faults go to
+/// <see cref="UnhandledExecutionError"/>. If nobody has subscribed there either, the
+/// exception is rethrown so tests see it — but the host is expected to subscribe at
+/// startup, which is what turns "fire-and-forget command failed silently" into a log
+/// entry and an operator-visible notification.
+/// </remarks>
 public sealed class AsyncRelayCommand : ICommand
 {
+    /// <summary>
+    /// Receives every fault from a command that carries no handler of its own.
+    /// The composition root subscribes once at startup.
+    /// </summary>
+    public static event Action<Exception>? UnhandledExecutionError;
+
+    internal static bool HasGlobalHandler() => UnhandledExecutionError is not null;
+
+    internal static void RaiseUnhandled(Exception exception) => UnhandledExecutionError?.Invoke(exception);
+
     private readonly Func<Task> _execute;
     private readonly Func<bool>? _canExecute;
     private readonly Action<Exception>? _onError;
@@ -63,9 +80,20 @@ public sealed class AsyncRelayCommand : ICommand
         {
             await _execute().ConfigureAwait(true);
         }
-        catch (Exception ex) when (_onError is not null)
+        catch (OperationCanceledException)
         {
-            _onError(ex);
+            // Cancellation is a decision, not a fault.
+        }
+        catch (Exception ex) when (_onError is not null || HasGlobalHandler())
+        {
+            if (_onError is not null)
+            {
+                _onError(ex);
+            }
+            else
+            {
+                RaiseUnhandled(ex);
+            }
         }
         finally
         {
@@ -139,9 +167,20 @@ public sealed class AsyncRelayCommand<T> : ICommand
         {
             await _execute(parameter).ConfigureAwait(true);
         }
-        catch (Exception ex) when (_onError is not null)
+        catch (OperationCanceledException)
         {
-            _onError(ex);
+            // Cancellation is a decision, not a fault.
+        }
+        catch (Exception ex) when (_onError is not null || AsyncRelayCommand.HasGlobalHandler())
+        {
+            if (_onError is not null)
+            {
+                _onError(ex);
+            }
+            else
+            {
+                AsyncRelayCommand.RaiseUnhandled(ex);
+            }
         }
         finally
         {

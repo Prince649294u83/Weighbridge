@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using System.Windows;
 using WeighBridge.Core.Settings;
@@ -13,7 +13,7 @@ namespace WeighBridge.App.Services;
 /// <remarks>
 /// The light and dark dictionaries declare an identical set of keys, so replacing one
 /// with the other re-colours every control that references those keys through
-/// <c>DynamicResource</c> — no restart, no reload of any view.
+/// <c>DynamicResource</c> â€” no restart, no reload of any view.
 /// </remarks>
 public sealed class ThemeService : IThemeService
 {
@@ -39,7 +39,6 @@ public sealed class ThemeService : IThemeService
     public AppTheme EffectiveTheme { get; private set; } = AppTheme.Light;
 
     /// <inheritdoc />
-    public event EventHandler<AppTheme>? ThemeChanged;
 
     /// <inheritdoc />
     public void Initialize() => ApplyInternal(_settingsService.Preferences.Theme, persist: false);
@@ -94,8 +93,6 @@ public sealed class ThemeService : IThemeService
             _settingsService.Preferences.Theme = theme;
             _ = _settingsService.SaveAsync();
         }
-
-        ThemeChanged?.Invoke(this, effective);
     }
 
     /// <summary>

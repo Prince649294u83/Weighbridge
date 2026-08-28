@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WeighBridge.Core.Application;
 
@@ -7,7 +8,7 @@ namespace WeighBridge.Settings.Configuration;
 
 /// <summary>
 /// Guarantees that a usable <c>appsettings.json</c> exists before the configuration
-/// system reads it.
+/// system reads it, and that secrets in it are not stored as plaintext.
 /// </summary>
 /// <remarks>
 /// The application must never fail to start because configuration is missing. This
@@ -35,7 +36,8 @@ public sealed class ConfigurationProvisioner(IApplicationPaths paths, ILogger<Co
     public ConfigurationProvisioningOutcome LastOutcome { get; private set; } = ConfigurationProvisioningOutcome.Unchanged;
 
     /// <summary>
-    /// Creates or repairs <c>appsettings.json</c> and returns its full path.
+    /// Creates or repairs <c>appsettings.json</c>, upgrades plaintext secrets to DPAPI-
+    /// protected values, and returns the file's full path.
     /// </summary>
     public string EnsureConfigurationFile()
     {
@@ -73,6 +75,21 @@ public sealed class ConfigurationProvisioner(IApplicationPaths paths, ILogger<Co
             {
                 LastOutcome = ConfigurationProvisioningOutcome.Unchanged;
             }
+
+            // A repaired or untouched file may still carry a secret in plaintext from an
+            // older build or a hand edit. Encrypt those in place; the host decrypts when
+            // configuration loads.
+            if (ProtectPlaintextSecrets(existing))
+            {
+                WriteAtomically(path, existing);
+
+                if (LastOutcome == ConfigurationProvisioningOutcome.Unchanged)
+                {
+                    LastOutcome = ConfigurationProvisioningOutcome.Secured;
+                }
+
+                _logger?.LogInformation("Protected one or more plaintext configuration secrets with DPAPI");
+            }
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
@@ -86,6 +103,51 @@ public sealed class ConfigurationProvisioner(IApplicationPaths paths, ILogger<Co
         }
 
         return path;
+    }
+
+    /// <summary>
+    /// Walks the document and replaces every plaintext value under a known secret key
+    /// with its DPAPI-protected form.
+    /// </summary>
+    /// <returns><c>true</c> when at least one value was encrypted.</returns>
+    internal bool ProtectPlaintextSecrets(JsonObject root)
+    {
+        var changed = false;
+        Visit(root, ref changed);
+        return changed;
+
+        static void Visit(JsonObject node, ref bool changed)
+        {
+            foreach (var (key, value) in node)
+            {
+                switch (value)
+                {
+                    case JsonObject child:
+                        Visit(child, ref changed);
+                        break;
+
+                    case JsonArray array:
+                        foreach (var item in array)
+                        {
+                            if (item is JsonObject itemObject)
+                            {
+                                Visit(itemObject, ref changed);
+                            }
+                        }
+                        break;
+
+                    case JsonValue primitive when
+                        primitive.TryGetValue<string>(out var text) &&
+                        SecretProtector.ProtectedLeafKeys.Contains(key, StringComparer.OrdinalIgnoreCase) &&
+                        !string.IsNullOrEmpty(text) &&
+                        !SecretProtector.IsProtected(text):
+
+                        node[key] = SecretProtector.Protect(text);
+                        changed = true;
+                        break;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -163,4 +225,57 @@ public enum ConfigurationProvisioningOutcome
 
     /// <summary>The file was unreadable; it was quarantined and regenerated.</summary>
     Recovered = 3,
+
+    /// <summary>Plaintext secrets were replaced with DPAPI-protected values.</summary>
+    Secured = 4,
+}
+
+/// <summary>
+/// Configuration helpers around secret decryption for hosts.
+/// </summary>
+public static class SecretAwareConfiguration
+{
+    /// <summary>
+    /// Returns a configuration view of <paramref name="source"/> in which every leaf whose
+    /// value carries the <see cref="SecretProtector.Prefix"/> has been decrypted. A value
+    /// that cannot be decrypted — written by another user profile or machine — decrypts
+    /// to empty so the terminal starts and reports the subsystem unconfigured instead of
+    /// failing on startup.
+    /// </summary>
+    public static IConfiguration WithDecryptedSecrets(IConfiguration source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        var flattened = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        Flatten(source, string.Empty, flattened);
+
+        foreach (var key in flattened.Keys.ToList())
+        {
+            var value = flattened[key];
+
+            if (SecretProtector.IsProtected(value))
+            {
+                flattened[key] = SecretProtector.TryUnprotect(value) ?? string.Empty;
+            }
+        }
+
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(flattened!)
+            .Build();
+    }
+
+    private static void Flatten(IConfiguration source, string prefix, Dictionary<string, string?> target)
+    {
+        foreach (var child in source.GetChildren())
+        {
+            var path = prefix.Length == 0 ? child.Key : $"{prefix}:{child.Key}";
+
+            if (child.Value is not null || !child.GetChildren().Any())
+            {
+                target[path] = child.Value;
+            }
+
+            Flatten(child, path, target);
+        }
+    }
 }

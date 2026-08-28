@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Settings;
 using WeighBridge.Settings.Configuration;
 using WeighBridge.Settings.Services;
@@ -15,6 +16,7 @@ public static class SettingsServiceCollectionExtensions
 
         services.AddSingleton<ConfigurationProvisioner>();
         services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<IConfigurationWriter, JsonConfigurationWriter>();
 
         return services;
     }

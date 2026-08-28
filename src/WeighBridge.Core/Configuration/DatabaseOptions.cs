@@ -4,16 +4,15 @@ namespace WeighBridge.Core.Configuration;
 /// Bound to the <c>Database</c> section of <c>appsettings.json</c>.
 /// </summary>
 /// <remarks>
-/// Module 0.1 provisions a SQLite connection only — no tables are mapped. The
-/// provider is captured as a string so a later module can switch to SQL Server
-/// without changing the configuration shape.
+/// SQLite is the shipping engine. The provider is captured as a string so a later
+/// module can switch to SQL Server without changing the configuration shape.
 /// </remarks>
 public sealed class DatabaseOptions
 {
     /// <summary>Configuration section name.</summary>
     public const string SectionName = "Database";
 
-    /// <summary>Database engine. Only <c>Sqlite</c> is supported in Module 0.1.</summary>
+    /// <summary>Database engine. Only <c>Sqlite</c> is implemented.</summary>
     public string Provider { get; set; } = "Sqlite";
 
     /// <summary>

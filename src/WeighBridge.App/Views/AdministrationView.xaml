@@ -1,7 +1,199 @@
-<!--  Placeholder shell for the Administration module. Replace the hosted control with the real layout when the module is built.  -->
 <UserControl x:Class="WeighBridge.App.Views.AdministrationView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="clr-namespace:WeighBridge.App.Views">
-  <views:ModulePlaceholderView />
+             xmlns:controls="clr-namespace:WeighBridge.App.Controls"
+             xmlns:converters="clr-namespace:WeighBridge.App.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=viewModels:AdministrationViewModel}"
+             d:DesignHeight="700"
+             d:DesignWidth="1000"
+             mc:Ignorable="d">
+
+  <UserControl.Resources>
+    <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
+    <converters:InverseBooleanToVisibilityConverter x:Key="Converter.InverseBooleanToVisibility" />
+
+    <Style x:Key="Field.Label"
+           BasedOn="{StaticResource Text.Label}"
+           TargetType="TextBlock">
+      <Setter Property="Margin" Value="0,10,0,4" />
+    </Style>
+
+    <Style x:Key="StatusLine.Accent" TargetType="Border">
+      <Setter Property="Background" Value="{DynamicResource Brush.Neutral.Default}" />
+      <Setter Property="CornerRadius" Value="2" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Information">
+          <Setter Property="Background" Value="{DynamicResource Brush.Info.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Success">
+          <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Warning">
+          <Setter Property="Background" Value="{DynamicResource Brush.Warning.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Danger">
+          <Setter Property="Background" Value="{DynamicResource Brush.Danger.Default}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </UserControl.Resources>
+
+  <Grid Margin="{StaticResource Thickness.PageContent}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- Header -->
+    <controls:SectionHeader Grid.Row="0"
+                            Description="{Binding Description}"
+                            Icon="{StaticResource Icon.Administration}"
+                            ShowSeparator="True"
+                            Title="{Binding Title}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <Button Command="{Binding RefreshCommand}"
+                  Content="Refresh"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Secondary}" />
+          <Button Command="{Binding NewUserCommand}"
+                  Content="+ Add User"
+                  Style="{StaticResource Button.Primary}" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <!-- Main Workspace -->
+    <Grid Grid.Row="1" Margin="0,16,0,12">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <!-- Editor panel width (animated width not strictly needed, standard sizing used) -->
+        <ColumnDefinition Width="340" />
+      </Grid.ColumnDefinitions>
+
+      <!-- Users Grid -->
+      <DataGrid Grid.Column="0"
+                ItemsSource="{Binding Users}"
+                SelectedItem="{Binding SelectedUser}"
+                Style="{StaticResource DataGrid.Default}">
+        <DataGrid.Columns>
+          <DataGridTextColumn Binding="{Binding Username}" Header="Username" Width="150" />
+          <DataGridTextColumn Binding="{Binding DisplayName}" Header="Display Name" Width="200" />
+          <DataGridTextColumn Binding="{Binding RoleName}" Header="Role" Width="150" />
+          <!--
+            OneWay is required, not cosmetic: CheckBox.IsChecked binds two-way by
+            default, and User.IsActive has a private setter, so the default mode throws
+            InvalidOperationException as soon as a row is realised. The grid is a list;
+            activation is edited through the form on the right.
+          -->
+          <DataGridCheckBoxColumn Binding="{Binding IsActive, Mode=OneWay}" Header="Active" Width="80" />
+        </DataGrid.Columns>
+      </DataGrid>
+
+      <!-- User Editor Panel -->
+      <Border Grid.Column="1"
+              Background="{DynamicResource Brush.Surface.Card}"
+              BorderBrush="{DynamicResource Brush.Border.Subtle}"
+              BorderThickness="1,0,0,0"
+              Margin="16,0,0,0"
+              Padding="16"
+              Visibility="{Binding IsEditing, Converter={StaticResource Converter.BooleanToVisibility}}">
+        
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <!-- Edit Header -->
+          <TextBlock Grid.Row="0"
+                     FontWeight="SemiBold"
+                     Margin="0,0,0,16"
+                     Style="{StaticResource Text.Subtitle}"
+                     Text="{Binding FormTitle}" />
+
+          <!-- Form Fields -->
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              
+              <TextBlock Style="{StaticResource Field.Label}" Text="Username *" />
+              <TextBox Style="{StaticResource TextBox.Default}" 
+                       Text="{Binding FormUsername, UpdateSourceTrigger=PropertyChanged}" 
+                       MaxLength="64" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Display Name *" />
+              <TextBox Style="{StaticResource TextBox.Default}" 
+                       Text="{Binding FormDisplayName, UpdateSourceTrigger=PropertyChanged}"
+                       MaxLength="128" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Password" />
+              <!-- A PasswordBox, not a TextBox: this form is used at the weighbridge counter,
+                   and the operator's new password was displayed in clear text to whoever was
+                   standing at the window. PasswordBox.Password is deliberately not bindable,
+                   so the code-behind carries it to the view model - the same arrangement the
+                   login dialog uses. -->
+              <PasswordBox x:Name="FormPasswordBox"
+                           PasswordChanged="OnFormPasswordChanged"
+                           Style="{StaticResource PasswordBox.Default}" />
+              <TextBlock Foreground="{DynamicResource Brush.Text.Tertiary}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                         Text="Required for new users. Leave empty when editing to keep current password." />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Role *" />
+              <ComboBox DisplayMemberPath="Name"
+                        ItemsSource="{Binding AvailableRoles}"
+                        SelectedItem="{Binding FormSelectedRole}"
+                        Style="{StaticResource ComboBox.Default}" />
+
+              <CheckBox Content="Account is Active"
+                        IsChecked="{Binding FormIsActive}"
+                        Margin="0,16,0,0" />
+
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- Action Buttons -->
+          <StackPanel Grid.Row="2" Margin="0,16,0,0">
+            <Button Command="{Binding SaveUserCommand}"
+                    Content="{Binding FormSaveLabel}"
+                    Style="{StaticResource Button.Primary}" />
+            
+            <Button Command="{Binding CancelEditCommand}"
+                    Content="Cancel"
+                    Margin="0,8,0,0"
+                    Style="{StaticResource Button.Secondary}" />
+            
+            <Separator Margin="0,12" />
+            
+            <!-- Quick actions -->
+            <Button Command="{Binding DisableUserCommand}"
+                    CommandParameter="{Binding SelectedUser}"
+                    Content="Disable User"
+                    Style="{StaticResource Button.Danger}"
+                    Visibility="{Binding SelectedUser.IsActive, FallbackValue=Collapsed, Converter={StaticResource Converter.BooleanToVisibility}}" />
+            
+            <Button Command="{Binding EnableUserCommand}"
+                    CommandParameter="{Binding SelectedUser}"
+                    Content="Enable User"
+                    Style="{StaticResource Button.Secondary}"
+                    Visibility="{Binding SelectedUser.IsActive, FallbackValue=Collapsed, Converter={StaticResource Converter.InverseBooleanToVisibility}}" />
+          </StackPanel>
+
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Status Bar Area -->
+    <Border Grid.Row="2"
+            Padding="8,6"
+            Style="{StaticResource StatusLine.Accent}">
+      <TextBlock Foreground="{DynamicResource Brush.Text.OnAccent}"
+                 Text="{Binding StatusMessage}" />
+    </Border>
+
+  </Grid>
 </UserControl>

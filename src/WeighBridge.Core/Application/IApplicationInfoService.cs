@@ -26,8 +26,15 @@ public interface IApplicationInfoService
     string MachineName { get; }
 
     /// <summary>
-    /// Name shown in the title bar. Module 0.1 reports the Windows account; the Login
-    /// module will replace this with the authenticated operator.
+    /// The Windows account the application is running under.
     /// </summary>
+    /// <remarks>
+    /// Not the operator. The title bar and the log enrichment both used to read this, which
+    /// is how every audit entry came to name the terminal's Windows account rather than
+    /// whoever had signed in; both now take the operator from
+    /// <c>IPermissionService.CurrentOperator</c>. What remains here is the terminal's own
+    /// identity, which is the right answer for diagnostics and for an entry written before
+    /// anyone signed in.
+    /// </remarks>
     string CurrentUserName { get; }
 }

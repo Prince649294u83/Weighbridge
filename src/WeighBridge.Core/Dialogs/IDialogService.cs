@@ -39,4 +39,9 @@ public interface IDialogService
     /// reporter it can use to publish percentage and status updates.
     /// </summary>
     Task ShowProgressAsync(string title, Func<IProgressReporter, Task> operation, bool isCancellable = false);
+
+    /// <summary>
+    /// Shows a modal login dialog. Returns true if the user authenticated successfully.
+    /// </summary>
+    Task<bool> ShowLoginAsync();
 }

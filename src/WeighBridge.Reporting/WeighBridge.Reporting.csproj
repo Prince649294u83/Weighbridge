@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WeighBridge.Core\WeighBridge.Core.csproj" />
+    <ProjectReference Include="..\WeighBridge.Domain\WeighBridge.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

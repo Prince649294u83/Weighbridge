@@ -7,7 +7,9 @@
   -->
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>WeighBridge.Printing</RootNamespace>
     <AssemblyName>WeighBridge.Printing</AssemblyName>
   </PropertyGroup>

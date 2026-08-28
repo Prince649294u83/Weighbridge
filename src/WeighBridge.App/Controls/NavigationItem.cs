@@ -74,4 +74,62 @@ public sealed class NavigationItem : RadioButton
         get => (string)GetValue(BadgeTextProperty);
         set => SetValue(BadgeTextProperty, value);
     }
+
+    protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer()
+        => new NavigationItemAutomationPeer(this);
+}
+
+public sealed class NavigationItemAutomationPeer : System.Windows.Automation.Peers.RadioButtonAutomationPeer,
+    System.Windows.Automation.Provider.IInvokeProvider,
+    System.Windows.Automation.Provider.ISelectionItemProvider
+{
+    public NavigationItemAutomationPeer(NavigationItem owner)
+        : base(owner)
+    {
+    }
+
+    public override object? GetPattern(System.Windows.Automation.Peers.PatternInterface patternInterface)
+    {
+        if (patternInterface == System.Windows.Automation.Peers.PatternInterface.Invoke ||
+            patternInterface == System.Windows.Automation.Peers.PatternInterface.SelectionItem)
+        {
+            return this;
+        }
+
+        return base.GetPattern(patternInterface);
+    }
+
+    public void Invoke()
+    {
+        if (!IsEnabled())
+        {
+            throw new System.Windows.Automation.ElementNotEnabledException();
+        }
+
+        if (Owner is NavigationItem item)
+        {
+            item.IsChecked = true;
+            if (item.Command?.CanExecute(item.CommandParameter) == true)
+            {
+                item.Command.Execute(item.CommandParameter);
+            }
+        }
+    }
+
+    void System.Windows.Automation.Provider.ISelectionItemProvider.Select()
+    {
+        if (!IsEnabled())
+        {
+            throw new System.Windows.Automation.ElementNotEnabledException();
+        }
+
+        if (Owner is NavigationItem item)
+        {
+            item.IsChecked = true;
+            if (item.Command?.CanExecute(item.CommandParameter) == true)
+            {
+                item.Command.Execute(item.CommandParameter);
+            }
+        }
+    }
 }

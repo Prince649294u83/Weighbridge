@@ -3,21 +3,31 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
+using WeighBridge.Core.Busy;
+using WeighBridge.Core.Commands;
 using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Events;
 using WeighBridge.Core.Health;
 using WeighBridge.Core.Navigation;
 using WeighBridge.Core.Notifications;
+using WeighBridge.Core.Security;
 using WeighBridge.Core.Status;
 using WeighBridge.Core.Tasks;
 using WeighBridge.Core.Threading;
+using WeighBridge.Core.Undo;
 using WeighBridge.Infrastructure.Persistence;
+using WeighBridge.Services.Busy;
+using WeighBridge.Services.Commands;
 using WeighBridge.Services.Events;
 using WeighBridge.Services.Health;
 using WeighBridge.Services.Navigation;
 using WeighBridge.Services.Notifications;
+using WeighBridge.Services.Undo;
+using WeighBridge.Services.Security;
 using WeighBridge.Services.Status;
 using WeighBridge.Services.Tasks;
+using WeighBridge.Services.Masters;
+using WeighBridge.Services.Weighments;
 
 namespace WeighBridge.Services.DependencyInjection;
 
@@ -56,6 +66,27 @@ public static class ServicesServiceCollectionExtensions
         services.AddSingleton<BackgroundTaskManager>();
         services.AddSingleton<IBackgroundTaskManager>(provider => provider.GetRequiredService<BackgroundTaskManager>());
 
+        // One busy state. Two instances would each believe the application was idle while
+        // the other held an operation, and the indicator would flicker between them.
+        services.AddSingleton<BusyStateService>();
+        services.AddSingleton<IBusyStateService>(provider => provider.GetRequiredService<BusyStateService>());
+
+        // One undo history per application. It is scoped by the operator's current context,
+        // not by module, so a weighment started on one page can be corrected from another.
+        services.AddSingleton<UndoManager>();
+        services.AddSingleton<IUndoManager>(provider => provider.GetRequiredService<UndoManager>());
+
+        // One permission state. Before the login system exists, the role is configuration;
+        // when a real operator table arrives, only this registration changes.
+        services.AddSingleton<PermissionService>();
+        services.AddSingleton<IPermissionService>(provider => provider.GetRequiredService<PermissionService>());
+
+        // Authentication service
+        services.AddSingleton<IAuthenticationService, AuthenticationService>();
+
+        // The command pipeline. A singleton because it is stateless per execution.
+        services.AddSingleton<ICommandExecutor, CommandExecutor>();
+
         // One health monitor: a subsystem's availability is a single fact, and two monitors
         // probing the same serial port would both be wrong about it.
         services.AddSingleton<HealthMonitorService>();
@@ -66,6 +97,14 @@ public static class ServicesServiceCollectionExtensions
         // with the manager and starting it is the host's call, not this method's.
         services.AddSingleton<HealthRefreshTask>();
 
+        // Business services.
+        services.AddSingleton<Func<IUnitOfWork>>(provider => provider.GetRequiredService<IUnitOfWork>);
+        services.AddSingleton<IWeighmentService, WeighmentService>();
+        services.AddSingleton<IVehicleTypeService, VehicleTypeService>();
+        services.AddSingleton<IVehicleService, VehicleService>();
+        services.AddSingleton<IPartyService, PartyService>();
+        services.AddSingleton<IMaterialService, MaterialService>();
+
         // SystemStatusService needs the database probe specifically; resolving
         // IHealthCheck by interface would be ambiguous once other checks register.
         services.AddSingleton<ISystemStatusService>(provider => new SystemStatusService(
@@ -74,7 +113,8 @@ public static class ServicesServiceCollectionExtensions
             provider.GetRequiredService<IPrintService>(),
             provider.GetRequiredService<IServerConnectivityService>(),
             provider.GetRequiredService<IOptions<DatabaseOptions>>(),
-            provider.GetRequiredService<ILogger<SystemStatusService>>()));
+            provider.GetRequiredService<ILogger<SystemStatusService>>(),
+            provider.GetRequiredService<IUiDispatcher>()));
 
         return services;
     }

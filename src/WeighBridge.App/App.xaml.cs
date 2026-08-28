@@ -43,9 +43,13 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        // The shell is the application: closing it ends the process, and no dialog
-        // opened along the way can keep it alive.
-        ShutdownMode = ShutdownMode.OnMainWindowClose;
+        // Startup shows the login dialog before any shell exists, and WPF makes the
+        // first Window it sees the MainWindow. Under OnMainWindowClose that means
+        // dismissing the login dialog shuts the application down before the shell can
+        // open. It also means a sign-out - which closes the shell to get back to the
+        // login dialog - would end the process. Explicit throughout: RunSessionsAsync
+        // decides when the application is finished.
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
     }
 
     /// <inheritdoc />
@@ -60,20 +64,106 @@ public partial class App : Application
             _logger = _bootstrapper.Services.GetRequiredService<ILogger<App>>();
             _dialogService = _bootstrapper.Services.GetRequiredService<IDialogService>();
 
-            var shell = _bootstrapper.CreateShell();
-            MainWindow = shell;
-            shell.Show();
+            // Awaited, and its result acted on: authentication queries the database, so a
+            // login dialog over a database that could not be opened is a dialog whose first
+            // query throws. Stopping here names the database; the catch below could only
+            // report "startup failed".
+            var database = await _bootstrapper.InitializeDatabaseAsync();
 
-            _logger.LogInformation("Application shell displayed; startup complete");
+            if (!database.Succeeded)
+            {
+                _logger.LogCritical(
+                    database.Error,
+                    "Startup stopped because the database is not usable: {Message}", database.Message);
 
-            // After the window is on screen: a database on a slow network share must not
-            // delay the operator seeing the application.
-            _ = InitializeDatabaseAsync();
+                await _dialogService.ShowErrorAsync(
+                    "WeighBridge cannot open its database",
+                    database.Message,
+                    database.Error?.ToString());
+
+                Shutdown(-1);
+                return;
+            }
+
+            // Only now that the database is usable do the background probes start — the
+            // health task queries the database, and starting it earlier used to mean a
+            // probe racing the migration on every cold start.
+            _bootstrapper.StartBackgroundTasks();
+
+            await RunSessionsAsync();
+
+            Shutdown(0);
         }
         catch (Exception ex)
         {
             await ReportStartupFailureAsync(ex);
             Shutdown(-1);
+        }
+    }
+
+    /// <summary>
+    /// Runs one login-and-shell session after another until the operator either cancels the
+    /// login dialog or closes the shell for good.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A loop rather than a single sign-in because sign-out has to return the terminal to the
+    /// login screen without ending the process — the shift changes, the database and the
+    /// background tasks do not.
+    /// </para>
+    /// <para>
+    /// Each session gets a brand-new shell, which is why <c>MainWindow</c> and
+    /// <c>MainWindowViewModel</c> are transient. The navigation rail is filtered by
+    /// permission in the ViewModel's constructor, so reusing one shell across sign-ins would
+    /// leave the previous operator's modules on screen for the next one.
+    /// </para>
+    /// <para>
+    /// <see cref="Application.ShutdownMode"/> stays <see cref="ShutdownMode.OnExplicitShutdown"/>
+    /// throughout. Under <c>OnMainWindowClose</c> a sign-out would end the process rather than
+    /// return to the login dialog, and during startup the login dialog itself would have
+    /// become the main window.
+    /// </para>
+    /// </remarks>
+    private async Task RunSessionsAsync()
+    {
+        // Both are set immediately after the bootstrapper starts, and this is only reached
+        // afterwards. Captured once so the loop is not littered with null-forgiving operators.
+        var logger = _logger!;
+        var dialogs = _dialogService!;
+
+        while (true)
+        {
+            var authenticated = await dialogs.ShowLoginAsync();
+            if (!authenticated)
+            {
+                logger.LogInformation("Login cancelled or failed; terminating application");
+                return;
+            }
+
+            var shell = _bootstrapper.CreateShell();
+            MainWindow = shell;
+
+            // Completed by the window's own Closed event, so this method resumes when the
+            // session is genuinely over rather than when Show() returns.
+            var closed = new TaskCompletionSource();
+            shell.Closed += (_, _) => closed.TrySetResult();
+
+            shell.Show();
+            logger.LogInformation("Application shell displayed; startup complete");
+
+            await closed.Task;
+
+            if (!shell.SignOutRequested)
+            {
+                logger.LogInformation("The shell was closed; the application is exiting");
+                return;
+            }
+
+            // The window is gone but WPF still holds it as MainWindow, and a stale reference
+            // there confuses anything that asks the application for its main window.
+            MainWindow = null;
+
+            logger.LogInformation("Operator signed out; returning to the login dialog");
         }
     }
 
@@ -95,22 +185,7 @@ public partial class App : Application
         base.OnSessionEnding(e);
     }
 
-    /// <summary>
-    /// Runs database preparation off the startup path, reporting failure to the status
-    /// bar instead of to the operator: a missing database is a condition to display, not
-    /// an error to interrupt with.
-    /// </summary>
-    private async Task InitializeDatabaseAsync()
-    {
-        try
-        {
-            await _bootstrapper.InitializeDatabaseAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Background database initialisation failed");
-        }
-    }
+
 
     /// <summary>
     /// Persists state and flushes the log exactly once, however shutdown was reached.
@@ -244,7 +319,7 @@ public partial class App : Application
 
         try
         {
-            var dialogs = _dialogService ?? new DialogService(NullLogger<DialogService>.Instance);
+            var dialogs = _dialogService ?? new DialogService(NullLogger<DialogService>.Instance, null!);
 
             await dialogs.ShowErrorAsync(
                 "WeighBridge could not start",

@@ -56,10 +56,20 @@ public static class InfrastructureServiceCollectionExtensions
             provider.GetRequiredService<IDbContextFactory<WeighBridgeDbContext>>().CreateDbContext());
 
         services.AddTransient<IUnitOfWork, UnitOfWork>();
+
+        // Read-only consumers only. Because the context above is transient, an injected
+        // IRepository<T> owns a different change tracker from an injected IUnitOfWork, so
+        // staging a write on the repository and calling SaveChangesAsync on the unit of
+        // work saves nothing and reports no error. Anything that writes must take
+        // Func<IUnitOfWork> and get its repository from unitOfWork.Repository<T>().
         services.AddTransient(typeof(IRepository<>), typeof(EfRepository<>));
 
         services.AddSingleton<IDatabaseInitializer, DatabaseInitializer>();
         services.AddSingleton<DatabaseHealthCheck>();
+
+        // The durable audit trail. Depends on Func<IUnitOfWork>, which the services layer
+        // registers; resolution happens when first used, not now.
+        services.AddSingleton<Core.Logging.IAuditStore, Persistence.Auditing.DatabaseAuditStore>();
 
         return services;
     }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Status;
+using WeighBridge.Core.Threading;
 using WeighBridge.Domain.Enums;
 
 namespace WeighBridge.Services.Status;
@@ -15,7 +16,9 @@ namespace WeighBridge.Services.Status;
 /// Every subsystem starts as <see cref="ConnectionState.Disconnected"/> and is only
 /// promoted once a probe actually succeeds — the status bar never claims a connection
 /// the application has not verified. Probes run concurrently and are individually
-/// guarded, so one slow subsystem cannot stall the others.
+/// guarded, so one slow subsystem cannot stall the others. Probe results are marshalled
+/// onto the user-interface thread before they touch the observable status objects,
+/// which the shell's bindings read directly.
 /// </remarks>
 public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
 {
@@ -25,8 +28,10 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
     private readonly IServerConnectivityService _serverConnectivity;
     private readonly DatabaseOptions _databaseOptions;
     private readonly ILogger<SystemStatusService> _logger;
+    private readonly IUiDispatcher _dispatcher;
 
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private readonly object _monitorGate = new();
 
     private CancellationTokenSource? _monitorCancellation;
     private Task? _monitorTask;
@@ -38,7 +43,8 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
         IPrintService printService,
         IServerConnectivityService serverConnectivity,
         IOptions<DatabaseOptions> databaseOptions,
-        ILogger<SystemStatusService> logger)
+        ILogger<SystemStatusService> logger,
+        IUiDispatcher? dispatcher = null)
     {
         _databaseCheck = databaseCheck;
         _weightIndicator = weightIndicator;
@@ -46,6 +52,7 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
         _serverConnectivity = serverConnectivity;
         _databaseOptions = databaseOptions.Value;
         _logger = logger;
+        _dispatcher = dispatcher ?? new ImmediateUiDispatcher();
 
         Application = new SubsystemStatus("Application", ConnectionState.Connected)
         {
@@ -105,35 +112,52 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
     /// <inheritdoc />
     public Task StartMonitoringAsync(CancellationToken cancellationToken = default)
     {
-        if (_monitorTask is not null)
+        // Two overlapping calls would each spawn a loop and the first pair would become
+        // unreachable — unstoppable until process exit.
+        lock (_monitorGate)
         {
+            if (_monitorTask is not null)
+            {
+                return Task.CompletedTask;
+            }
+
+            var interval = TimeSpan.FromSeconds(Math.Max(5, _databaseOptions.HealthCheckIntervalSeconds));
+
+            _monitorCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _monitorTask = MonitorLoopAsync(interval, _monitorCancellation.Token);
+
+            _logger.LogInformation("Subsystem monitoring started with a {Interval} interval", interval);
             return Task.CompletedTask;
         }
-
-        var interval = TimeSpan.FromSeconds(Math.Max(5, _databaseOptions.HealthCheckIntervalSeconds));
-
-        _monitorCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _monitorTask = MonitorLoopAsync(interval, _monitorCancellation.Token);
-
-        _logger.LogInformation("Subsystem monitoring started with a {Interval} interval", interval);
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public async Task StopMonitoringAsync()
     {
-        if (_monitorCancellation is null)
+        CancellationTokenSource? cancellation;
+        Task? monitor;
+
+        lock (_monitorGate)
         {
-            return;
+            cancellation = _monitorCancellation;
+            monitor = _monitorTask;
+
+            if (cancellation is null)
+            {
+                return;
+            }
+
+            _monitorCancellation = null;
+            _monitorTask = null;
         }
 
-        await _monitorCancellation.CancelAsync().ConfigureAwait(false);
+        await cancellation.CancelAsync().ConfigureAwait(false);
 
-        if (_monitorTask is not null)
+        if (monitor is not null)
         {
             try
             {
-                await _monitorTask.ConfigureAwait(false);
+                await monitor.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -141,9 +165,7 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
             }
         }
 
-        _monitorCancellation.Dispose();
-        _monitorCancellation = null;
-        _monitorTask = null;
+        cancellation.Dispose();
 
         _logger.LogInformation("Subsystem monitoring stopped");
     }
@@ -181,7 +203,10 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
 
     /// <summary>
     /// Runs one health check and copies the outcome onto the observable status. A
-    /// misbehaving check can never take the monitoring loop down.
+    /// misbehaving check can never take the monitoring loop down, and the copy lands on
+    /// the user-interface thread — these objects are bound directly by the shell, and a
+    /// PropertyChanged raised on a pool thread is an <see cref="InvalidOperationException"/>
+    /// waiting for the next timer tick.
     /// </summary>
     private async Task ProbeAsync(SubsystemStatus status, IHealthCheck check, CancellationToken cancellationToken)
     {
@@ -195,18 +220,7 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
                 ? $"{result.Detail} ({latency.TotalMilliseconds:F0} ms)"
                 : result.Detail;
 
-            var previousState = status.State;
-            status.Update(result.State, detail);
-
-            if (previousState != result.State)
-            {
-                _logger.LogInformation(
-                    "{Subsystem} status changed from {Previous} to {Current}: {Detail}",
-                    status.Name,
-                    previousState,
-                    result.State,
-                    detail);
-            }
+            Apply(status, result.State, detail);
         }
         catch (OperationCanceledException)
         {
@@ -215,7 +229,24 @@ public sealed class SystemStatusService : ISystemStatusService, IAsyncDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Health check for {Subsystem} threw", status.Name);
-            status.Update(ConnectionState.Disconnected, ex.Message);
+            Apply(status, ConnectionState.Disconnected, ex.Message);
+        }
+    }
+
+    private void Apply(SubsystemStatus status, ConnectionState state, string detail)
+    {
+        var previousState = status.State;
+
+        _dispatcher.Post(() => status.Update(state, detail));
+
+        if (previousState != state)
+        {
+            _logger.LogInformation(
+                "{Subsystem} status changed from {Previous} to {Current}: {Detail}",
+                status.Name,
+                previousState,
+                state,
+                detail);
         }
     }
 }

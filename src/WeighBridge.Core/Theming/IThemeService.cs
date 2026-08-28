@@ -1,4 +1,4 @@
-namespace WeighBridge.Core.Theming;
+﻿namespace WeighBridge.Core.Theming;
 
 /// <summary>
 /// Applies and persists the active visual theme.
@@ -9,13 +9,10 @@ public interface IThemeService
     AppTheme CurrentTheme { get; }
 
     /// <summary>
-    /// The theme actually rendered — <see cref="AppTheme.System"/> resolved against the
+    /// The theme actually rendered â€” <see cref="AppTheme.System"/> resolved against the
     /// current Windows personalisation setting.
     /// </summary>
     AppTheme EffectiveTheme { get; }
-
-    /// <summary>Raised after the effective theme changed.</summary>
-    event EventHandler<AppTheme>? ThemeChanged;
 
     /// <summary>Loads the persisted theme and applies it. Called once during startup.</summary>
     void Initialize();

@@ -18,7 +18,7 @@
     <ProjectReference Include="..\WeighBridge.Domain\WeighBridge.Domain.csproj" />
     <ProjectReference Include="..\WeighBridge.Hardware\WeighBridge.Hardware.csproj" />
     <ProjectReference Include="..\WeighBridge.Infrastructure\WeighBridge.Infrastructure.csproj" />
-    <ProjectReference Include="..\WeighBridge.Printing\WeighBridge.Printing.csproj" />
+
     <ProjectReference Include="..\WeighBridge.Reporting\WeighBridge.Reporting.csproj" />
     <ProjectReference Include="..\WeighBridge.Settings\WeighBridge.Settings.csproj" />
   </ItemGroup>

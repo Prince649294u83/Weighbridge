@@ -1,7 +1,470 @@
-<!--  Placeholder shell for the Masters module. Replace the hosted control with the real layout when the module is built.  -->
+<!--
+  MastersView.xaml
+
+  The Master Data workspace. Tabbed workspace for maintaining:
+    - Vehicles (with registration, vehicle type, standard tare weight, remarks)
+    - Parties (with name, code, address, contact, email, remarks)
+    - Materials (with name, code, description)
+    - Vehicle Types (with type name, description)
+
+  Includes instant search, active/all filter, creation/edit card panel,
+  soft deactivation/reactivation lifecycle, and status reporting.
+-->
 <UserControl x:Class="WeighBridge.App.Views.MastersView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="clr-namespace:WeighBridge.App.Views">
-  <views:ModulePlaceholderView />
+             xmlns:controls="clr-namespace:WeighBridge.App.Controls"
+             xmlns:converters="clr-namespace:WeighBridge.App.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=viewModels:MastersViewModel}"
+             d:DesignHeight="700"
+             d:DesignWidth="1000"
+             mc:Ignorable="d">
+
+  <UserControl.Resources>
+    <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
+    <converters:InverseBooleanToVisibilityConverter x:Key="Converter.InverseBooleanToVisibility" />
+
+    <Style x:Key="Field.Label"
+           BasedOn="{StaticResource Text.Label}"
+           TargetType="TextBlock">
+      <Setter Property="Margin" Value="0,10,0,4" />
+    </Style>
+
+    <Style x:Key="Button.ToggleActive"
+           BasedOn="{StaticResource Button.Secondary}"
+           TargetType="Button">
+      <Setter Property="Content" Value="Deactivate" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsActive}" Value="False">
+          <Setter Property="Content" Value="Reactivate" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="StatusLine.Accent" TargetType="Border">
+      <Setter Property="Background" Value="{DynamicResource Brush.Neutral.Default}" />
+      <Setter Property="CornerRadius" Value="2" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Information">
+          <Setter Property="Background" Value="{DynamicResource Brush.Info.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Success">
+          <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Warning">
+          <Setter Property="Background" Value="{DynamicResource Brush.Warning.Default}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding StatusSeverity}" Value="Danger">
+          <Setter Property="Background" Value="{DynamicResource Brush.Danger.Default}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </UserControl.Resources>
+
+  <Grid Margin="{StaticResource Thickness.PageContent}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- Header -->
+    <controls:SectionHeader Grid.Row="0"
+                            Description="{Binding Description}"
+                            Icon="{StaticResource Icon.Masters}"
+                            ShowSeparator="True"
+                            Title="{Binding Title}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <Button Command="{Binding RefreshCommand}"
+                  Content="Refresh"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Secondary}" />
+          <Button Command="{Binding NewItemCommand}"
+                  Content="+ Add New"
+                  Style="{StaticResource Button.Primary}" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <!-- Main Workspace -->
+    <Grid Grid.Row="1" Margin="0,16,0,12">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <!-- Toolbar: Tabs + Search + Filter -->
+      <Grid Grid.Row="0" Margin="0,0,0,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Segmented Tab Switcher -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource Brush.Surface.Sunken}"
+                BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource Radius.MD}"
+                Padding="4">
+          <StackPanel Orientation="Horizontal">
+            <Button Command="{Binding SelectTabCommand}"
+                    CommandParameter="{x:Static viewModels:MasterTab.Vehicles}"
+                    Content="Vehicles"
+                    Margin="0,0,4,0"
+                    MinWidth="90"
+                    Style="{StaticResource Button.Secondary}" />
+            <Button Command="{Binding SelectTabCommand}"
+                    CommandParameter="{x:Static viewModels:MasterTab.Parties}"
+                    Content="Parties"
+                    Margin="0,0,4,0"
+                    MinWidth="90"
+                    Style="{StaticResource Button.Secondary}" />
+            <Button Command="{Binding SelectTabCommand}"
+                    CommandParameter="{x:Static viewModels:MasterTab.Materials}"
+                    Content="Materials"
+                    Margin="0,0,4,0"
+                    MinWidth="90"
+                    Style="{StaticResource Button.Secondary}" />
+            <Button Command="{Binding SelectTabCommand}"
+                    CommandParameter="{x:Static viewModels:MasterTab.VehicleTypes}"
+                    Content="Vehicle Types"
+                    MinWidth="100"
+                    Style="{StaticResource Button.Secondary}" />
+          </StackPanel>
+        </Border>
+
+        <!-- Search Bar -->
+        <controls:SearchBox Grid.Column="1"
+                            Margin="16,0,16,0"
+                            HorizontalAlignment="Stretch"
+                            Placeholder="Search records..."
+                            SearchCommand="{Binding SearchCommand}"
+                            SearchText="{Binding SearchQuery, Mode=TwoWay}" />
+
+        <!-- Include Inactive CheckBox -->
+        <CheckBox Grid.Column="2"
+                  Content="Show Inactive"
+                  IsChecked="{Binding IncludeInactive, Mode=TwoWay}"
+                  VerticalAlignment="Center" />
+      </Grid>
+
+      <!-- Tab Content Area -->
+      <Grid Grid.Row="1">
+
+        <!-- Grid View Mode (When IsEditing == False) -->
+        <Grid Visibility="{Binding IsEditing, Converter={StaticResource Converter.InverseBooleanToVisibility}}">
+
+          <!-- Vehicles Tab DataGrid -->
+          <controls:ModernCard Header="Vehicles Master"
+                         Padding="0"
+                         Visibility="{Binding IsVehiclesTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+            <DataGrid ItemsSource="{Binding Vehicles}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Registration" Binding="{Binding VehicleNumber}" Width="160" FontWeight="SemiBold" />
+                <DataGridTextColumn Header="Vehicle Type" Binding="{Binding VehicleTypeName}" Width="140" />
+                <DataGridTextColumn Header="Standard Tare" Binding="{Binding TareWeightText}" Width="130" />
+                <DataGridTextColumn Header="Remarks" Binding="{Binding Remarks}" Width="*" />
+                <DataGridTemplateColumn Header="Status" Width="100">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <controls:StatusBadge Text="{Binding StatusText}" Severity="{Binding StatusSeverity}" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtText}" Width="110" />
+                <DataGridTemplateColumn Header="Actions" Width="170">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Content="Edit"
+                                Command="{Binding DataContext.EditVehicleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Margin="0,0,6,0"
+                                MinWidth="60"
+                                Padding="8,4"
+                                Style="{StaticResource Button.Secondary}" />
+                        <Button Command="{Binding DataContext.ToggleActiveStateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                MinWidth="75"
+                                Padding="8,4"
+                                Style="{StaticResource Button.ToggleActive}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </controls:ModernCard>
+
+          <!-- Parties Tab DataGrid -->
+          <controls:ModernCard Header="Parties Master"
+                         Padding="0"
+                         Visibility="{Binding IsPartiesTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+            <DataGrid ItemsSource="{Binding Parties}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200" FontWeight="SemiBold" />
+                <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="100" />
+                <DataGridTextColumn Header="Contact" Binding="{Binding ContactNumber}" Width="130" />
+                <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="*" />
+                <DataGridTemplateColumn Header="Status" Width="100">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <controls:StatusBadge Text="{Binding StatusText}" Severity="{Binding StatusSeverity}" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtText}" Width="110" />
+                <DataGridTemplateColumn Header="Actions" Width="170">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Content="Edit"
+                                Command="{Binding DataContext.EditPartyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Margin="0,0,6,0"
+                                MinWidth="60"
+                                Padding="8,4"
+                                Style="{StaticResource Button.Secondary}" />
+                        <Button Command="{Binding DataContext.ToggleActiveStateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                MinWidth="75"
+                                Padding="8,4"
+                                Style="{StaticResource Button.ToggleActive}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </controls:ModernCard>
+
+          <!-- Materials Tab DataGrid -->
+          <controls:ModernCard Header="Materials Master"
+                         Padding="0"
+                         Visibility="{Binding IsMaterialsTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+            <DataGrid ItemsSource="{Binding Materials}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Material Name" Binding="{Binding Name}" Width="220" FontWeight="SemiBold" />
+                <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="120" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
+                <DataGridTemplateColumn Header="Status" Width="100">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <controls:StatusBadge Text="{Binding StatusText}" Severity="{Binding StatusSeverity}" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtText}" Width="110" />
+                <DataGridTemplateColumn Header="Actions" Width="170">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Content="Edit"
+                                Command="{Binding DataContext.EditMaterialCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Margin="0,0,6,0"
+                                MinWidth="60"
+                                Padding="8,4"
+                                Style="{StaticResource Button.Secondary}" />
+                        <Button Command="{Binding DataContext.ToggleActiveStateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                MinWidth="75"
+                                Padding="8,4"
+                                Style="{StaticResource Button.ToggleActive}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </controls:ModernCard>
+
+          <!-- Vehicle Types Tab DataGrid -->
+          <controls:ModernCard Header="Vehicle Types Master"
+                         Padding="0"
+                         Visibility="{Binding IsVehicleTypesTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+            <DataGrid ItemsSource="{Binding VehicleTypes}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Type Name" Binding="{Binding TypeName}" Width="220" FontWeight="SemiBold" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
+                <DataGridTemplateColumn Header="Status" Width="100">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <controls:StatusBadge Text="{Binding StatusText}" Severity="{Binding StatusSeverity}" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtText}" Width="110" />
+                <DataGridTemplateColumn Header="Actions" Width="170">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Content="Edit"
+                                Command="{Binding DataContext.EditVehicleTypeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Margin="0,0,6,0"
+                                MinWidth="60"
+                                Padding="8,4"
+                                Style="{StaticResource Button.Secondary}" />
+                        <Button Command="{Binding DataContext.ToggleActiveStateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                MinWidth="75"
+                                Padding="8,4"
+                                Style="{StaticResource Button.ToggleActive}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+          </controls:ModernCard>
+
+        </Grid>
+
+        <!-- Editor Form Mode (When IsEditing == True) -->
+        <controls:ModernCard Header="{Binding FormTitle}"
+                       HorizontalAlignment="Center"
+                       MaxWidth="600"
+                       VerticalAlignment="Top"
+                       Visibility="{Binding IsEditing, Converter={StaticResource Converter.BooleanToVisibility}}">
+          <StackPanel>
+
+            <!-- Vehicle Form Fields -->
+            <StackPanel Visibility="{Binding IsVehiclesTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <TextBlock Style="{StaticResource Field.Label}" Text="Registration Number *" />
+              <TextBox Text="{Binding FormVehicleNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Vehicle Type" />
+              <ComboBox ItemsSource="{Binding AvailableVehicleTypes}"
+                        SelectedItem="{Binding FormSelectedVehicleType, Mode=TwoWay}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Standard Tare Weight (kg)" />
+              <TextBox Text="{Binding FormTareWeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Remarks" />
+              <TextBox Text="{Binding FormVehicleRemarks, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <!-- Party Form Fields -->
+            <StackPanel Visibility="{Binding IsPartiesTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <TextBlock Style="{StaticResource Field.Label}" Text="Party Name *" />
+              <TextBox Text="{Binding FormPartyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Code" />
+              <TextBox Text="{Binding FormPartyCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Contact Number" />
+              <TextBox Text="{Binding FormPartyContact, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Email" />
+              <TextBox Text="{Binding FormPartyEmail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Address" />
+              <TextBox Text="{Binding FormPartyAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Remarks" />
+              <TextBox Text="{Binding FormPartyRemarks, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <!-- Material Form Fields -->
+            <StackPanel Visibility="{Binding IsMaterialsTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <TextBlock Style="{StaticResource Field.Label}" Text="Material Name *" />
+              <TextBox Text="{Binding FormMaterialName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Code" />
+              <TextBox Text="{Binding FormMaterialCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Description" />
+              <TextBox Text="{Binding FormMaterialDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <!-- Vehicle Type Form Fields -->
+            <StackPanel Visibility="{Binding IsVehicleTypesTab, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <TextBlock Style="{StaticResource Field.Label}" Text="Type Name *" />
+              <TextBox Text="{Binding FormTypeName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Description" />
+              <TextBox Text="{Binding FormTypeDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+
+            <!-- Form Actions -->
+            <StackPanel HorizontalAlignment="Right"
+                        Margin="0,24,0,0"
+                        Orientation="Horizontal">
+              <Button Command="{Binding CancelEditCommand}"
+                      Content="Cancel"
+                      Margin="0,0,12,0"
+                      Style="{StaticResource Button.Secondary}" />
+              <Button Command="{Binding SaveItemCommand}"
+                      Content="{Binding FormSaveLabel}"
+                      Style="{StaticResource Button.Primary}" />
+            </StackPanel>
+
+          </StackPanel>
+        </controls:ModernCard>
+
+      </Grid>
+    </Grid>
+
+    <!-- Status Line -->
+    <Border Grid.Row="2"
+            Margin="0,8,0,0"
+            Padding="12,8"
+            Background="{DynamicResource Brush.Surface.Sunken}"
+            BorderBrush="{DynamicResource Brush.Border.Subtle}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource Radius.MD}"
+            Visibility="{Binding HasStatus, Converter={StaticResource Converter.BooleanToVisibility}}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="4" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Margin="0,0,10,0"
+                Style="{StaticResource StatusLine.Accent}" />
+
+        <TextBlock Grid.Column="1"
+                   VerticalAlignment="Center"
+                   Style="{StaticResource Text.Body}"
+                   Text="{Binding StatusMessage}" />
+      </Grid>
+    </Border>
+
+  </Grid>
 </UserControl>

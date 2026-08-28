@@ -34,6 +34,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 		Documentation\Configuration.md = Documentation\Configuration.md
 		Documentation\DesignSystem.md = Documentation\DesignSystem.md
 		Documentation\Development.md = Documentation\Development.md
+		Documentation\AI-Handoff.md = Documentation\AI-Handoff.md
+		Documentation\FinalAuditReport.md = Documentation\FinalAuditReport.md
+		Documentation\ImplementationStatus.md = Documentation\ImplementationStatus.md
 	EndProjectSection
 EndProject
 Global

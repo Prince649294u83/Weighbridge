@@ -11,7 +11,7 @@ public interface IDatabaseInitializer
 }
 
 /// <summary>Outcome of <see cref="IDatabaseInitializer.InitializeAsync"/>.</summary>
-/// <param name="Succeeded">False when initialisation failed; the app still starts.</param>
+/// <param name="Succeeded">False when initialisation failed; startup stops and reports it.</param>
 /// <param name="Message">Summary suitable for the log and the status tooltip.</param>
 /// <param name="AppliedMigrations">Names of migrations applied during this call.</param>
 /// <param name="Error">The failure, when one occurred.</param>

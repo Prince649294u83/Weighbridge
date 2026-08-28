@@ -5,7 +5,9 @@ using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Health;
 using WeighBridge.Core.Logging;
 using WeighBridge.Core.Notifications;
+using WeighBridge.Core.Security;
 using WeighBridge.Core.Tasks;
+using WeighBridge.Core.Undo;
 
 namespace WeighBridge.Core.DependencyInjection;
 
@@ -66,7 +68,22 @@ public static class CoreServiceCollectionExtensions
         services.AddOptions<HealthMonitorOptions>()
             .Bind(configuration.GetSection(HealthMonitorOptions.SectionName));
 
+        // How deep the undo history goes. A site doing bulk corrections may want more than
+        // the default twenty; a shared terminal may want fewer.
+        services.AddOptions<UndoOptions>()
+            .Bind(configuration.GetSection(UndoOptions.SectionName));
+
+        // Which role an operator gets before there is a login system. Configuration rather
+        // than code, so a site can set Operator today and have the permission checks bite.
+        services.AddOptions<SecurityOptions>()
+            .Bind(configuration.GetSection(SecurityOptions.SectionName));
+
         services.AddSingleton<IApplicationInfoService, ApplicationInfoService>();
+
+        // Who is signed in, for the log enrichment. Registered before the loggers because
+        // every one of them takes it: the permission service publishes the operator here
+        // rather than the loggers asking for it, which would be a dependency cycle.
+        services.AddSingleton<SignedInOperator>();
 
         // Category loggers. Singletons because they are stateless over a cached ILogger,
         // and registered as concrete types so a constructor names the category it writes

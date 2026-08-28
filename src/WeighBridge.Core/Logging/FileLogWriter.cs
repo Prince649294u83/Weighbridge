@@ -28,6 +28,15 @@ internal sealed class FileLogWriter : IDisposable
     private int _rollIndex;
     private bool _disposed;
 
+    // Set by the worker whenever the queue is empty and every dequeued line has been
+    // written. Flush waits on this instead of polling Count, which cannot see a line
+    // that was already dequeued but is still being written to disk.
+    private readonly ManualResetEventSlim _drained = new(initialState: false);
+
+    // Count of entries dropped because the queue saturated. Exposed so shutdown can
+    // report the gap rather than leaving a silently thinning log that looks complete.
+    private long _dropped;
+
     public FileLogWriter(string logDirectory, FileLoggingOptions options)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(logDirectory);
@@ -58,7 +67,7 @@ internal sealed class FileLogWriter : IDisposable
 
     /// <summary>
     /// Enqueues a formatted line. Never throws and never blocks: if the queue is
-    /// saturated the entry is dropped rather than stalling the caller.
+    /// saturated the entry is dropped — counted, so the loss can be reported.
     /// </summary>
     public void Enqueue(string line)
     {
@@ -69,7 +78,14 @@ internal sealed class FileLogWriter : IDisposable
 
         try
         {
-            _queue.TryAdd(line);
+            if (_queue.TryAdd(line))
+            {
+                _drained.Reset();
+            }
+            else
+            {
+                Interlocked.Increment(ref _dropped);
+            }
         }
         catch (InvalidOperationException)
         {
@@ -77,15 +93,20 @@ internal sealed class FileLogWriter : IDisposable
         }
     }
 
-    /// <summary>Blocks until the queue has been flushed or the timeout elapses.</summary>
+    /// <summary>How many entries were dropped after the queue saturated.</summary>
+    public long DroppedEntryCount => Interlocked.Read(ref _dropped);
+
+    /// <summary>
+    /// Blocks until every enqueued line has been written or the timeout elapses.
+    /// </summary>
     public void Flush(TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow + timeout;
-
-        while (_queue.Count > 0 && DateTime.UtcNow < deadline)
+        if (_queue.Count == 0 && _drained.IsSet)
         {
-            Thread.Sleep(15);
+            return;
         }
+
+        _drained.Wait(timeout);
     }
 
     public void Dispose()
@@ -100,9 +121,32 @@ internal sealed class FileLogWriter : IDisposable
         _queue.CompleteAdding();
 
         // Give the worker a bounded window to drain; never hang application shutdown.
-        _worker.Join(TimeSpan.FromSeconds(3));
+        var drained = _worker.Join(TimeSpan.FromSeconds(3));
+
+        // Whatever the worker did not reach in time is written synchronously now: the
+        // last lines of a session are exactly the ones worth keeping.
+        if (!drained)
+        {
+            while (_queue.TryTake(out var line))
+            {
+                WriteLine(line);
+            }
+        }
 
         _queue.Dispose();
+        _drained.Dispose();
+
+        if (Interlocked.Read(ref _dropped) > 0)
+        {
+            try
+            {
+                WriteLine($"WARNING: {Interlocked.Read(ref _dropped)} log entry/entries were dropped during the session because the queue saturated.");
+            }
+            catch
+            {
+                // Nothing left to do at process exit.
+            }
+        }
     }
 
     private void DrainQueue()
@@ -121,6 +165,10 @@ internal sealed class FileLogWriter : IDisposable
         catch (InvalidOperationException)
         {
             // Enumeration ended because adding was completed.
+        }
+        finally
+        {
+            _drained.Set();
         }
     }
 

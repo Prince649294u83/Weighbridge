@@ -4,9 +4,9 @@ namespace WeighBridge.Domain.Common;
 /// Base class for every persistable domain entity.
 /// </summary>
 /// <remarks>
-/// Module 0.1 defines the contract only; no concrete entities exist yet. Audit
-/// columns live here so that every future table (vehicles, tickets, materials)
-/// records provenance without repeating the fields.
+/// Audit columns live here so that every table records provenance without repeating
+/// the fields. <see cref="WeighBridge.Domain.Weighments.Weighment"/> is the first
+/// entity to derive from it.
 /// </remarks>
 public abstract class EntityBase
 {

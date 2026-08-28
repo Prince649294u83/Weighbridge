@@ -2,9 +2,9 @@
 
   <!--
     WeighBridge.Infrastructure
-    Persistence concerns: EF Core DbContext, migration infrastructure, generic
-    repository/unit-of-work placeholders and the database health check.
-    No domain tables are mapped in Module 0.1 — only the plumbing exists.
+    Persistence concerns: EF Core DbContext, migrations, the generic repository /
+    unit of work, and the database health check. Weighments is the mapped table;
+    the remaining modules add their own configurations.
   -->
 
   <PropertyGroup>

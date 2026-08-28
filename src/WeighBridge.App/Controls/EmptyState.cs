@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -82,4 +83,40 @@ public sealed class EmptyState : Control
         get => (ICommand?)GetValue(ActionCommandProperty);
         set => SetValue(ActionCommandProperty, value);
     }
+
+    /// <summary>
+    /// Reports the title and message to assistive technology as one text element.
+    /// </summary>
+    /// <remarks>
+    /// Both are drawn by <see cref="TextBlock"/>s inside the control template, and WPF keeps
+    /// templated text blocks out of the automation control view. Without this peer the reason
+    /// a list is empty is on screen and unannounced, which is the one case where the screen
+    /// has nothing else to say.
+    /// </remarks>
+    protected override AutomationPeer OnCreateAutomationPeer() => new EmptyStateAutomationPeer(this);
+}
+
+/// <summary>Peer that names an <see cref="EmptyState"/> by the wording it displays.</summary>
+internal sealed class EmptyStateAutomationPeer(EmptyState owner) : FrameworkElementAutomationPeer(owner)
+{
+    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Text;
+
+    protected override string GetClassNameCore() => nameof(EmptyState);
+
+    /// <summary>An explicit <c>AutomationProperties.Name</c> wins; otherwise title and message.</summary>
+    protected override string GetNameCore()
+    {
+        var name = base.GetNameCore();
+
+        if (!string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
+
+        return string.IsNullOrEmpty(owner.Message)
+            ? owner.Title ?? string.Empty
+            : $"{owner.Title}. {owner.Message}";
+    }
+
+    protected override bool IsControlElementCore() => true;
 }

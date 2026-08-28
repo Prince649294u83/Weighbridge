@@ -1,7 +1,456 @@
-<!--  Placeholder shell for the Settings module. Replace the hosted control with the real layout when the module is built.  -->
 <UserControl x:Class="WeighBridge.App.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="clr-namespace:WeighBridge.App.Views">
-  <views:ModulePlaceholderView />
+             xmlns:controls="clr-namespace:WeighBridge.App.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=viewModels:SettingsViewModel}"
+             d:DesignHeight="900"
+             d:DesignWidth="1000"
+             mc:Ignorable="d">
+
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="Settings.BoolToVisibility" />
+
+    <!--  The label column of every settings row, so the fields line up down the screen.  -->
+    <Style x:Key="Settings.Label" TargetType="TextBlock" BasedOn="{StaticResource Text.Secondary}">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+
+    <Style x:Key="Settings.Row" TargetType="Grid">
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+
+    <Style x:Key="Settings.Field" TargetType="TextBox" BasedOn="{StaticResource TextBox.Default}">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="MinWidth" Value="220" />
+    </Style>
+
+    <Style x:Key="Settings.NumericField" TargetType="TextBox" BasedOn="{StaticResource TextBox.Numeric}">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="MinWidth" Value="120" />
+    </Style>
+
+    <Style x:Key="Settings.Choice" TargetType="ComboBox" BasedOn="{StaticResource ComboBox.Default}">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="MinWidth" Value="220" />
+    </Style>
+  </UserControl.Resources>
+
+  <Grid Margin="{StaticResource Thickness.PageContent}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0"
+                            Description="{Binding Description}"
+                            Icon="{StaticResource Icon.Settings}"
+                            ShowSeparator="True"
+                            Title="{Binding Title}" />
+
+    <ScrollViewer Grid.Row="1" Margin="0,20,0,0" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+
+        <!--  Read-only notice for operators without Settings.Edit  -->
+        <Border Background="{DynamicResource Brush.Warning.Subtle}"
+                BorderBrush="{DynamicResource Brush.Warning.Default}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource Radius.MD}"
+                Margin="0,0,0,20"
+                Padding="16,12"
+                Visibility="{Binding IsConfigurationReadOnly, Converter={StaticResource Settings.BoolToVisibility}}">
+          <TextBlock Style="{StaticResource Text.Body}"
+                     TextWrapping="Wrap"
+                     Text="Your role does not permit changing the application configuration. The values below are shown for reference only." />
+        </Border>
+
+        <!--  Preferences Section  -->
+        <controls:ModernCard Header="Operator Preferences"
+                             Icon="{StaticResource Icon.Settings}"
+                             Margin="0,0,0,20"
+                             SubHeader="Theme and navigation. Saved to your own profile, not shared with other operators.">
+          <StackPanel>
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Appearance theme" />
+              <ComboBox Grid.Column="1"
+                        ItemsSource="{Binding AvailableThemes}"
+                        SelectedItem="{Binding SelectedTheme}"
+                        Style="{StaticResource Settings.Choice}" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Collapsed navigation" />
+              <CheckBox Grid.Column="1"
+                        IsChecked="{Binding IsNavigationCollapsed}"
+                        Style="{StaticResource CheckBox.Default}"
+                        VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button Command="{Binding SavePreferencesCommand}"
+                      Content="Save Preferences"
+                      Style="{StaticResource Button.Primary}"
+                      Margin="0,0,10,0" />
+              <Button Command="{Binding ResetPreferencesCommand}"
+                      Content="Reset to Defaults"
+                      Style="{StaticResource Button.Secondary}" />
+            </StackPanel>
+          </StackPanel>
+        </controls:ModernCard>
+
+        <!--  Weight indicator  -->
+        <controls:ModernCard Header="Weight Indicator"
+                             Icon="{StaticResource Icon.Scale}"
+                             Margin="0,0,0,20"
+                             SubHeader="Which COM port the indicator is on, and how its frames are read.">
+          <StackPanel IsEnabled="{Binding CanEditConfiguration}">
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Indicator in use" />
+              <CheckBox Grid.Column="1"
+                        Content="Read weights from the indicator"
+                        IsChecked="{Binding IndicatorEnabled}"
+                        Style="{StaticResource CheckBox.Default}"
+                        VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Driver" />
+              <StackPanel Grid.Column="1">
+                <ComboBox ItemsSource="{Binding DriverTypes}"
+                          SelectedItem="{Binding DriverType}"
+                          Style="{StaticResource Settings.Choice}" />
+                <TextBlock Margin="0,4,0,0"
+                           Style="{StaticResource Text.Caption}"
+                           TextWrapping="Wrap"
+                           Text="Serial reads a real indicator. Simulator invents weights and must never be used to issue a slip. Changing the driver takes effect after a restart." />
+              </StackPanel>
+            </Grid>
+
+            <!--  Serial-only fields  -->
+            <StackPanel Visibility="{Binding IsSerialDriver, Converter={StaticResource Settings.BoolToVisibility}}">
+
+              <Grid Style="{StaticResource Settings.Row}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="220" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Settings.Label}" Text="Serial port" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                  <ComboBox IsEditable="True"
+                            ItemsSource="{Binding AvailablePorts}"
+                            Text="{Binding PortName, UpdateSourceTrigger=PropertyChanged}"
+                            Style="{StaticResource Settings.Choice}" />
+                  <Button Command="{Binding RefreshPortsCommand}"
+                          Content="Refresh"
+                          Margin="10,0,0,0"
+                          Style="{StaticResource Button.Secondary}"
+                          ToolTip="Re-read the list of serial ports Windows reports." />
+                  <Button Command="{Binding DetectIndicatorCommand}"
+                          Content="Detect Indicator"
+                          Margin="10,0,0,0"
+                          Style="{StaticResource Button.Primary}"
+                          ToolTip="Listen on every serial port and adopt the one that sends readable weight frames." />
+                </StackPanel>
+              </Grid>
+
+              <!--  Detection feedback  -->
+              <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                      CornerRadius="{StaticResource Radius.MD}"
+                      Margin="220,0,0,12"
+                      Padding="12,10">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource Text.Body}"
+                             TextWrapping="Wrap"
+                             Text="{Binding DetectionStatus}" />
+                  <ItemsControl ItemsSource="{Binding DetectionResults}" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Margin="0,0,0,2"
+                                   Style="{StaticResource Text.Caption}"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding Detail}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+
+              <Grid Style="{StaticResource Settings.Row}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="220" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Settings.Label}" Text="Baud rate" />
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding BaudRates}"
+                          SelectedItem="{Binding BaudRate}"
+                          Style="{StaticResource Settings.Choice}" />
+              </Grid>
+
+              <Grid Style="{StaticResource Settings.Row}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="220" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Settings.Label}" Text="Data bits / parity / stop bits" />
+                <TextBox Grid.Column="1"
+                         MinWidth="60"
+                         Style="{StaticResource Settings.NumericField}"
+                         Text="{Binding DataBits}" />
+                <ComboBox Grid.Column="2"
+                          ItemsSource="{Binding ParityOptions}"
+                          Margin="10,0,0,0"
+                          MinWidth="110"
+                          SelectedItem="{Binding Parity}"
+                          Style="{StaticResource ComboBox.Default}" />
+                <ComboBox Grid.Column="3"
+                          ItemsSource="{Binding StopBitsOptions}"
+                          Margin="10,0,0,0"
+                          MinWidth="130"
+                          SelectedItem="{Binding StopBits}"
+                          Style="{StaticResource ComboBox.Default}" />
+              </Grid>
+
+              <Grid Style="{StaticResource Settings.Row}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="220" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Settings.Label}" Text="Protocol" />
+                <StackPanel Grid.Column="1">
+                  <TextBlock Style="{StaticResource Text.Body}" Text="{Binding Hardware.WeightIndicator.Protocol}" VerticalAlignment="Center" />
+                  <TextBlock Margin="0,2,0,0"
+                             Style="{StaticResource Text.Caption}"
+                             TextWrapping="Wrap"
+                             Text="Only the generic ASCII parser is implemented, so there is nothing to choose between. Detection uses this same parser." />
+                </StackPanel>
+              </Grid>
+
+              <Grid Style="{StaticResource Settings.Row}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="220" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Settings.Label}" Text="Reconnect automatically" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                  <CheckBox IsChecked="{Binding AutoReconnect}"
+                            Style="{StaticResource CheckBox.Default}"
+                            VerticalAlignment="Center" />
+                  <TextBlock Margin="16,0,8,0"
+                             Style="{StaticResource Settings.Label}"
+                             Text="every" />
+                  <TextBox MinWidth="90"
+                           Style="{StaticResource Settings.NumericField}"
+                           Text="{Binding ReconnectIntervalMs}" />
+                  <TextBlock Margin="8,0,0,0" Style="{StaticResource Settings.Label}" Text="ms" />
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Stable when" />
+              <StackPanel Grid.Column="1">
+                <StackPanel Orientation="Horizontal">
+                  <TextBox MinWidth="70"
+                           Style="{StaticResource Settings.NumericField}"
+                           Text="{Binding StabilitySampleCount}" />
+                  <TextBlock Margin="8,0,8,0" Style="{StaticResource Settings.Label}" Text="samples agree within" />
+                  <TextBox MinWidth="80"
+                           Style="{StaticResource Settings.NumericField}"
+                           Text="{Binding StabilityToleranceKg}" />
+                  <TextBlock Margin="8,0,8,0" Style="{StaticResource Settings.Label}" Text="kg for" />
+                  <TextBox MinWidth="90"
+                           Style="{StaticResource Settings.NumericField}"
+                           Text="{Binding StabilityDurationMs}" />
+                  <TextBlock Margin="8,0,0,0" Style="{StaticResource Settings.Label}" Text="ms" />
+                </StackPanel>
+                <TextBlock Margin="0,4,0,0"
+                           Style="{StaticResource Text.Caption}"
+                           TextWrapping="Wrap"
+                           Text="A weight is only captured once it is stable. Widening the tolerance captures sooner and less accurately." />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </controls:ModernCard>
+
+        <!--  Printing  -->
+        <controls:ModernCard Header="Printing"
+                             Icon="{StaticResource Icon.Printer}"
+                             Margin="0,0,0,20"
+                             SubHeader="Where slips are printed and how many copies.">
+          <StackPanel IsEnabled="{Binding CanEditConfiguration}">
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Printing enabled" />
+              <CheckBox Grid.Column="1"
+                        IsChecked="{Binding PrintingEnabled}"
+                        Style="{StaticResource CheckBox.Default}"
+                        VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Printer" />
+              <StackPanel Grid.Column="1">
+                <TextBox Style="{StaticResource Settings.Field}" Text="{Binding DefaultPrinterName}" />
+                <TextBlock Margin="0,4,0,0"
+                           Style="{StaticResource Text.Caption}"
+                           Text="Leave blank to use the Windows default printer." />
+              </StackPanel>
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Copies per slip" />
+              <TextBox Grid.Column="1" Style="{StaticResource Settings.NumericField}" Text="{Binding CopyCount}" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Paper size" />
+              <TextBlock Grid.Column="1"
+                         Style="{StaticResource Text.Body}"
+                         Text="{Binding Printer.PaperSize}"
+                         VerticalAlignment="Center" />
+            </Grid>
+          </StackPanel>
+        </controls:ModernCard>
+
+        <!--  Camera  -->
+        <controls:ModernCard Header="Camera"
+                             Icon="{StaticResource Icon.Camera}"
+                             Margin="0,0,0,20"
+                             SubHeader="Vehicle images filed against a weighment.">
+          <StackPanel IsEnabled="{Binding CanEditConfiguration}">
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Camera enabled" />
+              <CheckBox Grid.Column="1"
+                        IsChecked="{Binding CameraEnabled}"
+                        Style="{StaticResource CheckBox.Default}"
+                        VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Capture on weighment" />
+              <CheckBox Grid.Column="1"
+                        IsChecked="{Binding CaptureOnWeighment}"
+                        Style="{StaticResource CheckBox.Default}"
+                        VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Retention" />
+              <TextBlock Grid.Column="1" Style="{StaticResource Text.Body}" VerticalAlignment="Center">
+                <Run Text="{Binding Camera.RetentionDays, Mode=OneWay}" />
+                <Run Text="days" />
+              </TextBlock>
+            </Grid>
+
+            <TextBlock Margin="0,4,0,0"
+                       Style="{StaticResource Text.Caption}"
+                       TextWrapping="Wrap"
+                       Text="There is no capture device driver behind this yet: with the camera enabled the images filed against a weighment are generated, not photographed. Enabling it after a restart is what switches the capture service on." />
+          </StackPanel>
+        </controls:ModernCard>
+
+        <!--  Reporting  -->
+        <controls:ModernCard Header="Reporting"
+                             Icon="{StaticResource Icon.Reports}"
+                             Margin="0,0,0,20"
+                             SubHeader="Where exports are written, and how large they may be.">
+          <StackPanel IsEnabled="{Binding CanEditConfiguration}">
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Export folder" />
+              <TextBox Grid.Column="1"
+                       HorizontalAlignment="Stretch"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding ReportOutputDirectory}" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Maximum rows per report" />
+              <TextBox Grid.Column="1" Style="{StaticResource Settings.NumericField}" Text="{Binding MaxRowsPerReport}" />
+            </Grid>
+          </StackPanel>
+        </controls:ModernCard>
+
+        <!--  Save / discard for everything above except preferences  -->
+        <StackPanel Margin="0,0,0,24"
+                    Orientation="Horizontal"
+                    Visibility="{Binding CanEditConfiguration, Converter={StaticResource Settings.BoolToVisibility}}">
+          <Button Command="{Binding SaveConfigurationCommand}"
+                  Content="Save Configuration"
+                  Margin="0,0,10,0"
+                  Style="{StaticResource Button.Primary}" />
+          <Button Command="{Binding DiscardConfigurationCommand}"
+                  Content="Discard Changes"
+                  Style="{StaticResource Button.Secondary}" />
+          <TextBlock Margin="16,0,0,0"
+                     Style="{StaticResource Text.Caption}"
+                     TextWrapping="Wrap"
+                     VerticalAlignment="Center"
+                     Text="Saved to appsettings.json in the application data folder. A port or baud change reconnects the indicator immediately; a driver change needs a restart." />
+        </StackPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
 </UserControl>

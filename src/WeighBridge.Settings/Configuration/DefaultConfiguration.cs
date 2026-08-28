@@ -68,26 +68,49 @@ internal static class DefaultConfiguration
             {
                 ["WeightIndicator"] = new JsonObject
                 {
-                    ["Enabled"] = false,
+                    ["Enabled"] = true,
+                    // "Simulator" here, which is what shipped, meant a fresh installation
+                    // weighed vehicles with generated numbers. A terminal with no indicator
+                    // wired up now reports Disconnected and the operator enters the weight,
+                    // which is recorded as manual. The simulator is still available by
+                    // setting this to "Simulator" deliberately.
+                    ["DriverType"] = "Serial",
                     ["PortName"] = "COM1",
                     ["BaudRate"] = 9600,
                     ["DataBits"] = 8,
                     ["Parity"] = "None",
                     ["StopBits"] = "One",
-                    ["Protocol"] = "Generic",
+                    ["Protocol"] = "GenericAscii",
                     ["PollIntervalMilliseconds"] = 250,
                     ["StabilitySampleCount"] = 5,
+                    ["StabilityToleranceKg"] = 5.0,
+                    ["StabilityDurationMs"] = 1000,
+                    ["AutoReconnect"] = true,
+                    ["ReconnectIntervalMs"] = 3000,
                     ["Unit"] = "kg",
                 },
             },
 
             ["Camera"] = new JsonObject
             {
+                // Off by default: the only camera implementation generates its images, so
+                // enabling it files a synthetic JPEG against the weighment as though it were
+                // a photograph of the vehicle. Turn this on when a real capture device is
+                // wired up. An installation created before this change has true in its own
+                // appsettings.json and keeps it - this template is only used to write a file
+                // that does not exist yet.
                 ["Enabled"] = false,
                 ["CaptureOnWeighment"] = true,
                 ["ImageQuality"] = 80,
                 ["RetentionDays"] = 90,
-                ["Devices"] = new JsonArray(),
+                ["Devices"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["Name"] = "Camera 1",
+                        ["Enabled"] = true,
+                    },
+                },
             },
 
             ["Printer"] = new JsonObject

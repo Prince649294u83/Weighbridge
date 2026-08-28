@@ -27,6 +27,7 @@
         xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:MainWindowViewModel}"
+        AutomationProperties.AutomationId="ShellWindow"
         Title="{Binding Title}"
         Width="1280"
         Height="800"
@@ -194,15 +195,22 @@
                       VerticalAlignment="Center"
                       Orientation="Horizontal"
                       WindowChrome.IsHitTestVisibleInChrome="True">
-            <Button Command="{Binding GoBackCommand}"
+            <!--
+              Content is a Segoe Fluent glyph, which a screen reader reads as an
+              unnamed private-use character, so every icon button names itself.
+            -->
+            <Button AutomationProperties.Name="Back"
+                    Command="{Binding GoBackCommand}"
                     Content="{StaticResource Icon.Back}"
                     Style="{StaticResource Button.Icon}"
                     ToolTip="Back" />
-            <Button Command="{Binding GoForwardCommand}"
+            <Button AutomationProperties.Name="Forward"
+                    Command="{Binding GoForwardCommand}"
                     Content="{StaticResource Icon.Forward}"
                     Style="{StaticResource Button.Icon}"
                     ToolTip="Forward" />
-            <Button Command="{Binding RefreshCommand}"
+            <Button AutomationProperties.Name="Reload the current page"
+                    Command="{Binding RefreshCommand}"
                     Content="{StaticResource Icon.Refresh}"
                     Style="{StaticResource Button.Icon}"
                     ToolTip="Reload the current page" />
@@ -231,23 +239,35 @@
                        Style="{StaticResource TitleBar.Text}"
                        Text="{Binding CurrentTime}" />
 
-            <Button Margin="12,0,0,0"
+            <Button AutomationProperties.Name="Switch between the light and dark theme"
+                    Margin="12,0,0,0"
                     Command="{Binding ToggleThemeCommand}"
                     Content="{StaticResource Icon.Theme}"
                     Style="{StaticResource Button.Icon}"
                     ToolTip="Switch between the light and dark theme" />
+
+            <Button AutomationProperties.Name="Sign out"
+                    Margin="4,0,0,0"
+                    Command="{Binding SignOutCommand}"
+                    Content="{StaticResource Icon.SignOut}"
+                    Style="{StaticResource Button.Icon}"
+                    ToolTip="Sign out and return to the login screen" />
           </StackPanel>
 
           <!--  Window controls  -->
           <StackPanel Grid.Column="4"
                       Orientation="Horizontal"
                       WindowChrome.IsHitTestVisibleInChrome="True">
-            <Button Click="OnMinimizeClicked"
+            <Button AutomationProperties.Name="Minimize"
+                    Click="OnMinimizeClicked"
                     Content="{StaticResource Icon.Minimize}"
                     Style="{StaticResource Button.WindowControl}"
                     ToolTip="Minimize" />
-            <Button Click="OnMaximizeRestoreClicked" Style="{StaticResource TitleBar.MaximizeButton}" />
-            <Button Click="OnCloseClicked"
+            <Button AutomationProperties.Name="Maximize or restore"
+                    Click="OnMaximizeRestoreClicked"
+                    Style="{StaticResource TitleBar.MaximizeButton}" />
+            <Button AutomationProperties.Name="Close"
+                    Click="OnCloseClicked"
                     Content="{StaticResource Icon.Close}"
                     Style="{StaticResource Button.WindowControl.Close}"
                     ToolTip="Close" />
@@ -319,6 +339,7 @@
             <Button Grid.Row="0"
                     Margin="10,10,0,6"
                     HorizontalAlignment="Left"
+                    AutomationProperties.Name="Expand or collapse the navigation panel"
                     Command="{Binding ToggleNavigationCommand}"
                     Content="{StaticResource Icon.Menu}"
                     Style="{StaticResource Button.Icon}"
@@ -335,7 +356,13 @@
                       items are containerised; IsChecked is still two-way bound so the
                       highlight follows Back and Forward, not only clicks.
                     -->
-                    <controls:NavigationItem Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    <!--
+                      The name has to be set explicitly: the icon is a glyph and the
+                      label is hidden entirely on the collapsed rail, so without this a
+                      screen reader announces an unnamed radio button.
+                    -->
+                    <controls:NavigationItem AutomationProperties.Name="{Binding Label}"
+                                             Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                              CommandParameter="{Binding}"
                                              GroupName="ShellNavigation"
                                              Icon="{Binding IconKey, Converter={StaticResource Converter.ResourceKey}}"
@@ -432,6 +459,7 @@
           </ItemsControl>
 
           <Button Grid.Column="3"
+                  AutomationProperties.Name="Re-check every subsystem now"
                   Command="{Binding RefreshStatusCommand}"
                   Content="{StaticResource Icon.Refresh}"
                   Style="{StaticResource StatusBar.IconButton}"

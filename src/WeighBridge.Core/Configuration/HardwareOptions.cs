@@ -3,11 +3,6 @@ namespace WeighBridge.Core.Configuration;
 /// <summary>
 /// Bound to the <c>Hardware</c> section of <c>appsettings.json</c>.
 /// </summary>
-/// <remarks>
-/// These values are consumed by the Weight Indicator module. Module 0.1 only reads
-/// them so the placeholder service can report a meaningful "configured but not
-/// connected" state.
-/// </remarks>
 public sealed class HardwareOptions
 {
     /// <summary>Configuration section name.</summary>
@@ -22,6 +17,13 @@ public sealed class WeightIndicatorOptions
 {
     /// <summary>Enables the weight indicator integration.</summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Driver mode: "Serial", "Simulator", or "Disabled". The simulator has to be asked for
+    /// by name - it was the default, and the default of a weighbridge must not be a source of
+    /// invented weights.
+    /// </summary>
+    public string DriverType { get; set; } = "Serial";
 
     /// <summary>Serial port name, e.g. <c>COM1</c>.</summary>
     public string PortName { get; set; } = "COM1";
@@ -38,14 +40,26 @@ public sealed class WeightIndicatorOptions
     /// <summary>Stop bits: One, OnePointFive or Two.</summary>
     public string StopBits { get; set; } = "One";
 
-    /// <summary>Name of the indicator protocol parser to use.</summary>
-    public string Protocol { get; set; } = "Generic";
+    /// <summary>Name of the indicator protocol parser to use, e.g. "GenericAscii".</summary>
+    public string Protocol { get; set; } = "GenericAscii";
 
-    /// <summary>How often the indicator is polled, in milliseconds.</summary>
+    /// <summary>How often the indicator is polled / evaluated, in milliseconds.</summary>
     public int PollIntervalMilliseconds { get; set; } = 250;
 
-    /// <summary>Number of consecutive equal readings required before a weight is stable.</summary>
+    /// <summary>Number of consecutive readings within tolerance required before a weight is marked stable.</summary>
     public int StabilitySampleCount { get; set; } = 5;
+
+    /// <summary>Weight variation tolerance in kg below which consecutive samples are considered stable.</summary>
+    public decimal StabilityToleranceKg { get; set; } = 5.0m;
+
+    /// <summary>Minimum time duration in milliseconds the weight must remain within tolerance.</summary>
+    public int StabilityDurationMs { get; set; } = 1000;
+
+    /// <summary>Whether to automatically attempt reconnection after a serial disconnect.</summary>
+    public bool AutoReconnect { get; set; } = true;
+
+    /// <summary>Delay between reconnection attempts in milliseconds.</summary>
+    public int ReconnectIntervalMs { get; set; } = 3000;
 
     /// <summary>Unit reported by the indicator, e.g. <c>kg</c>.</summary>
     public string Unit { get; set; } = "kg";

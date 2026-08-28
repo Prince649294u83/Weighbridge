@@ -13,8 +13,12 @@ public interface IWindowPlacementService
 {
     /// <summary>
     /// Applies the persisted placement to <paramref name="window"/> and starts tracking
-    /// its changes. Call once, before the window is shown.
+    /// its changes. Call before the window is shown.
     /// </summary>
+    /// <remarks>
+    /// Called once per session, not once per process: signing out closes the shell and the
+    /// next sign-in supplies a new one. A second call replaces the tracked window.
+    /// </remarks>
     void Attach(Window window);
 
     /// <summary>Captures the current placement and persists it.</summary>

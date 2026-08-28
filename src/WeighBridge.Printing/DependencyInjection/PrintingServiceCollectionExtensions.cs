@@ -12,7 +12,7 @@ public static class PrintingServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddSingleton<IPrintService, PlaceholderPrintService>();
+        services.AddSingleton<IPrintService, WindowsPrintService>();
 
         return services;
     }

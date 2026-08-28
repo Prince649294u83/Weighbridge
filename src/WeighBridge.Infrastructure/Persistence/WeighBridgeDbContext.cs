@@ -6,10 +6,11 @@ namespace WeighBridge.Infrastructure.Persistence;
 /// Entity Framework Core context for the WeighBridge database.
 /// </summary>
 /// <remarks>
-/// Module 0.1 intentionally maps no tables. The context exists so the connection,
-/// migration pipeline and health check are in place; business modules will add their
-/// own <see cref="IEntityTypeConfiguration{TEntity}"/> classes, which are discovered
-/// automatically by <see cref="OnModelCreating"/>.
+/// No <c>DbSet</c> properties: every mapping arrives as an
+/// <see cref="IEntityTypeConfiguration{TEntity}"/> discovered by
+/// <see cref="OnModelCreating"/>, and repositories reach their entities through
+/// <see cref="DbContext.Set{TEntity}"/>. A module therefore adds a table without
+/// touching this file.
 /// </remarks>
 public class WeighBridgeDbContext(DbContextOptions<WeighBridgeDbContext> options) : DbContext(options)
 {

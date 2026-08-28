@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using WeighBridge.Core.Diagnostics;
 using WeighBridge.Core.Logging;
+using WeighBridge.Core.Security;
 using WeighBridge.Tests.Infrastructure;
 using Xunit;
 
@@ -50,6 +51,50 @@ public sealed class CategoryLoggerTests
         Assert.Contains("user=testoperator", scope);
         Assert.Contains("machine=TESTRIG", scope);
         Assert.Contains("version=9.9.9", scope);
+    }
+
+    /// <summary>
+    /// F-020: the enrichment captured <c>Environment.UserName</c> once, in the constructor of a
+    /// singleton, so no later sign-in could change it and every entry for the life of the
+    /// process named the Windows account the terminal runs under.
+    /// </summary>
+    /// <remarks>
+    /// Both entries come from one logger instance on purpose. A per-entry read is the whole
+    /// fix; a test that built a second logger after the sign-in would pass against the defect.
+    /// </remarks>
+    [Fact]
+    public void Enrichment_FollowsTheSignedInOperator_ForEntriesFromOneLogger()
+    {
+        var signedIn = new SignedInOperator();
+        var logger = new ApplicationLogger(_factory, new TestApplicationInfoService(), signedIn);
+
+        logger.Information("before sign-in");
+
+        signedIn.UserName = "bridge_admin";
+        logger.Information("after sign-in");
+
+        // Nobody had signed in yet, so the terminal account is the honest answer.
+        Assert.Contains("user=testoperator", _sink.Entries[0].ScopeText);
+
+        Assert.Contains("user=bridge_admin", _sink.Entries[1].ScopeText);
+        Assert.DoesNotContain("user=testoperator", _sink.Entries[1].ScopeText);
+    }
+
+    /// <summary>
+    /// The audit trail is the reason F-020 mattered: <see cref="AuditLogger.Record"/> puts no
+    /// operator in the message, so <c>user=</c> is the only subject an audit entry has.
+    /// </summary>
+    [Fact]
+    public void Audit_NamesTheSignedInOperator_NotTheTerminalAccount()
+    {
+        var signedIn = new SignedInOperator { UserName = "bridge_admin" };
+
+        new AuditLogger(_factory, new TestApplicationInfoService(), auditStore: null, signedIn)
+            .Record("Record second weight", "Weighment", "WB-000001");
+
+        var entry = Assert.Single(_sink.Entries);
+        Assert.Contains("user=bridge_admin", entry.ScopeText);
+        Assert.DoesNotContain("user=testoperator", entry.ScopeText);
     }
 
     [Fact]

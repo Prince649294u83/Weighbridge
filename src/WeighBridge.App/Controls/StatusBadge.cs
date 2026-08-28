@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using WeighBridge.Domain.Enums;
 
@@ -31,7 +33,7 @@ public sealed class StatusBadge : Control
             nameof(Text),
             typeof(string),
             typeof(StatusBadge),
-            new PropertyMetadata(string.Empty));
+            new PropertyMetadata(string.Empty, OnTextChanged));
 
     public static readonly DependencyProperty SeverityProperty =
         DependencyProperty.Register(
@@ -89,6 +91,17 @@ public sealed class StatusBadge : Control
         set => SetValue(ConnectionStateProperty, value);
     }
 
+    /// <summary>
+    /// Reports the badge to assistive technology as a text element carrying <see cref="Text"/>.
+    /// </summary>
+    /// <remarks>
+    /// The pill is drawn by a <see cref="System.Windows.Controls.TextBlock"/> inside the control
+    /// template, and WPF keeps templated text blocks out of the automation control view. Without
+    /// this peer the badge is on screen and unannounced - a screen reader would not say which
+    /// stage a weighment is at, or whether the indicator is connected.
+    /// </remarks>
+    protected override AutomationPeer OnCreateAutomationPeer() => new StatusBadgeAutomationPeer(this);
+
     private static void OnConnectionStateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not StatusBadge badge || e.NewValue is not ConnectionState state)
@@ -110,4 +123,32 @@ public sealed class StatusBadge : Control
             badge.Text = state.ToString();
         }
     }
+
+    /// <summary>Announces the new wording, so a stage change is not a silent one.</summary>
+    private static void OnTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        // Only when a client is actually listening: FromElement returns the peer that was
+        // created for one, and nothing at all otherwise.
+        UIElementAutomationPeer.FromElement((StatusBadge)d)?.RaisePropertyChangedEvent(
+            AutomationElementIdentifiers.NameProperty,
+            e.OldValue ?? string.Empty,
+            e.NewValue ?? string.Empty);
+    }
+}
+
+/// <summary>Peer that names a <see cref="StatusBadge"/> by the text it displays.</summary>
+internal sealed class StatusBadgeAutomationPeer(StatusBadge owner) : FrameworkElementAutomationPeer(owner)
+{
+    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Text;
+
+    protected override string GetClassNameCore() => nameof(StatusBadge);
+
+    /// <summary>An explicit <c>AutomationProperties.Name</c> wins; otherwise the displayed text.</summary>
+    protected override string GetNameCore()
+    {
+        var name = base.GetNameCore();
+        return string.IsNullOrEmpty(name) ? owner.Text ?? string.Empty : name;
+    }
+
+    protected override bool IsControlElementCore() => true;
 }

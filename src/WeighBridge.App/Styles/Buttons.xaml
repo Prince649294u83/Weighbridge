@@ -10,6 +10,25 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
+    Icon content.
+
+    A ContentPresenter renders a string through a TextBlock it generates itself, and
+    that TextBlock picks up the implicit TextBlock style from Typography.xaml. A style
+    setter outranks an inherited value, so the implicit style's Font.Primary beat the
+    Font.Icons set on the button and every glyph rendered as a missing-character box.
+    An explicit TextBlock outranks the implicit style, and the three font properties
+    are bound back to the button so its own setters and hover triggers still drive them.
+  -->
+  <DataTemplate x:Key="Template.IconContent">
+    <TextBlock FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=ButtonBase}}"
+               FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=ButtonBase}}"
+               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}"
+               Text="{Binding}"
+               TextTrimming="None"
+               TextWrapping="NoWrap" />
+  </DataTemplate>
+
+  <!--
     Base template. A single Border with a ContentPresenter; visual states are driven
     by triggers that swap the Border background. Focus is drawn as an outer ring so
     keyboard users can always see where they are.
@@ -172,6 +191,7 @@
     <Setter Property="MinWidth" Value="{StaticResource Size.ControlHeight}" />
     <Setter Property="Width" Value="{StaticResource Size.ControlHeight}" />
     <Setter Property="Height" Value="{StaticResource Size.ControlHeight}" />
+    <Setter Property="ContentTemplate" Value="{StaticResource Template.IconContent}" />
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Surface.Hover}" />
@@ -195,6 +215,7 @@
     <Setter Property="Width" Value="{StaticResource Size.WindowButtonWidth}" />
     <Setter Property="Height" Value="{StaticResource Size.TitleBarHeight}" />
     <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="ContentTemplate" Value="{StaticResource Template.IconContent}" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
     <Setter Property="FocusVisualStyle" Value="{x:Null}" />
     <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />

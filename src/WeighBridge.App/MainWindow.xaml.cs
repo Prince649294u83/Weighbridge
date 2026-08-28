@@ -54,6 +54,25 @@ public partial class MainWindow : Window
 
         Loaded += OnLoaded;
         Closed += OnClosed;
+        _viewModel.SignOutRequested += OnSignOutRequested;
+    }
+
+    /// <summary>
+    /// True when this window closed because the operator signed out, rather than because
+    /// they finished with the application.
+    /// </summary>
+    /// <remarks>
+    /// Read by <see cref="App"/> after the window has closed. A flag rather than an event
+    /// because it must be readable at a known point — a second subscriber to the ViewModel's
+    /// event would run in registration order and could be reached after
+    /// <see cref="Window.Closed"/> had already fired.
+    /// </remarks>
+    public bool SignOutRequested { get; private set; }
+
+    private void OnSignOutRequested(object? sender, EventArgs e)
+    {
+        SignOutRequested = true;
+        Close();
     }
 
     /// <summary>
@@ -90,6 +109,7 @@ public partial class MainWindow : Window
         _clockTimer.Stop();
         _clockTimer.Tick -= OnClockTick;
         Closed -= OnClosed;
+        _viewModel.SignOutRequested -= OnSignOutRequested;
 
         _viewModel.Dispose();
     }

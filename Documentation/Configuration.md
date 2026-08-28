@@ -55,13 +55,10 @@ Standard `LogLevel` block, plus a `File` block: `Enabled`, `MinimumLevel`,
 `IncludeDebugOutput`.
 
 ### Hardware
-`WeightIndicator`: `Enabled` (default **false**), `PortName`, `BaudRate`, `DataBits`,
-`Parity`, `StopBits`, `Protocol`, `PollIntervalMilliseconds`, `StabilitySampleCount`,
-`Unit`.
+`WeightIndicator`: `Enabled` (default true with simulator), `DriverType` (`SerialPort` | `Simulator` | `Placeholder`), `PortName` (`COM1`), `BaudRate` (`9600`), `DataBits` (`8`), `Parity` (`None`), `StopBits` (`One`), `Protocol` (`GenericAscii`), `PollIntervalMilliseconds` (`250`), `StabilitySampleCount` (`5`), `StabilityToleranceKg` (`5.0`), `StabilityDurationMs` (`1000`), `AutoReconnect` (`true`), `ReconnectIntervalMs` (`3000`), `Unit` (`kg`).
 
 ### Camera
-`Enabled` (default false), `CaptureOnWeighment`, `ImageQuality`, `RetentionDays`,
-`Devices`.
+`Enabled` (default true), `CaptureOnWeighment` (`true`), `ImageQuality` (`80`), `RetentionDays` (`90`), `Devices` (array of `{ "Name": "Camera 1", "Enabled": true }`). Snapshot JPEGs are stored in `%LOCALAPPDATA%\WeighBridge Modern\Captures` with SHA-256 integrity checksums stored in the `WeighmentImages` database table.
 
 ### Printer
 `Enabled` (default false), `DefaultPrinterName`, `SlipTemplate`, `CopyCount`, `PaperSize`,

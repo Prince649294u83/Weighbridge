@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Runtime.ExceptionServices;
 using System.Windows;
@@ -17,10 +18,12 @@ public sealed class DialogService : IDialogService
 {
     private readonly ILogger<DialogService> _logger;
     private readonly Dispatcher _dispatcher;
+    private readonly IServiceProvider _serviceProvider;
 
-    public DialogService(ILogger<DialogService> logger)
+    public DialogService(ILogger<DialogService> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
+        _serviceProvider = serviceProvider;
         _dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
     }
 
@@ -85,6 +88,20 @@ public sealed class DialogService : IDialogService
             isCancellable,
             isIndeterminate: true,
             operation);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ShowLoginAsync()
+    {
+        var viewModel = _serviceProvider.GetRequiredService<LoginDialogViewModel>();
+
+        // Settled before the window is constructed. The dialog's mode decides its title, its
+        // prompt and whether it has a confirmation field, and none of those may change while
+        // an operator is looking at it - nor while an automated script that identifies the
+        // dialog by its title is deciding what to type into it.
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        return await InvokeAsync(() => ShowDialogWindow(new LoginDialog(viewModel)) == true).ConfigureAwait(true);
     }
 
     private Task ShowMessageAsync(string title, string message, DialogSeverity severity, string? details)

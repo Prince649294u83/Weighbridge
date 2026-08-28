@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using WeighBridge.Core.Application;
 using WeighBridge.Core.Diagnostics;
+using WeighBridge.Core.Security;
 
 namespace WeighBridge.Core.Logging;
 
@@ -18,22 +19,35 @@ namespace WeighBridge.Core.Logging;
 /// while the process runs, and reading them per entry would cost a reflection lookup on
 /// a path that runs thousands of times a shift.
 /// </para>
+/// <para>
+/// The operator is not captured, because it does change: it is read per entry from
+/// <see cref="SignedInOperator"/>. Capturing it was a real defect — every entry in the
+/// audit trail named the Windows account the terminal runs under rather than whoever had
+/// signed in, so on a shared terminal no action could be attributed to anyone.
+/// </para>
 /// </remarks>
 public abstract class CategoryLoggerBase : IApplicationLogger
 {
     private readonly ILogger _logger;
     private readonly string _machineName;
     private readonly string _applicationVersion;
-    private readonly string _user;
+    private readonly string _terminalUser;
+    private readonly SignedInOperator? _signedInOperator;
 
     /// <summary>Creates a category logger over the supplied sink.</summary>
     /// <param name="category">Operational category name, from <see cref="LogCategory"/>.</param>
     /// <param name="loggerFactory">Factory the underlying <see cref="ILogger"/> comes from.</param>
-    /// <param name="applicationInfo">Supplies the terminal, operator and version fields.</param>
+    /// <param name="applicationInfo">Supplies the terminal and version fields.</param>
+    /// <param name="signedInOperator">
+    /// Who is signed in. Omitted only where nobody can be — a test, or a log written before
+    /// the container exists — and the Windows account is then used, which is the honest
+    /// answer for an entry no operator caused.
+    /// </param>
     protected CategoryLoggerBase(
         string category,
         ILoggerFactory loggerFactory,
-        IApplicationInfoService applicationInfo)
+        IApplicationInfoService applicationInfo,
+        SignedInOperator? signedInOperator = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(category);
         ArgumentNullException.ThrowIfNull(loggerFactory);
@@ -43,7 +57,8 @@ public abstract class CategoryLoggerBase : IApplicationLogger
         _logger = loggerFactory.CreateLogger(category);
         _machineName = applicationInfo.MachineName;
         _applicationVersion = applicationInfo.Version;
-        _user = applicationInfo.CurrentUserName;
+        _terminalUser = applicationInfo.CurrentUserName;
+        _signedInOperator = signedInOperator;
     }
 
     /// <summary>Category these entries are written under.</summary>
@@ -99,7 +114,7 @@ public abstract class CategoryLoggerBase : IApplicationLogger
 
         var enrichment = new LogEnrichment(
             module: ModuleScope.Current,
-            user: _user,
+            user: _signedInOperator?.UserName ?? _terminalUser,
             correlationId: CorrelationScope.Current,
             machineName: _machineName,
             applicationVersion: _applicationVersion);

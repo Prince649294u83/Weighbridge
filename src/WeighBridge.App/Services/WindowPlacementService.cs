@@ -44,13 +44,23 @@ public sealed class WindowPlacementService : IWindowPlacementService
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Re-attachable, because a sign-out closes the shell and the next sign-in brings a new
+    /// one: the service tracks one window at a time, not one window per process. It used to
+    /// throw on a second call, which turned the first sign-out into a failed startup. The
+    /// previous window's handlers are removed first - left attached, a closed window would
+    /// keep overwriting the snapshot the live one is maintaining.
+    /// </remarks>
     public void Attach(Window window)
     {
         ArgumentNullException.ThrowIfNull(window);
 
-        if (_window is not null)
+        if (_window is { } previous)
         {
-            throw new InvalidOperationException("A window is already attached to this placement service.");
+            previous.LocationChanged -= OnWindowBoundsChanged;
+            previous.SizeChanged -= OnWindowBoundsChanged;
+            previous.StateChanged -= OnWindowStateChanged;
+            previous.Closing -= OnWindowClosing;
         }
 
         _window = window;

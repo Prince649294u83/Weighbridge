@@ -11,7 +11,7 @@ namespace WeighBridge.Hardware.Cameras;
 /// </summary>
 public sealed class PlaceholderCameraService(
     IOptions<CameraOptions> options,
-    ILogger<PlaceholderCameraService> logger) : ICameraService
+    ILogger<PlaceholderCameraService> logger) : ICameraService, IDisposable
 {
     private readonly CameraOptions _options = options.Value;
     private readonly ILogger<PlaceholderCameraService> _logger = logger;
@@ -27,9 +27,13 @@ public sealed class PlaceholderCameraService(
     public string Name => "Cameras";
 
     /// <inheritdoc />
+    public event EventHandler<ConnectionState>? StateChanged;
+
+    /// <inheritdoc />
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         State = _options.Enabled ? ConnectionState.Disconnected : ConnectionState.Disabled;
+        StateChanged?.Invoke(this, State);
 
         if (_options.Enabled)
         {
@@ -43,6 +47,7 @@ public sealed class PlaceholderCameraService(
     public Task DisconnectAsync()
     {
         State = _options.Enabled ? ConnectionState.Disconnected : ConnectionState.Disabled;
+        StateChanged?.Invoke(this, State);
         return Task.CompletedTask;
     }
 
@@ -54,6 +59,17 @@ public sealed class PlaceholderCameraService(
     }
 
     /// <inheritdoc />
+    public Task<CameraCaptureResult> CaptureSnapshotAsync(
+        string deviceName,
+        string stage,
+        string slipNumber,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Snapshot requested for {Device} ({Stage}, {Slip}) but camera support is not implemented", deviceName, stage, slipNumber);
+        return Task.FromResult(CameraCaptureResult.Failed("Camera support not implemented", _options.Enabled ? CameraSource.Physical : CameraSource.Disabled));
+    }
+
+    /// <inheritdoc />
     public Task<HealthResult> CheckAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(_options.Enabled
             ? HealthResult.Unreachable("Camera driver not installed in this build")
@@ -61,4 +77,9 @@ public sealed class PlaceholderCameraService(
 
     /// <inheritdoc />
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+    }
 }

@@ -17,7 +17,7 @@ namespace WeighBridge.Hardware.WeightIndicators;
 /// </remarks>
 public sealed class PlaceholderWeightIndicatorService(
     IOptions<HardwareOptions> options,
-    ILogger<PlaceholderWeightIndicatorService> logger) : IWeightIndicatorService
+    ILogger<PlaceholderWeightIndicatorService> logger) : IWeightIndicatorService, IDisposable
 {
     private readonly WeightIndicatorOptions _options = options.Value.WeightIndicator;
     private readonly ILogger<PlaceholderWeightIndicatorService> _logger = logger;
@@ -102,5 +102,10 @@ public sealed class PlaceholderWeightIndicatorService(
     {
         // Nothing to release: the placeholder never opens a serial port.
         return ValueTask.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
     }
 }

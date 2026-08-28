@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!--
     WeighBridge.Tests
@@ -20,7 +20,7 @@
     <ProjectReference Include="..\..\src\WeighBridge.Domain\WeighBridge.Domain.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Hardware\WeighBridge.Hardware.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Infrastructure\WeighBridge.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\WeighBridge.Printing\WeighBridge.Printing.csproj" />
+
     <ProjectReference Include="..\..\src\WeighBridge.Reporting\WeighBridge.Reporting.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Services\WeighBridge.Services.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Settings\WeighBridge.Settings.csproj" />
