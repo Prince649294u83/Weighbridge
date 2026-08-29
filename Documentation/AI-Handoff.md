@@ -26,19 +26,20 @@ cat Documentation/LegacyParitySpecification.md # authoritative permanent parity 
 ls src/WeighBridge.Core/                       # Commands/ Undo/ Busy/ Validation/ Security/ ?
 ls src/WeighBridge.Domain/Weighments/          # is Vehicle Entry's domain already here?
 ls src/WeighBridge.Infrastructure/Migrations/   # which migrations have been applied?
-dotnet test WeighBridge.sln --nologo -v q      # the real test count (639 passed)
+dotnet test WeighBridge.sln --nologo -v q      # the real test count (660 passed)
 git log --oneline                              # note: work may be uncommitted
 ```
 
 If the prompt's premise and the repository disagree, **say so and stop** rather than
 rebuilding. The repository is the source of truth, not the prompt, and not this file.
 
-### Hardware Diagnostic Baseline (Branch `hardware-diagnostic`)
+### Hardware Diagnostic & Measurement Acceptance (Branch `hardware-diagnostic`)
 - **Transport & Framing:** Verified 9-byte packet extraction (`0x5B` ... `0x00`) on `COM3` @ `2400` 8N1 with DTR/RTS asserted.
 - **Settings Binding:** Single authoritative `Text` binding with `UpdateSourceTrigger=PropertyChanged` on editable ComboBox; competing `SelectedItem` removed.
 - **Service Lifecycle:** `WeightIndicatorService` maintains single background worker task and transport owner with robust `ConnectAsync` coordination and cancellation guards.
-- **Test Baseline:** 639 unit tests passing (0 failed, 0 skipped).
-- **Physical Stream Status:** Live physical streaming verified on COM3 (`0000900` ... `0001100`).
+- **Active Measurement Profile:** Locked to `DecimalPlaces = 1`, `WeightDigits = 7`, `ScaleFactor = 1.0` following empirical correlation across 0–145 kg (`0000150` $\rightarrow$ `15.0 kg`, `0000900` $\rightarrow$ `90.0 kg`, `0001450` $\rightarrow$ `145.0 kg`).
+- **Test Metric:** **660 unit tests passing** (639 baseline + 21 decoder/lifecycle tests, 0 failed, 0 skipped).
+- **Physical Stream Status:** Live physical streaming verified on COM3; HUD and captured indicator readings match physical display with zero UI secondary conversions.
 
 ## What this application is
 

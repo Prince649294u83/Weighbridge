@@ -364,7 +364,7 @@ public sealed class WeightIndicatorServiceLifecycleTests
         await Task.Delay(100);
 
         Assert.NotEmpty(readings);
-        Assert.Equal(1450m, readings[0].Value);
+        Assert.Equal(145.0m, readings[0].Value);
         Assert.Equal("kg", readings[0].Unit);
         Assert.Equal(WeightSource.Indicator, readings[0].Source);
 

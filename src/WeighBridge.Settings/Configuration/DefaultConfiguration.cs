@@ -92,6 +92,16 @@ internal static class DefaultConfiguration
                     ["AutoReconnect"] = true,
                     ["ReconnectIntervalMs"] = 1500,
                     ["Unit"] = "kg",
+                    ["Decoding"] = new JsonObject
+                    {
+                        ["WeightDigits"] = 7,
+                        ["DecimalPlaces"] = 1,
+                        ["DigitsToRemoveFromEnd"] = 0,
+                        ["ReversePayload"] = false,
+                        ["DummyZero"] = false,
+                        ["ScaleFactor"] = 1.0,
+                        ["TargetUnit"] = "kg",
+                    },
                 },
             },
 

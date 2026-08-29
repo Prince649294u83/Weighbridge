@@ -8,8 +8,8 @@ public sealed class WeightDecodeOptions
     /// <summary>Expected total number of weight digits in payload (default 7). Validates payload length as a hard invariant.</summary>
     public int WeightDigits { get; set; } = 7;
 
-    /// <summary>Number of implied decimal places to apply from the right (e.g. 1 implies value / 10).</summary>
-    public int DecimalPlaces { get; set; } = 0;
+    /// <summary>Number of implied decimal places to apply from the right (default 1, e.g. 0000900 -> 90.0 kg).</summary>
+    public int DecimalPlaces { get; set; } = 1;
 
     /// <summary>Number of characters to trim from the end of the numeric payload before parsing.</summary>
     public int DigitsToRemoveFromEnd { get; set; } = 0;

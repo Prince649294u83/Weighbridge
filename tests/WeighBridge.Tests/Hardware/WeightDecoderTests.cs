@@ -9,44 +9,53 @@ public sealed class WeightDecoderTests
 {
     private readonly WeightDecoder _decoder = new();
 
-    [Fact]
-    public void Decode_Baseline_Integer_Frames_Preserves_Expected_Weights_With_Default_Options()
+    [Theory]
+    [InlineData("0000000", 0.0)]
+    [InlineData("0000050", 5.0)]
+    [InlineData("0000100", 10.0)]
+    [InlineData("0000150", 15.0)]
+    [InlineData("0000200", 20.0)]
+    [InlineData("0000900", 90.0)]
+    [InlineData("0000950", 95.0)]
+    [InlineData("0001000", 100.0)]
+    [InlineData("0001050", 105.0)]
+    [InlineData("0001100", 110.0)]
+    [InlineData("0001350", 135.0)]
+    [InlineData("0001400", 140.0)]
+    [InlineData("0001450", 145.0)]
+    public void Production_Profile_Decodes_All_Physically_Observed_Frames_Correctly(string rawPayload, decimal expectedKg)
     {
-        var defaultOptions = new WeightDecodeOptions();
+        // Default WeightDecodeOptions has DecimalPlaces = 1 as the production indicator profile
+        var options = new WeightDecodeOptions();
 
-        // Proven live baseline frames
-        Assert.True(_decoder.TryDecode(new ParsedWeightFrame("0001450", "kg", null, "[0001450\0]"), defaultOptions, out var w1450));
-        Assert.Equal(1450m, w1450);
-
-        Assert.True(_decoder.TryDecode(new ParsedWeightFrame("0001400", "kg", null, "[0001400\0]"), defaultOptions, out var w1400));
-        Assert.Equal(1400m, w1400);
-
-        Assert.True(_decoder.TryDecode(new ParsedWeightFrame("0001350", "kg", null, "[0001350\0]"), defaultOptions, out var w1350));
-        Assert.Equal(1350m, w1350);
-
-        Assert.True(_decoder.TryDecode(new ParsedWeightFrame("0000300", "kg", null, "[0000300\0]"), defaultOptions, out var w300));
-        Assert.Equal(300m, w300);
-
-        Assert.True(_decoder.TryDecode(new ParsedWeightFrame("0000000", "kg", null, "[0000000\0]"), defaultOptions, out var w0));
-        Assert.Equal(0m, w0);
+        var frame = new ParsedWeightFrame(rawPayload, "kg", null, $"[{rawPayload}\0]");
+        Assert.True(_decoder.TryDecode(frame, options, out var decodedWeight));
+        Assert.Equal(expectedKg, decodedWeight);
     }
 
     [Fact]
-    public void Decode_Candidate_Implied_Decimal_Frame_Yields_Scaled_Weight()
+    public void Production_Profile_Prevents_Unscaled_Magnitude_Errors_Regression_Guard()
     {
-        var options = new WeightDecodeOptions
-        {
-            WeightDigits = 7,
-            DecimalPlaces = 1
-        };
+        var options = new WeightDecodeOptions();
 
-        var frame = new ParsedWeightFrame("0000900", "kg", null, "[0000900\0]");
-        Assert.True(_decoder.TryDecode(frame, options, out var decoded));
-        Assert.Equal(90.0m, decoded);
+        // 15 kg must NEVER become 150 kg
+        _decoder.TryDecode(new ParsedWeightFrame("0000150", "kg", null, "[0000150\0]"), options, out var w15);
+        Assert.NotEqual(150.0m, w15);
+        Assert.Equal(15.0m, w15);
+
+        // 90 kg must NEVER become 900 kg
+        _decoder.TryDecode(new ParsedWeightFrame("0000900", "kg", null, "[0000900\0]"), options, out var w90);
+        Assert.NotEqual(900.0m, w90);
+        Assert.Equal(90.0m, w90);
+
+        // 145 kg must NEVER become 1450 kg
+        _decoder.TryDecode(new ParsedWeightFrame("0001450", "kg", null, "[0001450\0]"), options, out var w145);
+        Assert.NotEqual(1450.0m, w145);
+        Assert.Equal(145.0m, w145);
     }
 
     [Fact]
-    public void Decode_Integer_Payload_Without_Implied_Decimal_Yields_Direct_Weight()
+    public void Decode_Integer_Payload_Without_Implied_Decimal_Yields_Direct_Weight_When_Configured()
     {
         var options = new WeightDecodeOptions
         {
@@ -86,7 +95,8 @@ public sealed class WeightDecoderTests
         var options = new WeightDecodeOptions
         {
             WeightDigits = 7,
-            ReversePayload = true
+            ReversePayload = true,
+            DecimalPlaces = 0
         };
 
         var frame = new ParsedWeightFrame("0001234", "kg", null, "[0001234\0]");
@@ -130,27 +140,12 @@ public sealed class WeightDecoderTests
         var options = new WeightDecodeOptions
         {
             WeightDigits = 7,
+            DecimalPlaces = 0,
             ScaleFactor = 2.5m
         };
 
         var frame = new ParsedWeightFrame("0000100", "kg", null, "[0000100\0]");
         Assert.True(_decoder.TryDecode(frame, options, out var decoded));
         Assert.Equal(250m, decoded);
-    }
-
-    [Fact]
-    public void Default_Decoder_Options_Never_Applies_Unconfigured_Scaling_Regression_Guard()
-    {
-        var defaultOptions = new WeightDecodeOptions();
-
-        Assert.Equal(7, defaultOptions.WeightDigits);
-        Assert.Equal(0, defaultOptions.DecimalPlaces);
-        Assert.Equal(0, defaultOptions.DigitsToRemoveFromEnd);
-        Assert.False(defaultOptions.ReversePayload);
-        Assert.False(defaultOptions.DummyZero);
-        Assert.Equal(1.0m, defaultOptions.ScaleFactor);
-
-        Assert.True(_decoder.TryDecode(new ParsedWeightFrame("0001450", "kg", null, "[0001450\0]"), defaultOptions, out var decoded));
-        Assert.Equal(1450m, decoded);
     }
 }

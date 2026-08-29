@@ -11,4 +11,4 @@ This fixture directory preserves the empirical ground truth for the physical wei
 
 ## Decoder Engine vs. Active Profile
 - **Decoder Engine (`WeightDecoder`):** Pure deterministic string transformation supporting `WeightDigits`, `DecimalPlaces`, `DigitsToRemoveFromEnd`, `ReversePayload`, `DummyZero`, `ScaleFactor`.
-- **Active Production Profile:** Gated on empirical multi-point correlation table (`correlation.json`). Default profile preserves integer baseline (`0001450` $\rightarrow$ `1450.0 kg`).
+- **Active Production Profile:** Locked to `DecimalPlaces = 1`, `WeightDigits = 7`, `ScaleFactor = 1.0` following empirical correlation across 0–145 kg (`0000150` $\rightarrow$ `15.0 kg`, `0000900` $\rightarrow$ `90.0 kg`, `0001450` $\rightarrow$ `145.0 kg`).
