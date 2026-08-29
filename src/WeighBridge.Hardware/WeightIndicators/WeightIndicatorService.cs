@@ -23,7 +23,9 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
     private ConnectionState _state = ConnectionState.Disconnected;
     private WeightReading _currentReading;
     private CancellationTokenSource? _workerCancellation;
+    private TaskCompletionSource<bool>? _initialConnectTcs;
     private Task? _workerTask;
+    private int _readingCount;
     private readonly object _lock = new();
 
     public WeightIndicatorService(
@@ -89,44 +91,76 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
     public event EventHandler<ConnectionState>? StateChanged;
 
     /// <inheritdoc />
-    public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (!_options.Enabled)
         {
             State = ConnectionState.Disabled;
             _logger.LogInformation("Weight indicator is disabled in configuration");
-            return Task.FromResult(false);
+            return false;
         }
+
+        TaskCompletionSource<bool> tcs;
 
         lock (_lock)
         {
             if (_workerCancellation is not null)
             {
-                return Task.FromResult(State == ConnectionState.Connected);
+                if (State == ConnectionState.Connected)
+                {
+                    return true;
+                }
+
+                if (_initialConnectTcs is { Task.IsCompleted: false } existingTcs)
+                {
+                    tcs = existingTcs;
+                }
+                else
+                {
+                    return State == ConnectionState.Connected;
+                }
             }
+            else
+            {
+                _initialConnectTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                tcs = _initialConnectTcs;
+                _workerCancellation = new CancellationTokenSource();
+                var token = _workerCancellation.Token;
 
-            _workerCancellation = new CancellationTokenSource();
-            var token = _workerCancellation.Token;
+                _workerTask = Task.Run(() => RunWorkerLoopAsync(token), token);
+            }
+        }
 
-            _workerTask = Task.Run(() => RunWorkerLoopAsync(token), token);
-            return Task.FromResult(true);
+        try
+        {
+            using var reg = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+            return await tcs.Task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return State == ConnectionState.Connected;
         }
     }
 
     /// <inheritdoc />
     public async Task DisconnectAsync()
     {
+        TaskCompletionSource<bool>? initialTcs;
         CancellationTokenSource? cts;
         Task? task;
 
         lock (_lock)
         {
+            initialTcs = _initialConnectTcs;
+            _initialConnectTcs = null;
             cts = _workerCancellation;
             task = _workerTask;
             _workerCancellation = null;
             _workerTask = null;
             State = _options.Enabled ? ConnectionState.Disconnected : ConnectionState.Disabled;
         }
+
+        initialTcs?.TrySetResult(false);
 
         if (cts is not null)
         {
@@ -194,6 +228,7 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
                 State = ConnectionState.Connected;
                 consecutiveFailures = 0;
                 _logger.LogInformation("Serial transport connected on {PortName}", _options.PortName);
+                _initialConnectTcs?.TrySetResult(true);
 
                 bufferOffset = 0;
                 var memoryBuffer = new byte[1024];
@@ -221,11 +256,14 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
             }
             catch (OperationCanceledException)
             {
+                _initialConnectTcs?.TrySetResult(false);
                 break;
             }
             catch (Exception ex)
             {
                 State = ConnectionState.Disconnected;
+                _initialConnectTcs?.TrySetResult(false);
+
                 _logger.Log(
                     loud ? LogLevel.Warning : LogLevel.Debug,
                     ex,
@@ -282,6 +320,19 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
                     bool isStable = _stabilityDetector.Evaluate(parsedReading);
                     var finalReading = parsedReading with { IsStable = isStable };
                     CurrentReading = finalReading;
+
+                    if (_readingCount < 5 || _readingCount % 200 == 0)
+                    {
+                        _logger.LogInformation(
+                            "ReadingReceived #{Count}: Value={Value:N1} {Unit}, Stable={Stable}, Source={Source}, Raw='{Raw}'",
+                            _readingCount + 1,
+                            finalReading.Value,
+                            finalReading.Unit,
+                            finalReading.IsStable,
+                            finalReading.Source,
+                            System.Text.Encoding.ASCII.GetString(frame));
+                    }
+                    _readingCount++;
                 }
 
                 // Shift remaining bytes

@@ -489,6 +489,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         if (_indicator.State != ConnectionState.Connected)
         {
             await _indicator.ConnectAsync().ConfigureAwait(true);
+            IndicatorState = _indicator.State;
         }
 
         if (_cameraService.State != ConnectionState.Connected)

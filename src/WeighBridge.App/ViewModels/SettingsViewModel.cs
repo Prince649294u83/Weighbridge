@@ -130,7 +130,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
         SaveConfigurationCommand = _saveHardware;
         DetectIndicatorCommand = _detectPort;
-        RefreshPortsCommand = new RelayCommand(RefreshPorts);
+        RefreshPortsCommand = new RelayCommand(() => RefreshPorts());
         DiscardConfigurationCommand = new RelayCommand(LoadFromOptions);
 
         RefreshPorts();
@@ -425,24 +425,30 @@ public sealed class SettingsViewModel : ViewModelBase
     }
 
     /// <summary>Re-reads the port list, keeping the current selection if it is still there.</summary>
-    private void RefreshPorts()
+    private void RefreshPorts(string? explicitPortToSelect = null)
     {
+        var targetPort = explicitPortToSelect ?? PortName;
         var ports = _portScanner.GetAvailablePorts();
 
-        AvailablePorts.Clear();
-
-        foreach (var port in ports)
+        var newPortList = new List<string>(ports);
+        if (!string.IsNullOrWhiteSpace(targetPort) &&
+            !newPortList.Contains(targetPort, StringComparer.OrdinalIgnoreCase))
         {
-            AvailablePorts.Add(port);
+            newPortList.Add(targetPort);
         }
 
-        // The configured port stays in the list even when Windows does not report it. It is
-        // the value that will be saved, and dropping it from a bound ComboBox would clear
-        // the selection and quietly rewrite the operator's port to nothing.
-        if (!string.IsNullOrWhiteSpace(PortName) &&
-            !AvailablePorts.Contains(PortName, StringComparer.OrdinalIgnoreCase))
+        if (!AvailablePorts.SequenceEqual(newPortList, StringComparer.OrdinalIgnoreCase))
         {
-            AvailablePorts.Add(PortName);
+            AvailablePorts.Clear();
+            foreach (var port in newPortList)
+            {
+                AvailablePorts.Add(port);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(targetPort))
+        {
+            PortName = targetPort;
         }
 
         DetectionStatus = ports.Count == 0
@@ -499,12 +505,13 @@ public sealed class SettingsViewModel : ViewModelBase
                 return;
             }
 
-            PortName = found.PortName;
+            var detectedPort = found.PortName;
             BaudRate = found.BaudRate;
             DriverType = "Serial";
             IndicatorEnabled = true;
             OnPropertyChanged(nameof(IsSerialDriver));
-            RefreshPorts();
+            RefreshPorts(explicitPortToSelect: detectedPort);
+            PortName = detectedPort;
 
             DetectionStatus =
                 $"Connection successful on {found.PortName} at {found.BaudRate} baud! Live reading: " +
