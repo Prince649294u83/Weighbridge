@@ -35,6 +35,32 @@ public sealed class WeightIndicatorProtocolTests
     }
 
     [Fact]
+    public void DelimitedFrameExtractor_Extracts_BracketNull_Frames()
+    {
+        var extractor = new DelimitedFrameExtractor();
+        byte[] payload = [(byte)'[', (byte)'0', (byte)'0', (byte)'0', (byte)'0', (byte)'3', (byte)'5', (byte)'0', 0x00];
+
+        bool extracted = extractor.TryExtractFrame(payload, out var frame, out int consumed);
+
+        Assert.True(extracted);
+        Assert.Equal("0000350", Encoding.ASCII.GetString(frame));
+        Assert.Equal(9, consumed);
+    }
+
+    [Fact]
+    public void DelimitedFrameExtractor_Discards_Junk_Before_Bracket()
+    {
+        var extractor = new DelimitedFrameExtractor();
+        byte[] buffer = [0xAA, 0xBB, (byte)'[', (byte)'0', (byte)'0', (byte)'0', (byte)'0', (byte)'4', (byte)'0', (byte)'0', 0x00];
+
+        bool extracted = extractor.TryExtractFrame(buffer, out var frame, out int consumed);
+
+        Assert.True(extracted);
+        Assert.Equal("0000400", Encoding.ASCII.GetString(frame));
+        Assert.Equal(11, consumed);
+    }
+
+    [Fact]
     public void DelimitedFrameExtractor_Handles_Partial_Buffer()
     {
         var extractor = new DelimitedFrameExtractor();
@@ -70,6 +96,9 @@ public sealed class WeightIndicatorProtocolTests
     [InlineData("+025400 kg", 25400, "kg", false)] // Stability evaluated by StabilityDetector
     [InlineData("-000150 kg", -150, "kg", false)]
     [InlineData("0 kg", 0, "kg", false)]
+    [InlineData("0000300", 300, "kg", false)]
+    [InlineData("0000350", 350, "kg", false)]
+    [InlineData("0000400", 400, "kg", false)]
     public void GenericAsciiProtocolParser_Parses_Documented_Formats(
         string frameText,
         decimal expectedWeight,

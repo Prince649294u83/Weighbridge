@@ -1,0 +1,4034 @@
+﻿====================================================
+ WeighBridge Serial Diagnostic
+====================================================
+Timestamp : 2026-08-29 12:54:07.760
+Port      : COM3
+Baud      : 2400
+DataBits  : 8
+Parity    : None
+StopBits  : One
+Handshake : None
+DTR       : True
+RTS       : True
+Mode      : RAW
+Duration  : 5 seconds
+----------------------------------------------------
+
+[12:54:07.868] LEVEL 1: Port opened successfully.
+[12:54:07.877] LEVEL 2: Bytes received.
+[12:54:08.003] RX CHUNK: 42 bytes | 0 ms since previous RX
+HEX   : 30 30 30 30 30 33 30 30 00 5B 30 30 30 30 33 30 30 00 5B 30 30 30 30 33 30 30 00 5B 30 30 30 30 33 30 30 00 5B 30 30 30 30 33
+ASCII : 00000300.[0000300.[0000300.[0000300.[00003
+
+[12:54:08.004] RX CHUNK: 26 bytes | 127 ms since previous RX
+HEX   : 30 30 00 5B 30 30 30 30 33 30 30 00 5B 30 30 30 30 33 30 30 00 5B 30 30 30 30
+ASCII : 00.[0000300.[0000300.[0000
+
+[12:54:08.005] RX CHUNK: 1 bytes | 1 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.009] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.013] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.020] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.024] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.028] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.032] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.037] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.041] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.045] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.049] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.053] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.065] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.069] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.074] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.078] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.082] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.086] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.090] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.094] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.099] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.105] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.109] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.114] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.118] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.122] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.126] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.130] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.134] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.138] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.149] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.153] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.158] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.162] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.166] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.170] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.174] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.178] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.183] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.189] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.193] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.197] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.202] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.206] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.210] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.214] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.218] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.223] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.233] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.237] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.241] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.245] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.250] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.254] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.258] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.262] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.266] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.273] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.277] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.281] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.285] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.289] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.293] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.298] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.302] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.306] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.316] RX CHUNK: 1 bytes | 10 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.321] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.325] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.329] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.333] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.337] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.341] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.345] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.350] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.356] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.361] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.365] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.369] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.373] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.377] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.381] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.385] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.389] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.396] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.400] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.404] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.409] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.413] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.417] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.421] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.425] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.429] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.441] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.445] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.449] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.453] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.457] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.461] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.466] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.470] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.474] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.480] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.485] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.489] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.493] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.497] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.501] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.505] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.510] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.514] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.526] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.530] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.534] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.538] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.542] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.547] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.551] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.555] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.559] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.566] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.570] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.574] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.578] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.582] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.587] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.591] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.595] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.599] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.612] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.616] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.620] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.624] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.628] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.632] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.636] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.641] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.645] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.651] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.655] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.660] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.664] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.668] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.672] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.676] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.680] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.685] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.697] RX CHUNK: 1 bytes | 13 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.701] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.705] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.709] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.713] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.717] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.722] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.726] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.730] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.736] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.741] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.745] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.749] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.753] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.757] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.762] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.766] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.770] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.781] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.786] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.790] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.794] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.798] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.802] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.806] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.811] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.815] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.821] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.825] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.830] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.834] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.838] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.842] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.846] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.850] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.855] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.866] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.870] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.875] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.879] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.883] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.887] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.891] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:08.895] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:08.899] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.906] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.910] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.914] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.919] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.923] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.927] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.931] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.935] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.939] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.951] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.955] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.959] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.963] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.968] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.972] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.976] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:08.980] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.984] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:08.991] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:08.995] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:08.999] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.003] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.008] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.012] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.016] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.020] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.024] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.036] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.040] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.044] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.048] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.052] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.057] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.061] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.065] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.069] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.076] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.080] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.084] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.088] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.092] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.096] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.101] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.105] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.109] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.121] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.125] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.129] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.133] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.137] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.141] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.145] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.150] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.154] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.160] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.165] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.169] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.173] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.177] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.181] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.186] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.190] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.194] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.200] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.205] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.209] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.213] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.217] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.221] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.225] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.230] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.234] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.245] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.249] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.254] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.258] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.262] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.266] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.270] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.274] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.279] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.285] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.289] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.293] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.298] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.302] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.306] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.310] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.314] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.318] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.330] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.334] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.338] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.343] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.347] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.351] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.355] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.359] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.363] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.370] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.374] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.378] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.382] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.387] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.391] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.395] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.399] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.403] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.415] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.419] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.424] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.427] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.431] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.435] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.439] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.444] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.448] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.454] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.459] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.463] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.467] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.471] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.475] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.479] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.483] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.488] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.499] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.503] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.507] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.511] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.515] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.520] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.524] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:09.528] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.532] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.539] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.543] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.547] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.551] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.555] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.560] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.564] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.568] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.572] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.584] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.588] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.592] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.596] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.600] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.604] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.609] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.613] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.617] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.624] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.628] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.632] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.636] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.640] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.644] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.648] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.653] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.657] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.668] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.673] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.677] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.681] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.685] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.689] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.693] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.698] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.702] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.708] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.713] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.717] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.721] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.725] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.729] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.733] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.737] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.742] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.753] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.757] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.762] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.766] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.770] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.774] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.778] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.782] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.786] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.793] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.797] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.801] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.806] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.810] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.814] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.818] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.822] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.826] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.838] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.842] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.846] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.850] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.855] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.859] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.863] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.867] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.871] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.878] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.882] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.886] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.890] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.895] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.899] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.903] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.907] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.911] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.918] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.922] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.926] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.930] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.934] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.939] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.943] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.947] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.951] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.963] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:09.967] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:09.971] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.975] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.979] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.984] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:09.988] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:09.992] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:09.996] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.003] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.007] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.011] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.015] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.019] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.023] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.028] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.032] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.036] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.048] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.052] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.056] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.060] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.064] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.068] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.072] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.077] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.081] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.087] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.092] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.096] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.100] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.104] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.108] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.112] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.116] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.121] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.132] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.151] RX CHUNK: 4 bytes | 18 ms since previous RX
+HEX   : 5B 30 30 30
+ASCII : [000
+
+[12:54:10.153] RX CHUNK: 1 bytes | 3 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.157] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.162] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.166] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.172] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.176] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.180] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.185] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.189] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.193] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.197] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.201] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.205] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.216] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.220] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.224] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.229] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.233] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.237] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.241] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.245] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.250] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.256] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.260] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.265] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.269] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.273] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.277] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.281] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.285] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.289] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.300] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.304] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.308] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.312] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.316] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.321] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.325] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.329] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.333] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.340] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.344] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.348] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.352] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.356] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.360] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.365] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.369] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.373] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.384] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.388] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.392] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.396] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.400] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.405] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.409] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.413] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.417] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.424] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.428] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.432] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.436] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.440] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.444] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.449] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.453] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.457] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.468] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.472] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.477] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.481] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.485] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.489] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.493] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.497] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.501] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.508] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.512] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.516] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.520] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.525] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.529] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.533] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.537] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.541] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.548] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.552] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.556] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.561] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.565] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.569] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.573] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.577] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.581] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.593] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.597] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.601] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.605] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.609] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.614] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.618] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.622] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.626] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.633] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.637] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.641] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.645] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.649] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.653] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.658] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.662] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.666] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.678] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.682] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.686] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.690] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.694] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.698] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.703] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.707] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.711] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.718] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.722] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.726] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.730] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.734] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.738] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.743] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.747] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.751] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.763] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.767] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.771] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.775] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.779] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.783] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.787] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.792] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.796] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.802] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.807] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.811] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.815] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.819] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.823] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.827] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.831] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.836] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.847] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.851] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.856] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.860] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.864] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.868] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.931] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.931] RX CHUNK: 11 bytes | 59 ms since previous RX
+HEX   : 30 30 00 5B 30 30 30 30 32 35 30
+ASCII : 00.[0000250
+
+[12:54:10.932] RX CHUNK: 1 bytes | 1 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.936] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.940] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.945] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.949] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.953] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.957] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:10.961] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:10.965] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.972] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:10.976] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:10.980] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.984] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.989] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.993] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:10.997] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.001] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.005] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.017] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.021] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.025] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.029] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.033] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.037] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.041] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.046] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.050] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.056] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.060] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.065] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.069] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.073] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.077] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.081] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.085] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.089] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.101] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.105] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.109] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.113] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.117] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.122] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.126] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.130] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.134] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.141] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.145] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.149] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.153] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.157] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.161] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.166] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:11.170] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.174] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.185] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.189] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.193] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.197] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.201] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.205] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.210] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:11.214] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.218] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.225] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.229] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.233] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.237] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.241] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.245] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.250] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.254] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.258] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.265] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.269] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.273] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.277] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.281] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.285] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.289] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.294] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.298] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.309] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.313] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.317] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.321] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.326] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.330] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.334] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.338] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.342] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.349] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.353] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.357] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.361] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.366] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.370] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.374] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.378] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.382] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.393] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.397] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.402] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.406] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.410] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.414] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.418] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.422] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.427] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.433] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.437] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.442] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.446] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.450] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.454] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.458] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.462] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.466] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.478] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.482] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.486] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.490] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.507] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.509] RX CHUNK: 3 bytes | 15 ms since previous RX
+HEX   : 30 32 35
+ASCII : 025
+
+[12:54:11.511] RX CHUNK: 1 bytes | 2 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.518] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.522] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.526] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.530] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.534] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.538] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.543] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.547] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.551] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.562] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.566] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.570] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.575] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.579] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.583] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.587] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.591] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.595] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.602] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.606] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.610] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.615] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.619] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.623] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.627] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.631] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.635] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.646] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.651] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.655] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.659] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.663] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.667] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.671] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.676] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.680] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.686] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.690] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.695] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.699] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.703] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.707] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.711] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.716] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.720] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.732] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.736] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.740] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.744] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.748] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.752] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.757] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.761] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.765] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.772] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.776] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.780] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.784] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.788] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.792] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.797] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.801] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.805] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.818] RX CHUNK: 1 bytes | 13 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.822] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.826] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.830] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.834] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.839] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.843] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.847] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.851] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.858] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.862] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.866] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.870] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.874] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.878] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.883] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.887] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.891] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.904] RX CHUNK: 1 bytes | 13 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.908] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.913] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.917] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.921] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.925] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.929] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.933] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.937] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.944] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.948] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.952] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.957] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.961] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.965] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.969] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:11.973] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:11.977] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:11.991] RX CHUNK: 1 bytes | 14 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:11.995] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:11.999] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.004] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.008] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.012] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.016] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:12.020] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:12.024] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.031] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.035] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.039] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.043] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.048] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.052] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.056] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:12.060] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:12.064] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.071] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.075] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.079] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.083] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.087] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.092] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.096] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 32
+ASCII : 2
+
+[12:54:12.100] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:12.104] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.117] RX CHUNK: 1 bytes | 13 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.121] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.125] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.129] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.134] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.138] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.142] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.146] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.150] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.157] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.161] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.165] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.169] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.174] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.178] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.182] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.186] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.190] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.203] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.207] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.211] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.215] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.219] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.223] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.228] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.232] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:12.236] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.242] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.247] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.251] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.255] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.259] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.263] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.267] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.272] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:12.276] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.288] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.292] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.296] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.301] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.305] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.309] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.313] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 34
+ASCII : 4
+
+[12:54:12.317] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.321] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.328] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.332] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.336] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.341] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.345] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.349] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.353] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 34
+ASCII : 4
+
+[12:54:12.357] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.361] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.373] RX CHUNK: 1 bytes | 12 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.377] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.381] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.385] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.390] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.394] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.398] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 34
+ASCII : 4
+
+[12:54:12.402] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.406] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.413] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.417] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.421] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.425] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.430] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.434] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.438] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 34
+ASCII : 4
+
+[12:54:12.442] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.446] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.457] RX CHUNK: 1 bytes | 11 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.461] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.465] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.469] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.473] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.478] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.482] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 34
+ASCII : 4
+
+[12:54:12.486] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.490] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.497] RX CHUNK: 1 bytes | 7 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.501] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.505] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.509] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.513] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.518] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.522] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 34
+ASCII : 4
+
+[12:54:12.526] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.530] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.540] RX CHUNK: 1 bytes | 10 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.545] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.549] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.553] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.557] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.561] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.565] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 34
+ASCII : 4
+
+[12:54:12.570] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.574] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.580] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.585] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.589] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.593] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.597] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.601] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.605] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.610] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:12.614] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.624] RX CHUNK: 1 bytes | 10 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.629] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.633] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.637] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.641] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.645] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.649] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.653] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 35
+ASCII : 5
+
+[12:54:12.658] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.664] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.668] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.673] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.677] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.681] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.685] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.689] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.693] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.698] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.710] RX CHUNK: 1 bytes | 13 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.714] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.718] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.722] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.726] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.730] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.735] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 33
+ASCII : 3
+
+[12:54:12.739] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.743] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.750] RX CHUNK: 1 bytes | 6 ms since previous RX
+HEX   : 00
+ASCII : .
+
+[12:54:12.754] RX CHUNK: 1 bytes | 5 ms since previous RX
+HEX   : 5B
+ASCII : [
+
+[12:54:12.758] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.762] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.766] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+
+[12:54:12.770] RX CHUNK: 1 bytes | 4 ms since previous RX
+HEX   : 30
+ASCII : 0
+

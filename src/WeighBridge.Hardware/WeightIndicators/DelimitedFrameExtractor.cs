@@ -21,6 +21,9 @@ public sealed class DelimitedFrameExtractor : IFrameExtractor
 
     private const byte Stx = 0x02;
     private const byte Etx = 0x03;
+    private const byte BracketStart = 0x5B; // '['
+    private const byte BracketEnd = 0x5D;   // ']'
+    private const byte NullTerminator = 0x00;
     private const byte Cr = 0x0D;
     private const byte Lf = 0x0A;
 
@@ -34,8 +37,43 @@ public sealed class DelimitedFrameExtractor : IFrameExtractor
             return false;
         }
 
+        int bracketIndex = buffer.IndexOf(BracketStart);
         int stxIndex = buffer.IndexOf(Stx);
         int lfIndex = buffer.IndexOf(Lf);
+
+        // Bracket-framed indicator format: '[' (0x5B) followed by payload and terminated by \0, \r, \n, or ']'
+        if (bracketIndex >= 0 && (stxIndex < 0 || bracketIndex < stxIndex) && (lfIndex < 0 || bracketIndex < lfIndex))
+        {
+            var afterBracket = buffer.Slice(bracketIndex + 1);
+            int termIndex = -1;
+            for (int i = 0; i < afterBracket.Length; i++)
+            {
+                byte b = afterBracket[i];
+                if (b is NullTerminator or Cr or Lf or BracketEnd)
+                {
+                    termIndex = i;
+                    break;
+                }
+            }
+
+            if (termIndex >= 0)
+            {
+                frame = afterBracket[..termIndex];
+                bytesConsumed = bracketIndex + 1 + termIndex + 1;
+                if (afterBracket[termIndex] == Cr && termIndex + 1 < afterBracket.Length && afterBracket[termIndex + 1] == Lf)
+                {
+                    bytesConsumed++;
+                }
+                return true;
+            }
+
+            if (bracketIndex > 0)
+            {
+                bytesConsumed = bracketIndex;
+            }
+
+            return false;
+        }
 
         // A line that completes before any STX frame does is extracted first.
         if (lfIndex >= 0 && (stxIndex < 0 || lfIndex < stxIndex))

@@ -1,0 +1,17 @@
+﻿====================================================
+ WeighBridge Serial Diagnostic
+====================================================
+Timestamp : 2026-08-29 12:53:13.760
+Port      : COM3
+Baud      : 2400
+DataBits  : 8
+Parity    : None
+StopBits  : One
+Handshake : None
+DTR       : False
+RTS       : False
+Mode      : RAW
+Duration  : Infinite
+----------------------------------------------------
+
+[12:53:14.258] ERROR: A device attached to the system is not functioning.
