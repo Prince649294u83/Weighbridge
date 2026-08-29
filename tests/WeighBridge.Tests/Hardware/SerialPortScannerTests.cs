@@ -72,6 +72,24 @@ public sealed class SerialPortScannerTests
     }
 
     [Fact]
+    public async Task ScanAsync_Decodes_BracketNull_Indicator_Frames()
+    {
+        byte[] bracketTraffic = [(byte)'[', (byte)'0', (byte)'0', (byte)'0', (byte)'0', (byte)'3', (byte)'0', (byte)'0', 0x00];
+        var scanner = Build(new Dictionary<string, byte[]>
+        {
+            ["COM3@2400"] = bracketTraffic,
+        }, ports: ["COM3"], indicatorOptions: new WeightIndicatorOptions { PortName = "COM3", BaudRate = 2400, DtrEnable = true, RtsEnable = true });
+
+        var results = await scanner.ScanAsync(portNames: ["COM3"], baudRates: [2400]);
+
+        var found = Assert.Single(results, r => r.SpeaksProtocol);
+        Assert.Equal("COM3", found.PortName);
+        Assert.Equal(2400, found.BaudRate);
+        Assert.Equal(300m, found.SampleWeightKg);
+        Assert.Equal("0000300", found.RawSample);
+    }
+
+    [Fact]
     public async Task ScanAsync_ReturnsTheRawFrameSoTheOperatorCanCheckTheDisplay()
     {
         // Adopting a port on the strength of "something decoded" is not enough: the

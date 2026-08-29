@@ -243,8 +243,8 @@ public sealed class SerialPortScanner : IIndicatorPortScanner
         }
 
         return _options.BaudRate > 0
-            ? [.. new[] { _options.BaudRate }.Concat(StandardBaudRates).Distinct()]
-            : StandardBaudRates;
+            ? [_options.BaudRate]
+            : [2400];
     }
 
     /// <summary>
@@ -258,17 +258,15 @@ public sealed class SerialPortScanner : IIndicatorPortScanner
     {
         var parity = Enum.TryParse<Parity>(_options.Parity, true, out var p) ? p : Parity.None;
         var stopBits = Enum.TryParse<StopBits>(_options.StopBits, true, out var s) ? s : StopBits.One;
+        var handshake = Enum.TryParse<Handshake>(_options.Handshake, true, out var h) ? h : Handshake.None;
 
         using var port = new SerialPort(portName, baudRate, parity, _options.DataBits, stopBits)
         {
-            // Short, because a silent port must cost the listen window and not a timeout on
-            // top of it. DTR/RTS are raised to match the live transport: some indicators
-            // only transmit once the host asserts them, and a probe that left them low
-            // would report the port silent while the driver would have read it fine.
             ReadTimeout = 250,
             WriteTimeout = 250,
-            DtrEnable = true,
-            RtsEnable = true,
+            DtrEnable = _options.DtrEnable,
+            RtsEnable = _options.RtsEnable,
+            Handshake = handshake,
         };
 
         port.Open();

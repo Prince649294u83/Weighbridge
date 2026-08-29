@@ -1,4 +1,4 @@
-﻿using WeighBridge.Hardware.WeightIndicators;
+using WeighBridge.Hardware.WeightIndicators;
 
 namespace WeighBridge.Tests.Hardware;
 
@@ -175,5 +175,17 @@ public sealed class DelimitedFrameExtractorTests
 
         Assert.False(_extractor.TryExtractFrame(buffer, out _, out var consumed));
         Assert.Equal(1100 - 256, consumed);
+    }
+
+    [Fact]
+    public void BracketNull_Frame_IsExtracted_And_Junk_Before_Bracket_Is_Consumed()
+    {
+        byte[] junk = [0xAA, 0xBB, 0xCC];
+        byte[] frame = [(byte)'[', (byte)'0', (byte)'0', (byte)'0', (byte)'0', (byte)'3', (byte)'0', (byte)'0', 0x00];
+        byte[] buffer = junk.Concat(frame).ToArray();
+
+        Assert.True(_extractor.TryExtractFrame(buffer, out var extracted, out var consumed));
+        Assert.Equal("0000300"u8.ToArray(), extracted.ToArray());
+        Assert.Equal(junk.Length + frame.Length, consumed);
     }
 }

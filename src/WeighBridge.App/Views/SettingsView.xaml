@@ -166,10 +166,10 @@
                           Style="{StaticResource Button.Secondary}"
                           ToolTip="Re-read the list of serial ports Windows reports." />
                   <Button Command="{Binding DetectIndicatorCommand}"
-                          Content="Detect Indicator"
+                          Content="Test Connection"
                           Margin="10,0,0,0"
                           Style="{StaticResource Button.Primary}"
-                          ToolTip="Listen on every serial port and adopt the one that sends readable weight frames." />
+                          ToolTip="Test the selected COM port and baud rate using the live frame extractor and protocol parser." />
                 </StackPanel>
               </Grid>
 
@@ -231,6 +231,25 @@
                           MinWidth="130"
                           SelectedItem="{Binding StopBits}"
                           Style="{StaticResource ComboBox.Default}" />
+              </Grid>
+
+              <Grid Style="{StaticResource Settings.Row}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="220" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource Settings.Label}" Text="Hardware control lines" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                  <CheckBox Content="Assert DTR (Data Terminal Ready)"
+                            IsChecked="{Binding DtrEnable}"
+                            Style="{StaticResource CheckBox.Default}"
+                            VerticalAlignment="Center"
+                            Margin="0,0,20,0" />
+                  <CheckBox Content="Assert RTS (Request To Send)"
+                            IsChecked="{Binding RtsEnable}"
+                            Style="{StaticResource CheckBox.Default}"
+                            VerticalAlignment="Center" />
+                </StackPanel>
               </Grid>
 
               <Grid Style="{StaticResource Settings.Row}">

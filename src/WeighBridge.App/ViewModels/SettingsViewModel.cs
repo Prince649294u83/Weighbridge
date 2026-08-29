@@ -69,6 +69,9 @@ public sealed class SettingsViewModel : ViewModelBase
     private int _stabilityDurationMs;
     private bool _autoReconnect;
     private int _reconnectIntervalMs;
+    private bool _dtrEnable = true;
+    private bool _rtsEnable = true;
+    private string _handshake = "None";
 
     private bool _cameraEnabled;
     private bool _captureOnWeighment;
@@ -272,6 +275,24 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _reconnectIntervalMs, value);
     }
 
+    public bool DtrEnable
+    {
+        get => _dtrEnable;
+        set => SetProperty(ref _dtrEnable, value);
+    }
+
+    public bool RtsEnable
+    {
+        get => _rtsEnable;
+        set => SetProperty(ref _rtsEnable, value);
+    }
+
+    public string Handshake
+    {
+        get => _handshake;
+        set => SetProperty(ref _handshake, value);
+    }
+
     public bool CameraEnabled
     {
         get => _cameraEnabled;
@@ -370,7 +391,8 @@ public sealed class SettingsViewModel : ViewModelBase
     /// <summary>
     /// Copies the live options into the edit buffers, discarding any pending edit.
     /// </summary>
-    private void LoadFromOptions()    {
+    private void LoadFromOptions()
+    {
         var indicator = Hardware.WeightIndicator;
 
         IndicatorEnabled = indicator.Enabled;
@@ -383,6 +405,9 @@ public sealed class SettingsViewModel : ViewModelBase
         StabilitySampleCount = indicator.StabilitySampleCount;
         StabilityToleranceKg = indicator.StabilityToleranceKg;
         StabilityDurationMs = indicator.StabilityDurationMs;
+        DtrEnable = indicator.DtrEnable;
+        RtsEnable = indicator.RtsEnable;
+        Handshake = indicator.Handshake;
         AutoReconnect = indicator.AutoReconnect;
         ReconnectIntervalMs = indicator.ReconnectIntervalMs;
 
@@ -426,18 +451,17 @@ public sealed class SettingsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Finds the indicator, and adopts the port and baud rate it was found on.
+    /// Tests the indicator connection on the selected port and baud rate using the live framing and parser pipeline.
     /// </summary>
     /// <remarks>
     /// The running driver holds the configured port, so it is disconnected for the duration
-    /// of the scan and reconnected afterwards — a scan that left the indicator disconnected
-    /// would look like the detection had broken the hardware.
+    /// of the test and reconnected afterwards.
     /// </remarks>
     private async Task DetectIndicatorAsync()
     {
         IsDetecting = true;
         DetectionResults.Clear();
-        DetectionStatus = "Scanning serial ports for a weight indicator…";
+        DetectionStatus = $"Testing indicator connection on {PortName} at {BaudRate} baud…";
 
         var wasConnected = _indicator.State == Domain.Enums.ConnectionState.Connected;
 
@@ -450,8 +474,11 @@ public sealed class SettingsViewModel : ViewModelBase
 
             RefreshPorts();
 
+            var targetPorts = !string.IsNullOrWhiteSpace(PortName) ? new[] { PortName } : null;
+            var targetBauds = BaudRate > 0 ? new[] { BaudRate } : new[] { 2400 };
+
             var results = await _portScanner
-                .ScanAsync(baudRates: BaudRateChoices)
+                .ScanAsync(portNames: targetPorts, baudRates: targetBauds)
                 .ConfigureAwait(true);
 
             foreach (var result in results)
@@ -464,12 +491,11 @@ public sealed class SettingsViewModel : ViewModelBase
             if (found is null)
             {
                 DetectionStatus = results.Count == 0
-                    ? "No serial ports to scan."
-                    : $"No indicator found after {results.Count} attempt(s). " +
-                      "The indicator must be powered on and sending continuously; " +
-                      "an indicator that only replies to a poll command has to be set by hand.";
+                    ? "No serial ports available to test."
+                    : $"No valid indicator frames detected on {PortName} at {BaudRate} baud after {results.Count} attempt(s). " +
+                      "Verify that the indicator is powered on, wired with DTR/RTS asserted, and sending continuous weight frames.";
 
-                _logger.LogWarning("Indicator detection found nothing across {Attempts} attempt(s)", results.Count);
+                _logger.LogWarning("Indicator connection test found nothing across {Attempts} attempt(s)", results.Count);
                 return;
             }
 
@@ -481,18 +507,17 @@ public sealed class SettingsViewModel : ViewModelBase
             RefreshPorts();
 
             DetectionStatus =
-                $"Found an indicator on {found.PortName} at {found.BaudRate} baud, reading " +
+                $"Connection successful on {found.PortName} at {found.BaudRate} baud! Live reading: " +
                 $"{found.SampleWeightKg?.ToString("0.##", CultureInfo.CurrentCulture)} kg " +
-                $"(frame '{found.RawSample}'). Check that against the indicator's own display, " +
-                "then Save to keep it.";
+                $"(frame '{found.RawSample}'). Click Save to apply.";
 
             _logger.LogInformation(
-                "Indicator detected on {PortName} at {BaudRate} baud", found.PortName, found.BaudRate);
+                "Indicator connection verified on {PortName} at {BaudRate} baud", found.PortName, found.BaudRate);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Indicator detection failed");
-            DetectionStatus = $"The scan could not be completed: {ex.Message}";
+            DetectionStatus = $"The test could not be completed: {ex.Message}";
         }
         finally
         {
@@ -506,9 +531,9 @@ public sealed class SettingsViewModel : ViewModelBase
                 }
                 catch (Exception ex)
                 {
-                    // Reported, not thrown: the scan's own result is the useful outcome here,
+                    // Reported, not thrown: the test's own result is the useful outcome here,
                     // and the indicator's status bar tile already shows it is disconnected.
-                    _logger.LogWarning(ex, "Could not reconnect the indicator after the scan");
+                    _logger.LogWarning(ex, "Could not reconnect the indicator after the test");
                 }
             }
         }
@@ -547,6 +572,9 @@ public sealed class SettingsViewModel : ViewModelBase
                 ["Hardware:WeightIndicator:StabilitySampleCount"] = StabilitySampleCount,
                 ["Hardware:WeightIndicator:StabilityToleranceKg"] = StabilityToleranceKg,
                 ["Hardware:WeightIndicator:StabilityDurationMs"] = StabilityDurationMs,
+                ["Hardware:WeightIndicator:DtrEnable"] = DtrEnable,
+                ["Hardware:WeightIndicator:RtsEnable"] = RtsEnable,
+                ["Hardware:WeightIndicator:Handshake"] = Handshake,
                 ["Hardware:WeightIndicator:AutoReconnect"] = AutoReconnect,
                 ["Hardware:WeightIndicator:ReconnectIntervalMs"] = ReconnectIntervalMs,
                 ["Camera:Enabled"] = CameraEnabled,
@@ -685,6 +713,9 @@ public sealed class SettingsViewModel : ViewModelBase
         indicator.StabilitySampleCount = StabilitySampleCount;
         indicator.StabilityToleranceKg = StabilityToleranceKg;
         indicator.StabilityDurationMs = StabilityDurationMs;
+        indicator.DtrEnable = DtrEnable;
+        indicator.RtsEnable = RtsEnable;
+        indicator.Handshake = Handshake;
         indicator.AutoReconnect = AutoReconnect;
         indicator.ReconnectIntervalMs = ReconnectIntervalMs;
 

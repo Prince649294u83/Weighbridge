@@ -41,17 +41,22 @@ public sealed class SerialPortTransport : ISerialPortTransport
 
             var parity = Enum.TryParse<Parity>(_options.Parity, true, out var p) ? p : Parity.None;
             var stopBits = Enum.TryParse<StopBits>(_options.StopBits, true, out var s) ? s : StopBits.One;
+            var handshake = Enum.TryParse<Handshake>(_options.Handshake, true, out var h) ? h : Handshake.None;
+            int timeout = _options.ReadTimeoutMs > 0 ? _options.ReadTimeoutMs : 5000;
 
             _logger.Log(
                 _consecutiveOpenFailures == 0 || _consecutiveOpenFailures % 100 == 0
                     ? LogLevel.Information
                     : LogLevel.Debug,
-                "Opening serial port {PortName} ({BaudRate}, {DataBits}, {Parity}, {StopBits})",
+                "Opening serial port {PortName} ({BaudRate}, {DataBits}, {Parity}, {StopBits}, DTR={Dtr}, RTS={Rts}, Handshake={Handshake})",
                 _options.PortName,
                 _options.BaudRate,
                 _options.DataBits,
                 parity,
-                stopBits);
+                stopBits,
+                _options.DtrEnable,
+                _options.RtsEnable,
+                handshake);
 
             _serialPort = new SerialPort(
                 _options.PortName,
@@ -60,10 +65,11 @@ public sealed class SerialPortTransport : ISerialPortTransport
                 _options.DataBits,
                 stopBits)
             {
-                ReadTimeout = 5000,
-                WriteTimeout = 5000,
-                DtrEnable = true,
-                RtsEnable = true,
+                ReadTimeout = timeout,
+                WriteTimeout = timeout,
+                DtrEnable = _options.DtrEnable,
+                RtsEnable = _options.RtsEnable,
+                Handshake = handshake,
             };
 
             _serialPort.Open();

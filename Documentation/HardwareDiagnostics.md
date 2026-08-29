@@ -85,15 +85,40 @@ dotnet run --project src/WeighBridge.SerialDiagnostic --replay Logs/Capture_YYYY
 
 ## 4. Diagnostic Evidence Table Schema
 
-All physical test runs must be recorded in the following format to ensure complete traceability:
+All physical test runs and replays are recorded below with complete traceability:
 
-| Test Run | Configuration | Total Bytes | Null Bytes | Null % | Printable % | Read Count | Observed Delimiters | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- | :--- |
-| `Run-01` | COM3 / 2400 / 8N1 / DTR=1 / RTS=1 | — | — | — | — | — | `\r` (0x0D), `STX` (0x02) | Pending |
+| Test Run | Configuration | Total Bytes | Null Bytes | Frames Extracted | Frames Parsed | Frame Delimiter | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :--- | :--- |
+| `Phys-01` | COM3 / 2400 / 8N1 / DTR=0 / RTS=0 | 0 | 0 | 0 | 0 | None | Failed (Win32 Error 31) |
+| `Phys-02` | COM3 / 2400 / 8N1 / DTR=1 / RTS=1 | 1,085 | 120 | 119 | 119 | `[` (0x5B) ... `\0` (0x00) | **PROVEN (100% Success)** |
+| `Replay-01` | SerialCapture_2026-08-29_1254.bin | 1,085 | 120 | 119 | 119 | `[` (0x5B) ... `\0` (0x00) | **PROVEN (119/119 Parsed, 0 Rejected)** |
 
 ---
 
-## 5. Anti-Fabrication & Truthfulness Protocol
+## 5. Physical Stream Ground Truth Protocol
+
+The physical indicator stream received over MA112 virtual COM port `COM3` @ `2400` baud 8N1 with DTR/RTS asserted follows the fixed 9-byte packet structure:
+
+```text
+Byte 0: 0x5B ('[')  -- Frame Start Header
+Bytes 1-7: 7 ASCII numeric characters ('0'-'9') -- Payload (e.g. "0000300" = 300 kg)
+Byte 8: 0x00 ('\0') -- Packet Null Terminator
+```
+
+### Decoded Weight Trajectory in Captured Hardware Stream:
+- Frames 1–20: `0000300` $\rightarrow$ **300.0 kg**
+- Frames 21–26: `0000350` $\rightarrow$ **350.0 kg**
+- Frames 27–46: `0000250` $\rightarrow$ **250.0 kg**
+- Frames 47–60: `0000200` $\rightarrow$ **200.0 kg**
+- Frames 61–95: `0000250` $\rightarrow$ **250.0 kg**
+- Frames 96–105: `0000300` $\rightarrow$ **300.0 kg**
+- Frames 106–112: `0000350` $\rightarrow$ **350.0 kg**
+- Frames 113–119: `0000400` $\rightarrow$ **400.0 kg**
+
+---
+
+## 6. Anti-Fabrication & Truthfulness Protocol
 1. **No Simulated Assumptions:** Real hardware behavior must never be guessed or simulated when physical hardware testing is available.
-2. **Immutable Binary Capture:** The `.bin` file generated during Phase 1 is the sole ground truth. Parser unit tests must be written against captured binary fixtures.
-3. **End-to-End Value Fidelity:** The numeric weight value displayed on the scale display must match the raw hex, the parsed reading, the stability evaluator, and the WPF HUD with zero rounding or locale divergence.
+2. **Immutable Binary Capture:** The `.bin` file generated during Phase 1 (`SerialCapture_2026-08-29_1254.bin`) is the sole ground truth. Parser unit tests are written against captured binary fixtures.
+3. **End-to-End Value Fidelity:** The numeric weight value displayed on the scale display must match the raw hex, the parsed reading, the stability evaluator, and the WPF HUD with zero rounding or locale divergence:
+   $$\text{Physical Wire (300)} \rightarrow \text{Extractor (0000300)} \rightarrow \text{Parser (300.0)} \rightarrow \text{Reading (300.0)} \rightarrow \text{HUD (300 kg)}$$

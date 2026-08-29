@@ -247,13 +247,18 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
                     break;
                 }
 
+                // Adaptive backoff: 1x, 2x, 4x, 8x, up to 30s maximum, with a safety floor of 1500ms
+                int backoffMultiplier = Math.Min(16, 1 << Math.Min(consecutiveFailures - 1, 4));
+                int baseInterval = Math.Max(1500, _options.ReconnectIntervalMs);
+                int delayMs = Math.Min(30000, baseInterval * backoffMultiplier);
+
                 _logger.Log(
                     loud ? LogLevel.Information : LogLevel.Debug,
-                    "Waiting {Delay}ms before reconnecting to {PortName}...",
-                    _options.ReconnectIntervalMs, _options.PortName);
+                    "Waiting {Delay}ms before reconnecting to {PortName} (attempt {Attempt})...",
+                    delayMs, _options.PortName, consecutiveFailures + 1);
                 try
                 {
-                    await Task.Delay(Math.Max(500, _options.ReconnectIntervalMs), token).ConfigureAwait(false);
+                    await Task.Delay(delayMs, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

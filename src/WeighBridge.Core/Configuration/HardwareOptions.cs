@@ -55,11 +55,23 @@ public sealed class WeightIndicatorOptions
     /// <summary>Minimum time duration in milliseconds the weight must remain within tolerance.</summary>
     public int StabilityDurationMs { get; set; } = 1000;
 
+    /// <summary>Whether Data Terminal Ready (DTR) signal is asserted on the serial port.</summary>
+    public bool DtrEnable { get; set; } = true;
+
+    /// <summary>Whether Request To Send (RTS) signal is asserted on the serial port.</summary>
+    public bool RtsEnable { get; set; } = true;
+
+    /// <summary>Hardware handshake protocol: None, XOnXOff, RequestToSend, or RequestToSendXOnXOff.</summary>
+    public string Handshake { get; set; } = "None";
+
+    /// <summary>Serial read timeout in milliseconds.</summary>
+    public int ReadTimeoutMs { get; set; } = 5000;
+
     /// <summary>Whether to automatically attempt reconnection after a serial disconnect.</summary>
     public bool AutoReconnect { get; set; } = true;
 
     /// <summary>Delay between reconnection attempts in milliseconds.</summary>
-    public int ReconnectIntervalMs { get; set; } = 3000;
+    public int ReconnectIntervalMs { get; set; } = 1500;
 
     /// <summary>Unit reported by the indicator, e.g. <c>kg</c>.</summary>
     public string Unit { get; set; } = "kg";
