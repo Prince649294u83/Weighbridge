@@ -1,0 +1,150 @@
+{
+  "device": {
+    "port": "COM3",
+    "baud": 2400,
+    "dataBits": 8,
+    "parity": "None",
+    "stopBits": "One",
+    "dtr": true,
+    "rts": true,
+    "handshake": "None",
+    "packetStructure": "[ + 7 ASCII digits + \\0"
+  },
+  "status": "Physical measurement correlation pending",
+  "measurements": [
+    {
+      "physicalDisplayKg": 0.0,
+      "rawHex": "5B 30 30 30 30 30 30 30 00",
+      "rawPayload": "0000000",
+      "currentAppValueKg": 0.0,
+      "requiredKg": 0.0,
+      "verified": true
+    },
+    {
+      "physicalDisplayKg": 10.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 10.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 20.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 20.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 50.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 50.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 90.0,
+      "rawHex": "5B 30 30 30 30 39 30 30 00",
+      "rawPayload": "0000900",
+      "currentAppValueKg": 900.0,
+      "requiredKg": 90.0,
+      "verified": false,
+      "note": "Observed candidate discrepancy: raw 0000900 parsed as 900.0 without decimal profile"
+    },
+    {
+      "physicalDisplayKg": 95.0,
+      "rawHex": "5B 30 30 30 30 39 35 30 00",
+      "rawPayload": "0000950",
+      "currentAppValueKg": 950.0,
+      "requiredKg": 95.0,
+      "verified": false,
+      "note": "Observed live stream candidate"
+    },
+    {
+      "physicalDisplayKg": 100.0,
+      "rawHex": "5B 30 30 30 31 30 30 30 00",
+      "rawPayload": "0001000",
+      "currentAppValueKg": 1000.0,
+      "requiredKg": 100.0,
+      "verified": false,
+      "note": "Observed live stream candidate"
+    },
+    {
+      "physicalDisplayKg": 125.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 125.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 137.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 137.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 200.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 200.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 275.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 275.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 500.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 500.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 1000.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 1000.0,
+      "verified": false
+    },
+    {
+      "physicalDisplayKg": 1350.0,
+      "rawHex": "5B 30 30 30 31 33 35 30 00",
+      "rawPayload": "0001350",
+      "currentAppValueKg": 1350.0,
+      "requiredKg": 1350.0,
+      "verified": true,
+      "note": "Verified live physical capture"
+    },
+    {
+      "physicalDisplayKg": 1400.0,
+      "rawHex": "5B 30 30 30 31 34 30 30 00",
+      "rawPayload": "0001400",
+      "currentAppValueKg": 1400.0,
+      "requiredKg": 1400.0,
+      "verified": true,
+      "note": "Verified live physical capture"
+    },
+    {
+      "physicalDisplayKg": 1450.0,
+      "rawHex": "5B 30 30 30 31 34 35 30 00",
+      "rawPayload": "0001450",
+      "currentAppValueKg": 1450.0,
+      "requiredKg": 1450.0,
+      "verified": true,
+      "note": "Verified live physical capture"
+    }
+  ]
+}

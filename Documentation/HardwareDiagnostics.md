@@ -100,7 +100,7 @@ All physical test runs and replays are recorded below with complete traceability
 ### 5.1 Verified Physical Serial Interface
 The physical connection via Megawin MA112 USB-to-UART bridge operates strictly under:
 ```text
-Port Name     : COM3
+Port Name     : COM3 (Configurable per installation, verified for this bench)
 Baud Rate     : 2400 baud
 Data Bits     : 8
 Parity        : None (8N1)
@@ -111,37 +111,42 @@ Handshake     : None
 Framing       : Fixed 9-byte packet [0x5B, 7 ASCII digits, 0x00]
 ```
 
-### 5.2 Multi-Point Physical Correlation Matrix
+### 5.2 Status: Phase 1 Implementation Complete; Physical Measurement Correlation Pending
 
-| Physical Display | Raw HEX Stream | Raw ASCII Payload | Current Parsed Value | Candidate Profile Target | Verification Status |
+```text
+Decoder Engine Capabilities (Pure string transformations)  --> COMPLETED & TESTED
+Active Production Indicator Profile (Scaling / Decimals)   --> PENDING PHYSICAL CORRELATION
+Phase 2 (F1/F2 Operational Workflow)                       --> STRICTLY GATED ON CORRELATION
+```
+
+### 5.3 Multi-Point Physical Correlation Matrix & Fixture Tracking
+
+Tracked permanently in `tests/Fixtures/Hardware/indicator-com3-2400/correlation.json`:
+
+| Physical Display | Raw HEX Stream | Raw ASCII Payload | Current Parsed Value | Required Target | Verification Status |
 | :---: | :---: | :---: | :---: | :---: | :--- |
 | `0.0 kg` | `5B 30 30 30 30 30 30 30 00` | `0000000` | `0.0 kg` | `0.0 kg` | Verified Zero Point |
-| `10.0 kg` | To be captured | `?` | `?` | `10.0 kg` | Pending Physical Test |
-| `50.0 kg` | To be captured | `?` | `?` | `50.0 kg` | Pending Physical Test |
-| `90.0 kg` (Observed) | `5B 30 30 30 30 39 30 30 00` | `0000900` | `900.0 kg` | `90.0 kg` (if DecimalPlaces=1) | Physical Candidate Discrepancy |
-| `100.0 kg` | To be captured | `0001000` | `1000.0 kg` | `100.0 kg` (if DecimalPlaces=1) | Live Stream Observed |
-| `500.0 kg` | To be captured | `?` | `?` | `500.0 kg` | Pending Physical Test |
-| `1000 kg` | To be captured | `?` | `?` | `1000.0 kg` | Pending Physical Test |
-| `1350 kg` (Observed) | `5B 30 30 30 31 33 35 30 00` | `0001350` | `1350.0 kg` | `1350.0 kg` (Baseline) | Verified Live Capture |
-| `1400 kg` (Observed) | `5B 30 30 30 31 34 30 30 00` | `0001400` | `1400.0 kg` | `1400.0 kg` (Baseline) | Verified Live Capture |
-| `1450 kg` (Observed) | `5B 30 30 30 31 34 35 30 00` | `0001450` | `1450.0 kg` | `1450.0 kg` (Baseline) | Verified Live Capture |
-
-### 5.3 Live Application Telemetry Evidence
-Active log telemetry extracted directly from `weighbridge-2026-08-29.log` on `COM3`:
-```text
-ReadingReceived #19001: Value=900.0 kg, Stable=True, Source=Indicator, Raw='0000900'
-ReadingReceived #19601: Value=950.0 kg, Stable=True, Source=Indicator, Raw='0000950'
-ReadingReceived #20601: Value=1,000.0 kg, Stable=True, Source=Indicator, Raw='0001000'
-ReadingReceived #22401: Value=1,050.0 kg, Stable=True, Source=Indicator, Raw='0001050'
-ReadingReceived #24201: Value=1,100.0 kg, Stable=True, Source=Indicator, Raw='0001100'
-```
+| `10.0 kg` | Pending Physical Test | `?` | `?` | `10.0 kg` | Pending Physical Capture |
+| `20.0 kg` | Pending Physical Test | `?` | `?` | `20.0 kg` | Pending Physical Capture |
+| `50.0 kg` | Pending Physical Test | `?` | `?` | `50.0 kg` | Pending Physical Capture |
+| `90.0 kg` | `5B 30 30 30 30 39 30 30 00` | `0000900` | `900.0 kg` | `90.0 kg` | Discrepancy Observed |
+| `95.0 kg` | `5B 30 30 30 30 39 35 30 00` | `0000950` | `950.0 kg` | `95.0 kg` | Candidate Observed |
+| `100.0 kg` | `5B 30 30 30 31 30 30 30 00` | `0001000` | `1000.0 kg` | `100.0 kg` | Candidate Observed |
+| `125.0 kg` | Pending Physical Test | `?` | `?` | `125.0 kg` | Non-round test point |
+| `137.0 kg` | Pending Physical Test | `?` | `?` | `137.0 kg` | Non-round test point |
+| `200.0 kg` | Pending Physical Test | `?` | `?` | `200.0 kg` | Pending Physical Capture |
+| `275.0 kg` | Pending Physical Test | `?` | `?` | `275.0 kg` | Non-round test point |
+| `500.0 kg` | Pending Physical Test | `?` | `?` | `500.0 kg` | Pending Physical Capture |
+| `1000.0 kg` | Pending Physical Test | `?` | `?` | `1000.0 kg` | Pending Physical Capture |
+| `1350.0 kg` | `5B 30 30 30 31 33 35 30 00` | `0001350` | `1350.0 kg` | `1350.0 kg` | Verified Live Capture |
+| `1400.0 kg` | `5B 30 30 30 31 34 30 30 00` | `0001400` | `1400.0 kg` | `1400.0 kg` | Verified Live Capture |
+| `1450.0 kg` | `5B 30 30 30 31 34 35 30 00` | `0001450` | `1450.0 kg` | `1450.0 kg` | Verified Live Capture |
 
 ---
 
-## 6. Anti-Fabrication & Profile Isolation Rules
-1. **No Simulated Assumptions:** Real hardware behavior must never be guessed or simulated when physical hardware testing is available.
-2. **Immutable Binary Capture:** Captured `.bin` fixtures (`SerialCapture_2026-08-29_1254.bin`, `SerialCapture_2026-08-29_1305.bin`) are the sole ground truth.
-3. **No Global `/ 10` Arithmetic:** Under no circumstances should `value /= 10` be globally hardcoded. The decoder supports profile-based decoding (`WeightDecodeOptions`), and candidate profiles are activated only after empirical correlation confirms the exact indicator model scaling.
-4. **End-to-End Value Fidelity:** The numeric weight value displayed on the physical scale display must match the raw hex, the parsed reading, the decoded value, the stability evaluator, and the WPF HUD:
-   $$\text{Physical Wire (0000900)} \rightarrow \text{Extractor} \rightarrow \text{Parser (Raw String)} \rightarrow \text{Decoder (Profile)} \rightarrow \text{Stability} \rightarrow \text{HUD}$$
+## 6. Architecture: Capabilities vs. Active Profile
+1. **Decoder Capabilities:** `WeightDecoder` pure string transformation engine supports `WeightDigits`, `DecimalPlaces`, `DigitsToRemoveFromEnd`, `ReversePayload`, `DummyZero`, and `ScaleFactor`.
+2. **Active Profile Isolation:** No profile default is activated without physical evidence. The default configuration (`DecimalPlaces = 0`) preserves proven baseline behavior.
+3. **No Global `/ 10` Arithmetic:** Global division is strictly prohibited. Indicator scaling is strictly governed by the configured profile.
+4. **Permanent Fixtures:** Ground truth is maintained in `tests/Fixtures/Hardware/` for reproducible offline verification.
 
