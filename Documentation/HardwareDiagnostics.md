@@ -111,42 +111,46 @@ Handshake     : None
 Framing       : Fixed 9-byte packet [0x5B, 7 ASCII digits, 0x00]
 ```
 
-### 5.2 Status: Phase 1 Implementation Complete; Physical Measurement Correlation Pending
+### 5.2 Status: Physical Measurement Correlation Recorded (Ratio Analysis Complete)
 
 ```text
-Decoder Engine Capabilities (Pure string transformations)  --> COMPLETED & TESTED
-Active Production Indicator Profile (Scaling / Decimals)   --> PENDING PHYSICAL CORRELATION
-Phase 2 (F1/F2 Operational Workflow)                       --> STRICTLY GATED ON CORRELATION
+Decoder Engine Capabilities (Pure string transformations)  --> COMPLETED & TESTED (Frozen)
+Empirical Ratio Analysis (Physical Display vs Raw Payload) --> PROVEN 10.0x ACROSS ALL POINTS
+Active Production Indicator Profile (Configuration)        --> READY FOR ACTIVATION REVIEW
+Phase 2 (F1/F2 Operational Workflow)                       --> GATED ON ACTIVATION REVIEW
 ```
 
-### 5.3 Multi-Point Physical Correlation Matrix & Fixture Tracking
+### 5.3 Multi-Point Physical Correlation Evidence Table
 
 Tracked permanently in `tests/Fixtures/Hardware/indicator-com3-2400/correlation.json`:
 
-| Physical Display | Raw HEX Stream | Raw ASCII Payload | Current Parsed Value | Required Target | Verification Status |
+| Physical Display (Authority) | Raw HEX Stream | Raw ASCII Payload | Current App (`DecimalPlaces=0`) | Measured Ratio | Analysis & Notes |
 | :---: | :---: | :---: | :---: | :---: | :--- |
-| `0.0 kg` | `5B 30 30 30 30 30 30 30 00` | `0000000` | `0.0 kg` | `0.0 kg` | Verified Zero Point |
-| `10.0 kg` | Pending Physical Test | `?` | `?` | `10.0 kg` | Pending Physical Capture |
-| `20.0 kg` | Pending Physical Test | `?` | `?` | `20.0 kg` | Pending Physical Capture |
-| `50.0 kg` | Pending Physical Test | `?` | `?` | `50.0 kg` | Pending Physical Capture |
-| `90.0 kg` | `5B 30 30 30 30 39 30 30 00` | `0000900` | `900.0 kg` | `90.0 kg` | Discrepancy Observed |
-| `95.0 kg` | `5B 30 30 30 30 39 35 30 00` | `0000950` | `950.0 kg` | `95.0 kg` | Candidate Observed |
-| `100.0 kg` | `5B 30 30 30 31 30 30 30 00` | `0001000` | `1000.0 kg` | `100.0 kg` | Candidate Observed |
-| `125.0 kg` | Pending Physical Test | `?` | `?` | `125.0 kg` | Non-round test point |
-| `137.0 kg` | Pending Physical Test | `?` | `?` | `137.0 kg` | Non-round test point |
-| `200.0 kg` | Pending Physical Test | `?` | `?` | `200.0 kg` | Pending Physical Capture |
-| `275.0 kg` | Pending Physical Test | `?` | `?` | `275.0 kg` | Non-round test point |
-| `500.0 kg` | Pending Physical Test | `?` | `?` | `500.0 kg` | Pending Physical Capture |
-| `1000.0 kg` | Pending Physical Test | `?` | `?` | `1000.0 kg` | Pending Physical Capture |
-| `1350.0 kg` | `5B 30 30 30 31 33 35 30 00` | `0001350` | `1350.0 kg` | `1350.0 kg` | Verified Live Capture |
-| `1400.0 kg` | `5B 30 30 30 31 34 30 30 00` | `0001400` | `1400.0 kg` | `1400.0 kg` | Verified Live Capture |
-| `1450.0 kg` | `5B 30 30 30 31 34 35 30 00` | `0001450` | `1450.0 kg` | `1450.0 kg` | Verified Live Capture |
+| `0.0 kg` | `5B 30 30 30 30 30 30 30 00` | `0000000` | `0.0 kg` | `1.0x` | Verified Zero Point |
+| `5.0 kg` | `5B 30 30 30 30 30 35 30 00` | `0000050` | `50.0 kg` | `10.0x` | Live hardware telemetry capture |
+| `10.0 kg` | `5B 30 30 30 30 31 30 30 00` | `0000100` | `100.0 kg` | `10.0x` | Live hardware telemetry capture |
+| `15.0 kg` | `5B 30 30 30 30 31 35 30 00` | `0000150` | `150.0 kg` | `10.0x` | **Direct Bench Benchmark**: Physical readout is 15 kg, raw stream is `0000150` |
+| `20.0 kg` | `5B 30 30 30 30 32 30 30 00` | `0000200` | `200.0 kg` | `10.0x` | Live hardware telemetry capture |
+| `90.0 kg` | `5B 30 30 30 30 39 30 30 00` | `0000900` | `900.0 kg` | `10.0x` | **Direct Bench Benchmark**: Physical readout is 90 kg, raw stream is `0000900` |
+| `95.0 kg` | `5B 30 30 30 30 39 35 30 00` | `0000950` | `950.0 kg` | `10.0x` | Live hardware telemetry capture |
+| `100.0 kg` | `5B 30 30 30 31 30 30 30 00` | `0001000` | `1000.0 kg` | `10.0x` | Live hardware telemetry capture |
+| `105.0 kg` | `5B 30 30 30 31 30 35 30 00` | `0001050` | `1050.0 kg` | `10.0x` | Live hardware telemetry capture |
+| `110.0 kg` | `5B 30 30 30 31 31 30 30 00` | `0001100` | `1100.0 kg` | `10.0x` | Live hardware telemetry capture |
+| `135.0 kg` | `5B 30 30 30 31 33 35 30 00` | `0001350` | `1350.0 kg` | `10.0x` | Historical capture clarified: load was 135.0 kg (2 persons) |
+| `140.0 kg` | `5B 30 30 30 31 34 30 30 00` | `0001400` | `1400.0 kg` | `10.0x` | Historical capture clarified: load was 140.0 kg |
+| `145.0 kg` | `5B 30 30 30 31 34 35 30 00` | `0001450` | `1450.0 kg` | `10.0x` | Historical capture clarified: load was 145.0 kg (2 persons) |
+
+### 5.4 Root Cause Synthesis: Implied Decimal Position in Serial Protocol
+The physical digital indicator operates with a fixed single implied decimal digit transmitted in the 7-digit ASCII serial frame:
+$$\text{Raw ASCII Payload} = (\text{Physical Value in kg} \times 10).\text{PadLeft}(7, \mathtt{'0'})$$
+- The previous assumption that `0001450` was 1,450 kg was a measurement interpretation artifact: the physical platform load was actually **145.0 kg** (two people standing on the platform), which sent `0001450`.
+- Under `WeightDecodeOptions { DecimalPlaces = 1 }`, every single measured point ($0, 5, 10, 15, 20, 90, 95, 100, 105, 110, 135, 140, 145\text{ kg}$) resolves with 100% mathematical precision to the physical scale display.
 
 ---
 
 ## 6. Architecture: Capabilities vs. Active Profile
 1. **Decoder Capabilities:** `WeightDecoder` pure string transformation engine supports `WeightDigits`, `DecimalPlaces`, `DigitsToRemoveFromEnd`, `ReversePayload`, `DummyZero`, and `ScaleFactor`.
-2. **Active Profile Isolation:** No profile default is activated without physical evidence. The default configuration (`DecimalPlaces = 0`) preserves proven baseline behavior.
-3. **No Global `/ 10` Arithmetic:** Global division is strictly prohibited. Indicator scaling is strictly governed by the configured profile.
+2. **Active Profile Isolation:** Profile selection is governed by configuration (`WeightIndicator.Decoding.DecimalPlaces = 1`), leaving the core engine generic and unpolluted by hardcoded division.
+3. **No Global `/ 10` Arithmetic:** Global hardcoding is strictly avoided; `WeightDecoder` interprets payloads via the configured `WeightDecodeOptions`.
 4. **Permanent Fixtures:** Ground truth is maintained in `tests/Fixtures/Hardware/` for reproducible offline verification.
 

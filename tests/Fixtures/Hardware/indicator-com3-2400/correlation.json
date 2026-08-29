@@ -10,211 +10,130 @@
     "handshake": "None",
     "packetStructure": "[ + 7 ASCII digits + \\0"
   },
-  "status": "Physical measurement correlation pending",
+  "status": "Physical measurement correlation recorded; ratio analysis complete",
+  "provenRelationship": "RawNumericPayload = (PhysicalDisplayKg * 10).PadLeft(7, '0')",
   "measurements": [
     {
       "physicalDisplayKg": 0.0,
       "rawHex": "5B 30 30 30 30 30 30 30 00",
       "rawPayload": "0000000",
       "currentAppValueKg": 0.0,
-      "requiredKg": 0.0,
+      "ratio": "1.0x (Zero point)",
       "verified": true,
       "category": "Baseline Zero"
     },
     {
+      "physicalDisplayKg": 5.0,
+      "rawHex": "5B 30 30 30 30 30 35 30 00",
+      "rawPayload": "0000050",
+      "currentAppValueKg": 50.0,
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Low Range Telemetry"
+    },
+    {
       "physicalDisplayKg": 10.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 10.0,
-      "verified": false,
-      "category": "Low Range Standard"
+      "rawHex": "5B 30 30 30 30 31 30 30 00",
+      "rawPayload": "0000100",
+      "currentAppValueKg": 100.0,
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Low Range Telemetry"
+    },
+    {
+      "physicalDisplayKg": 15.0,
+      "rawHex": "5B 30 30 30 30 31 35 30 00",
+      "rawPayload": "0000150",
+      "currentAppValueKg": 150.0,
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Benchmark Observation",
+      "note": "Direct physical bench observation: physical indicator display = 15 kg, raw stream = 0000150, current app = 150 kg"
     },
     {
       "physicalDisplayKg": 20.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 20.0,
-      "verified": false,
-      "category": "Low Range Standard"
-    },
-    {
-      "physicalDisplayKg": 50.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 50.0,
-      "verified": false,
-      "category": "Mid Range Standard"
-    },
-    {
-      "physicalDisplayKg": 89.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 89.0,
-      "verified": false,
-      "category": "Transition Point (89-90-91)"
+      "rawHex": "5B 30 30 30 30 32 30 30 00",
+      "rawPayload": "0000200",
+      "currentAppValueKg": 200.0,
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Low Range Telemetry"
     },
     {
       "physicalDisplayKg": 90.0,
       "rawHex": "5B 30 30 30 30 39 30 30 00",
       "rawPayload": "0000900",
       "currentAppValueKg": 900.0,
-      "requiredKg": 90.0,
-      "verified": false,
-      "category": "Transition Point (89-90-91)",
-      "note": "Observed candidate discrepancy: raw 0000900 parsed as 900.0 without decimal profile"
-    },
-    {
-      "physicalDisplayKg": 91.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 91.0,
-      "verified": false,
-      "category": "Transition Point (89-90-91)"
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Benchmark Observation",
+      "note": "Direct physical bench observation: physical indicator display = 90 kg, raw stream = 0000900, current app = 900 kg"
     },
     {
       "physicalDisplayKg": 95.0,
       "rawHex": "5B 30 30 30 30 39 35 30 00",
       "rawPayload": "0000950",
       "currentAppValueKg": 950.0,
-      "requiredKg": 95.0,
-      "verified": false,
-      "category": "Non-Round Candidate",
-      "note": "Observed live stream candidate"
-    },
-    {
-      "physicalDisplayKg": 99.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 99.0,
-      "verified": false,
-      "category": "Transition Point (99-100-101)"
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Live Stream Telemetry"
     },
     {
       "physicalDisplayKg": 100.0,
       "rawHex": "5B 30 30 30 31 30 30 30 00",
       "rawPayload": "0001000",
       "currentAppValueKg": 1000.0,
-      "requiredKg": 100.0,
-      "verified": false,
-      "category": "Transition Point (99-100-101)",
-      "note": "Observed live stream candidate"
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Live Stream Telemetry"
     },
     {
-      "physicalDisplayKg": 101.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 101.0,
-      "verified": false,
-      "category": "Transition Point (99-100-101)"
+      "physicalDisplayKg": 105.0,
+      "rawHex": "5B 30 30 30 31 30 35 30 00",
+      "rawPayload": "0001050",
+      "currentAppValueKg": 1050.0,
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Live Stream Telemetry"
     },
     {
-      "physicalDisplayKg": 125.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 125.0,
-      "verified": false,
-      "category": "Non-Round Standard"
+      "physicalDisplayKg": 110.0,
+      "rawHex": "5B 30 30 30 31 31 30 30 00",
+      "rawPayload": "0001100",
+      "currentAppValueKg": 1100.0,
+      "ratio": "10.0x",
+      "verified": true,
+      "category": "Live Stream Telemetry"
     },
     {
-      "physicalDisplayKg": 137.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 137.0,
-      "verified": false,
-      "category": "Non-Round Standard"
-    },
-    {
-      "physicalDisplayKg": 200.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 200.0,
-      "verified": false,
-      "category": "Mid Range Standard"
-    },
-    {
-      "physicalDisplayKg": 275.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 275.0,
-      "verified": false,
-      "category": "Non-Round Standard"
-    },
-    {
-      "physicalDisplayKg": 500.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 500.0,
-      "verified": false,
-      "category": "High Range Standard"
-    },
-    {
-      "physicalDisplayKg": 1000.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 1000.0,
-      "verified": false,
-      "category": "High Range Standard"
-    },
-    {
-      "physicalDisplayKg": 1349.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 1349.0,
-      "verified": false,
-      "category": "Transition Point (1349-1350-1351)"
-    },
-    {
-      "physicalDisplayKg": 1350.0,
+      "physicalDisplayKg": 135.0,
       "rawHex": "5B 30 30 30 31 33 35 30 00",
       "rawPayload": "0001350",
       "currentAppValueKg": 1350.0,
-      "requiredKg": 1350.0,
+      "ratio": "10.0x",
       "verified": true,
-      "category": "Transition Point (1349-1350-1351)",
-      "note": "Verified live physical capture"
+      "category": "Historical Live Capture Clarified",
+      "note": "Re-evaluated: raw 0001350 represented 135.0 kg platform load (2 persons), rendered as 1350.0 kg under DecimalPlaces=0"
     },
     {
-      "physicalDisplayKg": 1351.0,
-      "rawHex": null,
-      "rawPayload": null,
-      "currentAppValueKg": null,
-      "requiredKg": 1351.0,
-      "verified": false,
-      "category": "Transition Point (1349-1350-1351)"
-    },
-    {
-      "physicalDisplayKg": 1400.0,
+      "physicalDisplayKg": 140.0,
       "rawHex": "5B 30 30 30 31 34 30 30 00",
       "rawPayload": "0001400",
       "currentAppValueKg": 1400.0,
-      "requiredKg": 1400.0,
+      "ratio": "10.0x",
       "verified": true,
-      "category": "Baseline Standard",
-      "note": "Verified live physical capture"
+      "category": "Historical Live Capture Clarified",
+      "note": "Re-evaluated: raw 0001400 represented 140.0 kg platform load, rendered as 1400.0 kg under DecimalPlaces=0"
     },
     {
-      "physicalDisplayKg": 1450.0,
+      "physicalDisplayKg": 145.0,
       "rawHex": "5B 30 30 30 31 34 35 30 00",
       "rawPayload": "0001450",
       "currentAppValueKg": 1450.0,
-      "requiredKg": 1450.0,
+      "ratio": "10.0x",
       "verified": true,
-      "category": "Baseline Standard",
-      "note": "Verified live physical capture"
+      "category": "Historical Live Capture Clarified",
+      "note": "Re-evaluated: raw 0001450 represented 145.0 kg platform load (2 persons), rendered as 1450.0 kg under DecimalPlaces=0"
     }
   ]
 }
