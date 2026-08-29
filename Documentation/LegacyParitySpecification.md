@@ -253,16 +253,18 @@ If the application terminates unexpectedly (power failure, crash, shutdown) afte
 | `VehicleTypeName` | `string?` | `VehicleTypeName` | F1 Snapshot | Vehicle category (e.g. `16 Wheeler`, `Tractor`, `Dumper`). |
 | `DriverName` | `string?` | `DriverName` | F1 Snapshot | Driver name recorded at first entry. |
 | `TransporterName` | `string?` | `TransporterName` | F1 Snapshot | Transport agency or fleet operator. |
-| `Charges` | `decimal` | `Charges` | F1 / F2 | Weighbridge service fee collected from vehicle. |
+| `Charges` | `decimal` | `ChargesPaise` | F1 | First entry weighbridge fee in integer paise (via `RupeesToPaise` converter). |
+| `SecondCharges` | `decimal` | `SecondChargesPaise` | F2 | Second entry weighbridge fee in integer paise (via `RupeesToPaise` converter). |
 | `NumberOfBags` | `int?` | `NumberOfBags` | F1 / F2 | Count of packages / bags for deduction calculation. |
-| `BagWeightKg` | `decimal?` | `BagWeightKg` | F1 / F2 | Standard tare per bag (e.g. `0.5 kg` per empty bag). |
-| `TotalBagWeightKg` | `decimal?` | `TotalBagWeightKg` | Computed | $\text{NumberOfBags} \times \text{BagWeightKg}$. Deducted from Net for Actual Material Weight. |
-| `ActualWeightKg` | `decimal?` | `ActualWeightKg` | Computed | $\text{NetWeightKg} - \text{TotalBagWeightKg}$. |
+| `BagWeightKg` | `decimal?` | `BagWeightGrams` | F1 / F2 | Tare weight per empty bag in integer grams (via `KilogramsToGrams` converter). |
+| `TotalBagWeightKg` | `decimal` | Computed | Computed | $\text{NumberOfBags} \times \text{BagWeightKg}$. Deducted from Net for Actual Material Weight. |
+| `ActualWeightKg` | `decimal?` | Computed | Computed | $\text{NetWeightKg} - \text{TotalBagWeightKg}$. |
 | `GatePassNumber` | `string?` | `GatePassNumber` | F1 / F2 | External security gate pass reference number. |
-| `CustomField1` | `string?` | `CustomField1` | F1 / F2 | User-configured field 1 (e.g. Consigner / Container No). |
-| `CustomField2` | `string?` | `CustomField2` | F1 / F2 | User-configured field 2 (e.g. Consignee / Seal No). |
-| `CustomField3` | `string?` | `CustomField3` | F1 / F2 | User-configured field 3 (e.g. PO Number / Batch No). |
-| `CustomField4` | `string?` | `CustomField4` | F1 / F2 | User-configured field 4 (e.g. Department / Moisture %). |
+| `CustomField1` | `string?` | `CustomField1` | F1 (Locked in F2) | Site-configured field 1 (e.g. Consigner / Container No). |
+| `CustomField2` | `string?` | `CustomField2` | F1 (Locked in F2) | Site-configured field 2 (e.g. Consignee / Seal No). |
+| `CustomField3` | `string?` | `CustomField3` | F2 (Editable) | Site-configured field 3 (e.g. PO Number / Batch No). |
+| `CustomField4` | `string?` | `CustomField4` | F2 (Editable) | Site-configured field 4 (e.g. Department / Moisture %). |
+| `Version` | `Guid` | `Version` | System Token | Concurrency token regenerated on every transition (`IsConcurrencyToken()`). |
 | `GrossWeightKg` | `decimal?` | Derived | Fixed at F2 | Maximum platform weight ($\text{Mode}=\text{GrossFirst} ? \text{First} : \text{Second}$). |
 | `TareWeightKg` | `decimal?` | Derived | Fixed at F2 | Tare platform weight ($\text{Mode}=\text{GrossFirst} ? \text{Second} : \text{First}$). |
 | `NetWeightKg` | `decimal?` | `NetWeightGrams` | Fixed at F2 | Exact legal difference ($\text{Gross} - \text{Tare}$). Lossless integer grams storage. |

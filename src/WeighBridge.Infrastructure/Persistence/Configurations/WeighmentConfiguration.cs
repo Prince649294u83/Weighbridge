@@ -37,6 +37,13 @@ public sealed class WeighmentConfiguration : IEntityTypeConfiguration<Weighment>
         kilograms => (long)decimal.Round(kilograms * 1000m, 0, MidpointRounding.AwayFromZero),
         grams => grams / 1000m);
 
+    /// <summary>
+    /// Stores monetary fees and charges as an exact integer count of paise.
+    /// </summary>
+    private static readonly ValueConverter<decimal, long> RupeesToPaise = new(
+        rupees => (long)decimal.Round(rupees * 100m, 0, MidpointRounding.AwayFromZero),
+        paise => paise / 100m);
+
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<Weighment> builder)
     {
@@ -68,6 +75,32 @@ public sealed class WeighmentConfiguration : IEntityTypeConfiguration<Weighment>
         builder.Property(weighment => weighment.CancellationReason).HasMaxLength(Weighment.TextMaxLength);
         builder.Property(weighment => weighment.VehicleTypeName).HasMaxLength(64);
 
+        builder.Property(weighment => weighment.Charges)
+            .HasConversion(RupeesToPaise)
+            .HasColumnName("ChargesPaise")
+            .HasDefaultValue(0L);
+
+        builder.Property(weighment => weighment.SecondCharges)
+            .HasConversion(RupeesToPaise)
+            .HasColumnName("SecondChargesPaise")
+            .HasDefaultValue(0L);
+
+        builder.Property(weighment => weighment.NumberOfBags);
+
+        builder.Property(weighment => weighment.BagWeightKg)
+            .HasConversion(KilogramsToGrams)
+            .HasColumnName("BagWeightGrams");
+
+        builder.Property(weighment => weighment.GatePassNumber).HasMaxLength(Weighment.GatePassMaxLength);
+        builder.Property(weighment => weighment.CustomField1).HasMaxLength(Weighment.CustomFieldMaxLength);
+        builder.Property(weighment => weighment.CustomField2).HasMaxLength(Weighment.CustomFieldMaxLength);
+        builder.Property(weighment => weighment.CustomField3).HasMaxLength(Weighment.CustomFieldMaxLength);
+        builder.Property(weighment => weighment.CustomField4).HasMaxLength(Weighment.CustomFieldMaxLength);
+
+        builder.Property(weighment => weighment.Version)
+            .IsConcurrencyToken()
+            .IsRequired();
+
         builder.Property(weighment => weighment.NetWeightKg)
             .HasConversion(KilogramsToGrams)
             .HasColumnName("NetWeightGrams");
@@ -84,6 +117,8 @@ public sealed class WeighmentConfiguration : IEntityTypeConfiguration<Weighment>
         // be taken for two more owned navigations to the same two captures.
         builder.Ignore(weighment => weighment.Gross);
         builder.Ignore(weighment => weighment.Tare);
+        builder.Ignore(weighment => weighment.TotalBagWeightKg);
+        builder.Ignore(weighment => weighment.ActualWeightKg);
         builder.Ignore(weighment => weighment.IsOpen);
         builder.Ignore(weighment => weighment.NextAction);
         builder.Ignore(nameof(EntityBase.IsTransient));

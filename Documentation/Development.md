@@ -1,4 +1,4 @@
-﻿# Development guide
+# Development guide
 
 ## Prerequisites
 
@@ -249,10 +249,15 @@ leaves every existing database on a schema no migration describes, and `Migrate(
 repair it.
 
 A mapping is added by dropping an `IEntityTypeConfiguration<T>` into
-`Infrastructure/Persistence/Configurations/` â€” `OnModelCreating` discovers it, so the context
+`Infrastructure/Persistence/Configurations/` — `OnModelCreating` discovers it, so the context
 itself never changes. `WeighmentConfiguration` is the reference, including the
-`ValueConverter<decimal, long>` that stores weights as whole grams (SQLite has no decimal;
-see [Architecture.md](Architecture.md#persistence) for why grams and not `REAL`).
+`ValueConverter<decimal, long>` converters that store weights as whole grams (`KilogramsToGrams`)
+and charges as whole paise (`RupeesToPaise`) — see [Architecture.md](Architecture.md#persistence)
+for why integer storage is used on SQLite.
+
+Migration `20260829144243_AddF1F2WorkflowFields` adds `ChargesPaise`, `SecondChargesPaise`,
+`NumberOfBags`, `BagWeightGrams`, `GatePassNumber`, `CustomField1`..`4`, and `Version` (`Guid`
+concurrency token), ensuring non-empty GUID versions are seeded for all historical records.
 
 To get back to a first launch, close the application and delete the file with its siblings:
 

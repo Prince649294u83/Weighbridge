@@ -321,6 +321,193 @@ public sealed class WeighmentTests
         Assert.Throws<InvalidOperationException>(weighment.AssignSlipNumber);
         Assert.Equal("WB-000042", weighment.SlipNumber);
     }
+
+    [Fact]
+    public void UpdateDetails_AfterFirstWeight_F1DetailsCannotBeChanged()
+    {
+        var weighment = Saved(WeighmentMode.GrossFirst);
+        weighment.RecordFirstWeight(Reading(32_500m));
+        Assert.Equal(WeighmentStatus.AwaitingSecondWeight, weighment.Status);
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => weighment.UpdateDetails("Someone else", null, null, null, null));
+        Assert.Contains("locked once the first weight is recorded", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void UpdateSecondEntryDetails_Requires_AwaitingSecondWeight()
+    {
+        var weighment = Saved(WeighmentMode.GrossFirst);
+        Assert.Equal(WeighmentStatus.Created, weighment.Status);
+
+        // Cannot update second entry details in Created state
+        Assert.Throws<InvalidOperationException>(
+            () => weighment.UpdateSecondEntryDetails(50m, 10, 0.5m, "GP-101", "Second remarks"));
+
+        // Transitions to AwaitingSecondWeight
+        weighment.RecordFirstWeight(Reading(32_500m));
+        var v1 = weighment.Version;
+
+        weighment.UpdateSecondEntryDetails(
+            secondCharges: 75.5m,
+            numberOfBags: 100,
+            bagWeightKg: 0.5m,
+            gatePassNumber: "GP-999",
+            remarks: "Updated remark",
+            customField3: "Custom3Val",
+            customField4: "Custom4Val");
+
+        Assert.Equal(75.5m, weighment.SecondCharges);
+        Assert.Equal(100, weighment.NumberOfBags);
+        Assert.Equal(0.5m, weighment.BagWeightKg);
+        Assert.Equal(50m, weighment.TotalBagWeightKg);
+        Assert.Equal("GP-999", weighment.GatePassNumber);
+        Assert.Equal("Updated remark", weighment.Remarks);
+        Assert.Equal("Custom3Val", weighment.CustomField3);
+        Assert.Equal("Custom4Val", weighment.CustomField4);
+        Assert.NotEqual(v1, weighment.Version);
+
+        // After completion, cannot update second entry details
+        weighment.RecordSecondWeight(Reading(12_250m));
+        Assert.Equal(WeighmentStatus.Completed, weighment.Status);
+
+        Assert.Throws<InvalidOperationException>(
+            () => weighment.UpdateSecondEntryDetails(50m, 10, 0.5m, "GP-101", "Second remarks"));
+    }
+
+    [Fact]
+    public void RecordSecondWeight_ZeroNet_When_Disallowed_Throws_InvalidOperationException()
+    {
+        var weighment = Saved(WeighmentMode.GrossFirst);
+        weighment.RecordFirstWeight(Reading(15_000m));
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => weighment.RecordSecondWeight(Reading(15_000m), NetWeightPolicy.RejectZero));
+        Assert.Contains("Zero net weight is disallowed by policy", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RecordSecondWeight_ZeroNet_When_Allowed_Succeeds()
+    {
+        var weighment = Saved(WeighmentMode.GrossFirst);
+        weighment.RecordFirstWeight(Reading(15_000m));
+
+        weighment.RecordSecondWeight(Reading(15_000m), NetWeightPolicy.AllowZero);
+
+        Assert.Equal(0m, weighment.NetWeightKg);
+        Assert.Equal(0m, weighment.ActualWeightKg);
+        Assert.Equal(WeighmentStatus.Completed, weighment.Status);
+    }
+
+    [Fact]
+    public void BagDeductions_Calculates_TotalBagWeight_And_ActualWeight_Correctly()
+    {
+        var weighment = Weighment.Open(
+            "MH12AB1234",
+            WeighmentMode.GrossFirst,
+            charges: 100m,
+            numberOfBags: 200,
+            bagWeightKg: 0.5m,
+            gatePassNumber: "GP-001",
+            customField1: "F1-Custom1",
+            customField2: "F1-Custom2");
+        weighment.Id = 1;
+        weighment.AssignSlipNumber();
+
+        Assert.Equal(100m, weighment.Charges);
+        Assert.Equal(200, weighment.NumberOfBags);
+        Assert.Equal(0.5m, weighment.BagWeightKg);
+        Assert.Equal(100m, weighment.TotalBagWeightKg);
+        Assert.Null(weighment.ActualWeightKg); // null before second weight
+        Assert.Equal("GP-001", weighment.GatePassNumber);
+        Assert.Equal("F1-Custom1", weighment.CustomField1);
+        Assert.Equal("F1-Custom2", weighment.CustomField2);
+
+        weighment.RecordFirstWeight(Reading(30_000m));
+        weighment.RecordSecondWeight(Reading(10_000m)); // Net = 20,000 kg
+
+        Assert.Equal(20_000m, weighment.NetWeightKg);
+        Assert.Equal(100m, weighment.TotalBagWeightKg);
+        Assert.Equal(19_900m, weighment.ActualWeightKg);
+    }
+
+    [Fact]
+    public void BagDeductions_Exceeding_NetWeight_Throws_InvalidOperationException()
+    {
+        var weighment = Weighment.Open(
+            "MH12AB1234",
+            WeighmentMode.GrossFirst,
+            numberOfBags: 1000,
+            bagWeightKg: 50m); // Total bag weight = 50,000 kg
+        weighment.Id = 1;
+        weighment.AssignSlipNumber();
+
+        weighment.RecordFirstWeight(Reading(30_000m));
+
+        // Net = 10,000 kg, which is less than 50,000 kg bag weight
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => weighment.RecordSecondWeight(Reading(20_000m)));
+        Assert.Contains("exceeds the net weight", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Negative_Charges_Or_Bags_Throws_ArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => Weighment.Open("MH12AB1234", WeighmentMode.GrossFirst, charges: -10m));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => Weighment.Open("MH12AB1234", WeighmentMode.GrossFirst, numberOfBags: -5));
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => Weighment.Open("MH12AB1234", WeighmentMode.GrossFirst, bagWeightKg: -0.5m));
+
+        var created = Saved(WeighmentMode.GrossFirst);
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => created.UpdateDetails(null, null, null, null, null, charges: -1m));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => created.UpdateDetails(null, null, null, null, null, numberOfBags: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => created.UpdateDetails(null, null, null, null, null, bagWeightKg: -1m));
+
+        created.RecordFirstWeight(Reading(10_000m));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => created.UpdateSecondEntryDetails(secondCharges: -1m, null, null, null, null));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => created.UpdateSecondEntryDetails(0m, numberOfBags: -1, null, null, null));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => created.UpdateSecondEntryDetails(0m, null, bagWeightKg: -1m, null, null));
+    }
+
+    [Fact]
+    public void VersionToken_Changes_On_Every_State_Transition()
+    {
+        var weighment = Saved(WeighmentMode.GrossFirst);
+        var v0 = weighment.Version;
+        Assert.NotEqual(Guid.Empty, v0);
+
+        weighment.UpdateDetails("Party1", "Mat1", "Drv1", "Trans1", "Rem1");
+        var v1 = weighment.Version;
+        Assert.NotEqual(v0, v1);
+
+        weighment.RecordFirstWeight(Reading(25_000m));
+        var v2 = weighment.Version;
+        Assert.NotEqual(v1, v2);
+
+        weighment.UpdateSecondEntryDetails(20m, 10, 0.5m, "GP-1", "Rem2");
+        var v3 = weighment.Version;
+        Assert.NotEqual(v2, v3);
+
+        weighment.RecordSecondWeight(Reading(10_000m));
+        var v4 = weighment.Version;
+        Assert.NotEqual(v3, v4);
+
+        var cancelled = Saved(WeighmentMode.GrossFirst);
+        var vc0 = cancelled.Version;
+        cancelled.Cancel("Test cancellation");
+        var vc1 = cancelled.Version;
+        Assert.NotEqual(vc0, vc1);
+    }
 }
 
 /// <summary>

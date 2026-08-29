@@ -55,6 +55,12 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
     /// <summary>Longest free-text remark or cancellation reason the domain will accept.</summary>
     public const int TextMaxLength = 512;
 
+    /// <summary>Longest gate pass reference number the domain will accept.</summary>
+    public const int GatePassMaxLength = 64;
+
+    /// <summary>Longest custom field value the domain will accept.</summary>
+    public const int CustomFieldMaxLength = 128;
+
     /// <summary>For EF Core materialisation only.</summary>
     private Weighment()
     {
@@ -81,6 +87,12 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
     /// <param name="materialId">Optional master record foreign key for material.</param>
     /// <param name="vehicleTypeId">Optional master record foreign key for vehicle type.</param>
     /// <param name="vehicleTypeName">Optional snapshot of vehicle type name.</param>
+    /// <param name="charges">Optional F1 weighing charges in rupees (must be non-negative).</param>
+    /// <param name="numberOfBags">Optional count of packaging bags (must be non-negative).</param>
+    /// <param name="bagWeightKg">Optional empty bag weight in kg (must be non-negative).</param>
+    /// <param name="gatePassNumber">Optional gate pass reference number.</param>
+    /// <param name="customField1">Optional F1 custom field 1 (locked in F2).</param>
+    /// <param name="customField2">Optional F1 custom field 2 (locked in F2).</param>
     public static Weighment Open(
         string vehicleNumber,
         WeighmentMode mode,
@@ -93,9 +105,30 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
         long? partyId = null,
         long? materialId = null,
         long? vehicleTypeId = null,
-        string? vehicleTypeName = null)
+        string? vehicleTypeName = null,
+        decimal charges = 0m,
+        int? numberOfBags = null,
+        decimal? bagWeightKg = null,
+        string? gatePassNumber = null,
+        string? customField1 = null,
+        string? customField2 = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(vehicleNumber);
+
+        if (charges < 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(charges), charges, "Charges cannot be negative.");
+        }
+
+        if (numberOfBags is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(numberOfBags), numberOfBags, "Number of bags cannot be negative.");
+        }
+
+        if (bagWeightKg is < 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bagWeightKg), bagWeightKg, "Bag weight cannot be negative.");
+        }
 
         return new Weighment
         {
@@ -114,6 +147,13 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
             MaterialId = materialId,
             VehicleTypeId = vehicleTypeId,
             VehicleTypeName = Trim(vehicleTypeName),
+            Charges = charges,
+            NumberOfBags = numberOfBags,
+            BagWeightKg = bagWeightKg,
+            GatePassNumber = Trim(gatePassNumber),
+            CustomField1 = Trim(customField1),
+            CustomField2 = Trim(customField2),
+            Version = Guid.NewGuid(),
         };
     }
 
@@ -160,6 +200,47 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
 
     /// <summary>Free-text note from the operator.</summary>
     public string? Remarks { get; private set; }
+
+    /// <summary>First entry weighing fee/charges in rupees.</summary>
+    public decimal Charges { get; private set; }
+
+    /// <summary>Second entry weighing fee/charges in rupees.</summary>
+    public decimal SecondCharges { get; private set; }
+
+    /// <summary>Number of packaging bags deducted from cargo weight.</summary>
+    public int? NumberOfBags { get; private set; }
+
+    /// <summary>Tare weight per individual empty bag in kilograms.</summary>
+    public decimal? BagWeightKg { get; private set; }
+
+    /// <summary>Total calculated deduction for all packaging bags in kilograms.</summary>
+    public decimal TotalBagWeightKg => (NumberOfBags ?? 0) * (BagWeightKg ?? 0m);
+
+    /// <summary>
+    /// Actual net material weight after deducting total bag tare weight (<c>NetWeightKg - TotalBagWeightKg</c>).
+    /// Null until second weight is recorded.
+    /// </summary>
+    public decimal? ActualWeightKg => NetWeightKg.HasValue ? NetWeightKg.Value - TotalBagWeightKg : null;
+
+    /// <summary>Gate pass reference or challan number.</summary>
+    public string? GatePassNumber { get; private set; }
+
+    /// <summary>Site-configurable custom field 1 (captured at F1, locked in F2).</summary>
+    public string? CustomField1 { get; private set; }
+
+    /// <summary>Site-configurable custom field 2 (captured at F1, locked in F2).</summary>
+    public string? CustomField2 { get; private set; }
+
+    /// <summary>Site-configurable custom field 3 (editable during F2).</summary>
+    public string? CustomField3 { get; private set; }
+
+    /// <summary>Site-configurable custom field 4 (editable during F2).</summary>
+    public string? CustomField4 { get; private set; }
+
+    /// <summary>
+    /// Application concurrency token, regenerated on every material state transition.
+    /// </summary>
+    public Guid Version { get; private set; } = Guid.NewGuid();
 
     /// <summary>The first weight taken, or <c>null</c> before the vehicle has been weighed.</summary>
     public WeightCapture? FirstWeight { get; private set; }
@@ -269,6 +350,7 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
 
         FirstWeight = capture;
         Status = WeighmentStatus.AwaitingSecondWeight;
+        Version = Guid.NewGuid();
     }
 
     /// <summary>
@@ -280,12 +362,14 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
     /// operator action that does not exist, and every report would have to decide what to
     /// do with it.
     /// </remarks>
+    /// <param name="capture">Weight captured at second entry.</param>
+    /// <param name="policy">Zero net weight policy (defaults to RejectZero).</param>
     /// <exception cref="InvalidOperationException">
     /// The weighment is not <see cref="WeighmentStatus.AwaitingSecondWeight"/>, or the two
-    /// weights do not yield a positive net.
+    /// weights do not yield a valid net weight under the given policy, or bag deduction exceeds net weight.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">The weight is not plausible.</exception>
-    public void RecordSecondWeight(WeightCapture capture)
+    public void RecordSecondWeight(WeightCapture capture, NetWeightPolicy policy = NetWeightPolicy.RejectZero)
     {
         ArgumentNullException.ThrowIfNull(capture);
         GuardWeight(capture.Kilograms);
@@ -303,17 +387,35 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
         var gross = Mode == WeighmentMode.GrossFirst ? FirstWeight!.Kilograms : capture.Kilograms;
         var tare = Mode == WeighmentMode.GrossFirst ? capture.Kilograms : FirstWeight!.Kilograms;
 
-        if (gross <= tare)
+        if (gross < tare)
         {
             throw new InvalidOperationException(
                 $"The gross weight ({gross:0.##} kg) must be greater than the tare weight ({tare:0.##} kg). " +
                 "Check whether the vehicle arrived loaded or empty.");
         }
 
+        if (gross == tare && policy != NetWeightPolicy.AllowZero)
+        {
+            throw new InvalidOperationException(
+                $"The gross weight ({gross:0.##} kg) must be greater than the tare weight ({tare:0.##} kg). " +
+                "The gross weight and tare weight are equal, resulting in zero net weight. Zero net weight is disallowed by policy.");
+        }
+
+        var net = gross - tare;
+        var actualWeight = net - TotalBagWeightKg;
+
+        if (actualWeight < 0m)
+        {
+            throw new InvalidOperationException(
+                $"The total bag weight ({TotalBagWeightKg:0.##} kg) exceeds the net weight ({net:0.##} kg), " +
+                $"resulting in a negative actual material weight ({actualWeight:0.##} kg).");
+        }
+
         SecondWeight = capture;
-        NetWeightKg = gross - tare;
+        NetWeightKg = net;
         Status = WeighmentStatus.Completed;
         CompletedAtUtc = DateTime.UtcNow;
+        Version = Guid.NewGuid();
     }
 
     /// <summary>
@@ -335,20 +437,51 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
         Status = WeighmentStatus.Cancelled;
         CancelledAtUtc = DateTime.UtcNow;
         CancellationReason = Trim(reason);
+        Version = Guid.NewGuid();
     }
 
-    /// <summary>Updates the details a weighment can still carry while it is open.</summary>
-    /// <exception cref="InvalidOperationException">The weighment is finished.</exception>
+    /// <summary>
+    /// Updates the details an F1 weighment can carry while it is in <see cref="WeighmentStatus.Created"/>.
+    /// Once the first weight is recorded, F1 historical details become permanently locked.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The weighment has already recorded its first weight or is finished.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">Charges or bag parameters are negative.</exception>
     public void UpdateDetails(
         string? partyName,
         string? materialName,
         string? driverName,
         string? transporterName,
-        string? remarks)
+        string? remarks,
+        decimal charges = 0m,
+        int? numberOfBags = null,
+        decimal? bagWeightKg = null,
+        string? gatePassNumber = null,
+        string? customField1 = null,
+        string? customField2 = null)
     {
-        if (!IsOpen)
+        if (Status != WeighmentStatus.Created)
         {
-            throw new InvalidOperationException($"{Describe()} is {Status} and can no longer be edited.");
+            throw new InvalidOperationException(
+                Status == WeighmentStatus.AwaitingSecondWeight
+                    ? $"F1 historical details are locked once the first weight is recorded for {Describe()}."
+                    : $"{Describe()} is {Status} and can no longer be edited.");
+        }
+
+        if (charges < 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(charges), charges, "Charges cannot be negative.");
+        }
+
+        if (numberOfBags is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(numberOfBags), numberOfBags, "Number of bags cannot be negative.");
+        }
+
+        if (bagWeightKg is < 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bagWeightKg), bagWeightKg, "Bag weight cannot be negative.");
         }
 
         PartyName = Trim(partyName);
@@ -356,6 +489,58 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
         DriverName = Trim(driverName);
         TransporterName = Trim(transporterName);
         Remarks = Trim(remarks);
+        Charges = charges;
+        NumberOfBags = numberOfBags;
+        BagWeightKg = bagWeightKg;
+        GatePassNumber = Trim(gatePassNumber);
+        CustomField1 = Trim(customField1);
+        CustomField2 = Trim(customField2);
+        Version = Guid.NewGuid();
+    }
+
+    /// <summary>
+    /// Updates dedicated second-entry details while the weighment is in <see cref="WeighmentStatus.AwaitingSecondWeight"/>.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The weighment is not awaiting second weight.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Charges or bag parameters are negative.</exception>
+    public void UpdateSecondEntryDetails(
+        decimal secondCharges,
+        int? numberOfBags,
+        decimal? bagWeightKg,
+        string? gatePassNumber,
+        string? remarks,
+        string? customField3 = null,
+        string? customField4 = null)
+    {
+        if (Status != WeighmentStatus.AwaitingSecondWeight)
+        {
+            throw new InvalidOperationException(
+                $"Second-entry details can only be updated while awaiting second weight. {Describe()} is {Status}.");
+        }
+
+        if (secondCharges < 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(secondCharges), secondCharges, "Second charges cannot be negative.");
+        }
+
+        if (numberOfBags is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(numberOfBags), numberOfBags, "Number of bags cannot be negative.");
+        }
+
+        if (bagWeightKg is < 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bagWeightKg), bagWeightKg, "Bag weight cannot be negative.");
+        }
+
+        SecondCharges = secondCharges;
+        NumberOfBags = numberOfBags;
+        BagWeightKg = bagWeightKg;
+        GatePassNumber = Trim(gatePassNumber);
+        Remarks = Trim(remarks);
+        CustomField3 = Trim(customField3);
+        CustomField4 = Trim(customField4);
+        Version = Guid.NewGuid();
     }
 
     /// <summary>Attaches a captured image metadata record to this weighment.</summary>

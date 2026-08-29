@@ -13,9 +13,8 @@ namespace WeighBridge.Domain.Weighments;
 /// print, search for or export it.
 /// </para>
 /// <para>
-/// The sequence is the weighment's own identity, which the database allocates. That makes
-/// the number gap-free under concurrency without a counter row to lock, and monotonic in
-/// the order weighments were opened.
+/// The sequence is derived from the database identity. That makes the number unique and
+/// monotonic under normal committed inserts without a separate counter row to lock.
 /// </para>
 /// <para>
 /// ponytail: one continuous series. A series that restarts each financial year, or one per

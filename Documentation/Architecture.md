@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 ## Layering
 
@@ -237,7 +237,7 @@ VehicleEntryViewModel
 ```
 
 Four commands, not one per property. There is no `CompleteWeighmentCommand` because recording
-the second weight *is* completion â€” a weighment holding both weights but not yet `Completed`
+the second weight *is* completion — a weighment holding both weights but not yet `Completed`
 would be a state the domain cannot describe.
 
 `NewWeighmentValidator` runs in the pipeline's validate stage, `Permissions.WeighmentCreate` /
@@ -245,6 +245,14 @@ would be a state the domain cannot describe.
 (`WeighmentCreatedEvent`, `FirstWeightRecordedEvent`, `SecondWeightRecordedEvent`,
 `WeighmentCompletedEvent`, `WeighmentCancelledEvent`) are published from its event stage. The
 ViewModel holds no `DbContext` and no SQL.
+
+### F1 / F2 Operational Workflow & Domain Invariants
+- **Single Service Boundary:** `IWeighmentService` is the sole business boundary for weighment mutations.
+- **F1 Historical Immutability:** Once the first weight is captured (`AwaitingSecondWeight`), `UpdateDetails(...)` strictly rejects modifications. F2 only modifies dedicated second-entry fields via `UpdateSecondEntryDetails(...)`.
+- **Mode-Aware Net Weight & `NetWeightPolicy`:** GrossFirst and TareFirst modes calculate net weight consistently (Gross - Tare). The domain strictly rejects Gross < Tare; zero net (Gross == Tare) is governed by `NetWeightPolicy` (`RejectZero` vs `AllowZero`).
+- **Calculated Bag Invariants:** Inputs `NumberOfBags` and `BagWeightKg` are persisted, while `TotalBagWeightKg` and `ActualWeightKg` are calculated properties. Negative actual material weight is refused by the domain.
+- **Exact Integer Storage:** Weights are converted to integer grams (`long NetWeightGrams`, `long BagWeightGrams`), and monetary charges to integer paise (`long ChargesPaise`, `long SecondChargesPaise`).
+- **Optimistic Concurrency:** `Weighment.Version` (`Guid`) is regenerated on every material state transition and mapped as an EF Core concurrency token (`IsConcurrencyToken()`). Stale saves trigger `DbUpdateConcurrencyException`.
 
 ## Subsystem health
 

@@ -38,7 +38,11 @@ rebuilding. The repository is the source of truth, not the prompt, and not this 
 - **Settings Binding:** Single authoritative `Text` binding with `UpdateSourceTrigger=PropertyChanged` on editable ComboBox; competing `SelectedItem` removed.
 - **Service Lifecycle:** `WeightIndicatorService` maintains single background worker task and transport owner with robust `ConnectAsync` coordination and cancellation guards.
 - **Active Measurement Profile:** Locked to `DecimalPlaces = 1`, `WeightDigits = 7`, `ScaleFactor = 1.0` following empirical correlation across 0–145 kg (`0000150` $\rightarrow$ `15.0 kg`, `0000900` $\rightarrow$ `90.0 kg`, `0001450` $\rightarrow$ `145.0 kg`).
-- **Test Metric:** **660 unit tests passing** (639 baseline + 21 decoder/lifecycle tests, 0 failed, 0 skipped).
+- **Phase 2 Status:** 
+  - Gate 2A (Legacy Research & 29-Point Specification) Sealed in `Documentation/F1F2-LegacyBehavior.md`.
+  - Gate 2B (Domain Aggregate Delta) Completed: `NetWeightPolicy`, `Weighment.cs` extended with charges/bags/custom/Version, F1 historical locking in `AwaitingSecondWeight`.
+  - Gate 2C (Persistence Delta & Migration) Completed: `AddF1F2WorkflowFields` migration with non-empty Version GUID seeding for historical records, integer grams/paise storage.
+- **Test Metric:** **670 unit/persistence tests passing** (639 baseline + 21 decoder/lifecycle tests + 10 domain/persistence tests, 0 failed, 0 skipped).
 - **Physical Stream Status:** Live physical streaming verified on COM3; HUD and captured indicator readings match physical display with zero UI secondary conversions.
 
 ## What this application is

@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Events.Catalog;
 using WeighBridge.Core.Security;
@@ -441,5 +443,107 @@ public sealed class WeighmentPersistenceTests : IDisposable
         var created = await _harness.Service.CreateAsync(Request(vehicleNumber));
         await _harness.Service.RecordFirstWeightAsync(created.Id, gross, WeightSource.Indicator);
         return await _harness.Service.RecordSecondWeightAsync(created.Id, tare, WeightSource.Indicator);
+    }
+
+    [Fact]
+    public async Task ExistingDatabase_UpgradedToF1F2_SeedsNonEmptyVersionAndAllColumns()
+    {
+        using var root = new TempDataRoot();
+        Directory.CreateDirectory(root.Root);
+
+        var path = Path.Combine(root.Root, "upgrade_test.db");
+        var connectionString = $"Data Source={path}";
+
+        var options = new DbContextOptionsBuilder<WeighBridgeDbContext>()
+            .UseSqlite(connectionString)
+            .Options;
+
+        // 1. Migrate up to pre-Phase-2 migration: HardenConstraintsAndAuditTrail
+        await using (var db = new WeighBridgeDbContext(options))
+        {
+            var migrator = db.Database.GetService<IMigrator>();
+            await migrator.MigrateAsync("20260826115121_HardenConstraintsAndAuditTrail");
+
+            // Insert a historical row using direct raw SQL into pre-Phase-2 table
+            await db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO Weighments (Id, SlipNumber, VehicleNumber, Mode, Status, CreatedAtUtc, IsDeleted) " +
+                "VALUES (1, 'WB-000001', 'MH12AB1234', 0, 2, '2026-08-01 10:00:00', 0);");
+        }
+
+        // 2. Now apply the latest migrations including AddF1F2WorkflowFields
+        await using (var db = new WeighBridgeDbContext(options))
+        {
+            await db.Database.MigrateAsync();
+
+            // Verify historical row has non-empty Version
+            var historical = await db.Set<Weighment>().SingleAsync(w => w.Id == 1);
+            Assert.NotEqual(Guid.Empty, historical.Version);
+            Assert.Equal(0m, historical.Charges);
+            Assert.Equal(0m, historical.SecondCharges);
+            Assert.Null(historical.NumberOfBags);
+            Assert.Null(historical.BagWeightKg);
+
+            // Raw SQL check for any remaining empty or null Version
+            await using var cmd = db.Database.GetDbConnection().CreateCommand();
+            await db.Database.OpenConnectionAsync();
+            cmd.CommandText = "SELECT count(*) FROM Weighments WHERE Version = '00000000-0000-0000-0000-000000000000' OR Version IS NULL;";
+            var emptyCount = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            Assert.Equal(0L, emptyCount);
+        }
+
+        SqliteConnection.ClearAllPools();
+    }
+
+    [Fact]
+    public async Task WeightsAndCharges_RoundTripLosslessly_InIntegerGramsAndPaise()
+    {
+        await using var context = _harness.CreateContext();
+
+        var weighment = Weighment.Open(
+            "MH12AB9999",
+            WeighmentMode.GrossFirst,
+            charges: 125.75m,
+            numberOfBags: 50,
+            bagWeightKg: 0.250m,
+            gatePassNumber: "GP-9999",
+            customField1: "CustomVal1",
+            customField2: "CustomVal2");
+
+        context.Set<Weighment>().Add(weighment);
+        await context.SaveChangesAsync();
+
+        weighment.AssignSlipNumber();
+        weighment.RecordFirstWeight(new WeightCapture(25_450.5m, DateTime.UtcNow, WeightSource.Indicator));
+        await context.SaveChangesAsync();
+
+        weighment.UpdateSecondEntryDetails(
+            secondCharges: 250.50m,
+            numberOfBags: 50,
+            bagWeightKg: 0.250m,
+            gatePassNumber: "GP-9999-REV",
+            remarks: "Second remarks",
+            customField3: "CustomVal3",
+            customField4: "CustomVal4");
+        await context.SaveChangesAsync();
+
+        weighment.RecordSecondWeight(new WeightCapture(10_200.2m, DateTime.UtcNow, WeightSource.Indicator));
+        await context.SaveChangesAsync();
+
+        // Direct raw SQL inspect to verify integer storage
+        await using var cmd = context.Database.GetDbConnection().CreateCommand();
+        await context.Database.OpenConnectionAsync();
+        cmd.CommandText = "SELECT ChargesPaise, SecondChargesPaise, BagWeightGrams, NetWeightGrams FROM Weighments WHERE Id = " + weighment.Id;
+        await using var reader = await cmd.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+
+        var chargesPaise = reader.GetInt64(0);
+        var secondChargesPaise = reader.GetInt64(1);
+        var bagWeightGrams = reader.GetInt64(2);
+        var netWeightGrams = reader.GetInt64(3);
+
+        Assert.Equal(12575L, chargesPaise);
+        Assert.Equal(25050L, secondChargesPaise);
+        Assert.Equal(250L, bagWeightGrams);
+        Assert.Equal(15250300L, netWeightGrams); // 15,250.3 kg = 15,250,300 grams
     }
 }
