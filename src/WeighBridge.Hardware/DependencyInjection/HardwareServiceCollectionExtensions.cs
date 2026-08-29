@@ -21,6 +21,7 @@ public static class HardwareServiceCollectionExtensions
         // Core hardware components
         services.AddSingleton<IFrameExtractor, DelimitedFrameExtractor>();
         services.AddSingleton<IIndicatorProtocolParser, GenericAsciiProtocolParser>();
+        services.AddSingleton<IWeightDecoder, WeightDecoder>();
         services.AddTransient<ISerialPortTransport>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<HardwareOptions>>().Value.WeightIndicator;

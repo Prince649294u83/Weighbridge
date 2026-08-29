@@ -17,6 +17,7 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
     private readonly ISerialPortTransport _transport;
     private readonly IFrameExtractor _frameExtractor;
     private readonly IIndicatorProtocolParser _protocolParser;
+    private readonly IWeightDecoder _weightDecoder;
     private readonly StabilityDetector _stabilityDetector;
     private readonly ILogger<WeightIndicatorService> _logger;
 
@@ -33,13 +34,15 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
         ISerialPortTransport transport,
         IFrameExtractor frameExtractor,
         IIndicatorProtocolParser protocolParser,
-        ILogger<WeightIndicatorService> logger)
+        ILogger<WeightIndicatorService> logger,
+        IWeightDecoder? weightDecoder = null)
     {
         _options = options.Value.WeightIndicator;
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _frameExtractor = frameExtractor ?? throw new ArgumentNullException(nameof(frameExtractor));
         _protocolParser = protocolParser ?? throw new ArgumentNullException(nameof(protocolParser));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _weightDecoder = weightDecoder ?? new WeightDecoder();
         _stabilityDetector = new StabilityDetector(_options);
         _currentReading = WeightReading.Empty;
     }
@@ -317,6 +320,23 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
             {
                 if (_protocolParser.TryParse(frame, DateTime.UtcNow, out var parsedReading))
                 {
+                    var rawAscii = System.Text.Encoding.ASCII.GetString(frame).Trim();
+                    var parsedFrame = new ParsedWeightFrame(
+                        rawAscii,
+                        parsedReading.Unit,
+                        parsedReading.IsStable,
+                        rawAscii);
+
+                    if (_options.Decoding is not null &&
+                        _weightDecoder.TryDecode(parsedFrame, _options.Decoding, out decimal decodedWeight))
+                    {
+                        parsedReading = parsedReading with
+                        {
+                            Value = decodedWeight,
+                            Unit = _options.Decoding.TargetUnit ?? parsedReading.Unit
+                        };
+                    }
+
                     bool isStable = _stabilityDetector.Evaluate(parsedReading);
                     var finalReading = parsedReading with { IsStable = isStable };
                     CurrentReading = finalReading;

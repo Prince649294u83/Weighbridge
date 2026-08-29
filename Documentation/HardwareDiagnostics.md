@@ -95,30 +95,53 @@ All physical test runs and replays are recorded below with complete traceability
 
 ---
 
-## 5. Physical Stream Ground Truth Protocol
+## 5. Physical Serial Configuration & Ground Truth Protocol
 
-The physical indicator stream received over MA112 virtual COM port `COM3` @ `2400` baud 8N1 with DTR/RTS asserted follows the fixed 9-byte packet structure:
-
+### 5.1 Verified Physical Serial Interface
+The physical connection via Megawin MA112 USB-to-UART bridge operates strictly under:
 ```text
-Byte 0: 0x5B ('[')  -- Frame Start Header
-Bytes 1-7: 7 ASCII numeric characters ('0'-'9') -- Payload (e.g. "0000300" = 300 kg)
-Byte 8: 0x00 ('\0') -- Packet Null Terminator
+Port Name     : COM3
+Baud Rate     : 2400 baud
+Data Bits     : 8
+Parity        : None (8N1)
+Stop Bits     : One
+DTR Enable    : True (Hardware asserted)
+RTS Enable    : True (Hardware asserted)
+Handshake     : None
+Framing       : Fixed 9-byte packet [0x5B, 7 ASCII digits, 0x00]
 ```
 
-### Decoded Weight Trajectory in Captured Hardware Stream:
-- Frames 1–20: `0000300` $\rightarrow$ **300.0 kg**
-- Frames 21–26: `0000350` $\rightarrow$ **350.0 kg**
-- Frames 27–46: `0000250` $\rightarrow$ **250.0 kg**
-- Frames 47–60: `0000200` $\rightarrow$ **200.0 kg**
-- Frames 61–95: `0000250` $\rightarrow$ **250.0 kg**
-- Frames 96–105: `0000300` $\rightarrow$ **300.0 kg**
-- Frames 106–112: `0000350` $\rightarrow$ **350.0 kg**
-- Frames 113–119: `0000400` $\rightarrow$ **400.0 kg**
+### 5.2 Multi-Point Physical Correlation Matrix
+
+| Physical Display | Raw HEX Stream | Raw ASCII Payload | Current Parsed Value | Candidate Profile Target | Verification Status |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| `0.0 kg` | `5B 30 30 30 30 30 30 30 00` | `0000000` | `0.0 kg` | `0.0 kg` | Verified Zero Point |
+| `10.0 kg` | To be captured | `?` | `?` | `10.0 kg` | Pending Physical Test |
+| `50.0 kg` | To be captured | `?` | `?` | `50.0 kg` | Pending Physical Test |
+| `90.0 kg` (Observed) | `5B 30 30 30 30 39 30 30 00` | `0000900` | `900.0 kg` | `90.0 kg` (if DecimalPlaces=1) | Physical Candidate Discrepancy |
+| `100.0 kg` | To be captured | `0001000` | `1000.0 kg` | `100.0 kg` (if DecimalPlaces=1) | Live Stream Observed |
+| `500.0 kg` | To be captured | `?` | `?` | `500.0 kg` | Pending Physical Test |
+| `1000 kg` | To be captured | `?` | `?` | `1000.0 kg` | Pending Physical Test |
+| `1350 kg` (Observed) | `5B 30 30 30 31 33 35 30 00` | `0001350` | `1350.0 kg` | `1350.0 kg` (Baseline) | Verified Live Capture |
+| `1400 kg` (Observed) | `5B 30 30 30 31 34 30 30 00` | `0001400` | `1400.0 kg` | `1400.0 kg` (Baseline) | Verified Live Capture |
+| `1450 kg` (Observed) | `5B 30 30 30 31 34 35 30 00` | `0001450` | `1450.0 kg` | `1450.0 kg` (Baseline) | Verified Live Capture |
+
+### 5.3 Live Application Telemetry Evidence
+Active log telemetry extracted directly from `weighbridge-2026-08-29.log` on `COM3`:
+```text
+ReadingReceived #19001: Value=900.0 kg, Stable=True, Source=Indicator, Raw='0000900'
+ReadingReceived #19601: Value=950.0 kg, Stable=True, Source=Indicator, Raw='0000950'
+ReadingReceived #20601: Value=1,000.0 kg, Stable=True, Source=Indicator, Raw='0001000'
+ReadingReceived #22401: Value=1,050.0 kg, Stable=True, Source=Indicator, Raw='0001050'
+ReadingReceived #24201: Value=1,100.0 kg, Stable=True, Source=Indicator, Raw='0001100'
+```
 
 ---
 
-## 6. Anti-Fabrication & Truthfulness Protocol
+## 6. Anti-Fabrication & Profile Isolation Rules
 1. **No Simulated Assumptions:** Real hardware behavior must never be guessed or simulated when physical hardware testing is available.
-2. **Immutable Binary Capture:** The `.bin` file generated during Phase 1 (`SerialCapture_2026-08-29_1254.bin`) is the sole ground truth. Parser unit tests are written against captured binary fixtures.
-3. **End-to-End Value Fidelity:** The numeric weight value displayed on the scale display must match the raw hex, the parsed reading, the stability evaluator, and the WPF HUD with zero rounding or locale divergence:
-   $$\text{Physical Wire (300)} \rightarrow \text{Extractor (0000300)} \rightarrow \text{Parser (300.0)} \rightarrow \text{Reading (300.0)} \rightarrow \text{HUD (300 kg)}$$
+2. **Immutable Binary Capture:** Captured `.bin` fixtures (`SerialCapture_2026-08-29_1254.bin`, `SerialCapture_2026-08-29_1305.bin`) are the sole ground truth.
+3. **No Global `/ 10` Arithmetic:** Under no circumstances should `value /= 10` be globally hardcoded. The decoder supports profile-based decoding (`WeightDecodeOptions`), and candidate profiles are activated only after empirical correlation confirms the exact indicator model scaling.
+4. **End-to-End Value Fidelity:** The numeric weight value displayed on the physical scale display must match the raw hex, the parsed reading, the decoded value, the stability evaluator, and the WPF HUD:
+   $$\text{Physical Wire (0000900)} \rightarrow \text{Extractor} \rightarrow \text{Parser (Raw String)} \rightarrow \text{Decoder (Profile)} \rightarrow \text{Stability} \rightarrow \text{HUD}$$
+

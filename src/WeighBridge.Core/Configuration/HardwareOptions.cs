@@ -75,4 +75,7 @@ public sealed class WeightIndicatorOptions
 
     /// <summary>Unit reported by the indicator, e.g. <c>kg</c>.</summary>
     public string Unit { get; set; } = "kg";
+
+    /// <summary>Options controlling the string-level decoding and interpretation of the raw payload.</summary>
+    public WeightDecodeOptions Decoding { get; set; } = new();
 }
