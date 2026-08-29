@@ -68,4 +68,30 @@ public sealed class StabilityDetectorTests
         Assert.False(detector.Evaluate(new WeightReading(10050m, "kg", false, baseTime.AddMilliseconds(200), WeightSource.Indicator)));
         Assert.True(detector.Evaluate(new WeightReading(10052m, "kg", false, baseTime.AddMilliseconds(350), WeightSource.Indicator)));
     }
+
+    [Fact]
+    public void StabilityDetector_Evaluates_BracketNull_Steady_Trajectory_As_Stable()
+    {
+        var options = new WeightIndicatorOptions
+        {
+            StabilitySampleCount = 5,
+            StabilityToleranceKg = 5.0m,
+            StabilityDurationMs = 1000,
+        };
+        var detector = new StabilityDetector(options);
+        var baseTime = DateTime.UtcNow;
+
+        // Changing weights are unstable
+        Assert.False(detector.Evaluate(new WeightReading(1350m, "kg", false, baseTime, WeightSource.Indicator)));
+        Assert.False(detector.Evaluate(new WeightReading(1400m, "kg", false, baseTime.AddMilliseconds(250), WeightSource.Indicator)));
+        Assert.False(detector.Evaluate(new WeightReading(1450m, "kg", false, baseTime.AddMilliseconds(500), WeightSource.Indicator)));
+
+        // Once held steady around 1450 kg:
+        Assert.False(detector.Evaluate(new WeightReading(1450m, "kg", false, baseTime.AddMilliseconds(750), WeightSource.Indicator)));
+        Assert.False(detector.Evaluate(new WeightReading(1450m, "kg", false, baseTime.AddMilliseconds(1000), WeightSource.Indicator)));
+        Assert.False(detector.Evaluate(new WeightReading(1450m, "kg", false, baseTime.AddMilliseconds(1250), WeightSource.Indicator)));
+        Assert.False(detector.Evaluate(new WeightReading(1450m, "kg", false, baseTime.AddMilliseconds(1450), WeightSource.Indicator)));
+        // >= 5 samples and >= 1000ms duration
+        Assert.True(detector.Evaluate(new WeightReading(1450m, "kg", false, baseTime.AddMilliseconds(1600), WeightSource.Indicator)));
+    }
 }

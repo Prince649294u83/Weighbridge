@@ -401,7 +401,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     }
 
     public string LiveWeightDisplay => IndicatorState == ConnectionState.Connected
-        ? $"{LiveWeightKg:N0} {LiveWeightUnit}"
+        ? (LiveWeightKg % 1 == 0 ? $"{LiveWeightKg:N0} {LiveWeightUnit}" : $"{LiveWeightKg:0.##} {LiveWeightUnit}")
         : "--- " + LiveWeightUnit;
 
     public bool IsWeightStable
