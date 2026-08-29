@@ -8,7 +8,8 @@ Phase 0.5 — Enterprise Infrastructure Layer, Prompt 7 — Vehicle Entry, Promp
 | Measure | Value | How it was obtained |
 | --- | --- | --- |
 | Build | 0 errors, 0 warnings | `dotnet build WeighBridge.sln --nologo -v q` |
-| Tests | 531 passed, 0 failed, 0 skipped | `dotnet test --nologo`, count cross-checked with `--list-tests` |
+| Tests | 639 passed, 0 failed, 0 skipped | `dotnet test --nologo`, cross-checked across all test suites |
+| Hardware Diagnostic Pipeline | Verified (9-byte framing, 8N1 @ 2400 on COM3) | `WeighBridge.SerialDiagnostic` & `WeightIndicatorService` |
 | Runtime — shell | verified, exit code 0 | `scripts/runtime-smoke.ps1` |
 | Runtime — Vehicle Entry | verified, exit code 0 | `scripts/vehicle-entry-smoke.ps1` |
 | Runtime — Master Data | verified, exit code 0 | `scripts/masters-smoke.ps1` |

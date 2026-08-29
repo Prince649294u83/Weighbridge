@@ -150,6 +150,184 @@ public sealed class WeightIndicatorServiceLifecycleTests
     }
 
     [Fact]
+    public async Task Concurrent_ConnectAsync_Calls_Spawn_Exactly_One_Worker_And_Share_Result()
+    {
+        var options = new HardwareOptions
+        {
+            WeightIndicator = new WeightIndicatorOptions
+            {
+                Enabled = true,
+                DriverType = "Serial",
+                PortName = "COM3",
+                BaudRate = 2400
+            }
+        };
+
+        var transport = new FakeSerialTransport(options.WeightIndicator);
+        var service = new WeightIndicatorService(
+            Options.Create(options),
+            transport,
+            new DelimitedFrameExtractor(),
+            new GenericAsciiProtocolParser(),
+            NullLogger<WeightIndicatorService>.Instance);
+
+        // Run 5 concurrent ConnectAsync calls
+        var tasks = Enumerable.Range(0, 5).Select(_ => service.ConnectAsync()).ToArray();
+        var results = await Task.WhenAll(tasks);
+
+        Assert.All(results, Assert.True);
+        Assert.Equal(1, transport.OpenCount);
+        Assert.Equal(ConnectionState.Connected, service.State);
+
+        await service.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task ConnectAsync_Returns_False_On_Initial_Failure_While_Worker_Recovers_On_Retry()
+    {
+        var options = new HardwareOptions
+        {
+            WeightIndicator = new WeightIndicatorOptions
+            {
+                Enabled = true,
+                DriverType = "Serial",
+                PortName = "COM3",
+                BaudRate = 2400,
+                AutoReconnect = true,
+                ReconnectIntervalMs = 50
+            }
+        };
+
+        var transport = new FakeSerialTransport(options.WeightIndicator) { FailOnOpen = true };
+        var service = new WeightIndicatorService(
+            Options.Create(options),
+            transport,
+            new DelimitedFrameExtractor(),
+            new GenericAsciiProtocolParser(),
+            NullLogger<WeightIndicatorService>.Instance);
+
+        // First attempt fails boundedly
+        bool initialResult = await service.ConnectAsync();
+        Assert.False(initialResult);
+        Assert.Equal(1, transport.OpenCount);
+
+        // Fix the transport so next retry succeeds
+        transport.FailOnOpen = false;
+
+        // Await worker loop recovery (with timeout)
+        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        while (service.State != ConnectionState.Connected && !timeoutCts.Token.IsCancellationRequested)
+        {
+            await Task.Delay(50, timeoutCts.Token);
+        }
+
+        Assert.Equal(ConnectionState.Connected, service.State);
+        Assert.True(transport.OpenCount >= 2);
+
+        await service.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task ConnectAsync_Called_While_Worker_In_Backoff_Coordinates_Without_Duplicate_Worker()
+    {
+        var options = new HardwareOptions
+        {
+            WeightIndicator = new WeightIndicatorOptions
+            {
+                Enabled = true,
+                DriverType = "Serial",
+                PortName = "COM3",
+                BaudRate = 2400,
+                AutoReconnect = true,
+                ReconnectIntervalMs = 2000
+            }
+        };
+
+        var transport = new FakeSerialTransport(options.WeightIndicator) { FailOnOpen = true };
+        var service = new WeightIndicatorService(
+            Options.Create(options),
+            transport,
+            new DelimitedFrameExtractor(),
+            new GenericAsciiProtocolParser(),
+            NullLogger<WeightIndicatorService>.Instance);
+
+        // First attempt fails, worker enters 2000ms backoff
+        bool first = await service.ConnectAsync();
+        Assert.False(first);
+        Assert.Equal(1, transport.OpenCount);
+
+        // Second call while in backoff returns without creating a duplicate worker
+        bool second = await service.ConnectAsync();
+        Assert.False(second);
+        Assert.Equal(1, transport.OpenCount);
+
+        await service.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task DisconnectAsync_During_Backoff_Terminates_Immediately_Without_Hanging()
+    {
+        var options = new HardwareOptions
+        {
+            WeightIndicator = new WeightIndicatorOptions
+            {
+                Enabled = true,
+                DriverType = "Serial",
+                PortName = "COM3",
+                BaudRate = 2400,
+                AutoReconnect = true,
+                ReconnectIntervalMs = 10000 // Long delay
+            }
+        };
+
+        var transport = new FakeSerialTransport(options.WeightIndicator) { FailOnOpen = true };
+        var service = new WeightIndicatorService(
+            Options.Create(options),
+            transport,
+            new DelimitedFrameExtractor(),
+            new GenericAsciiProtocolParser(),
+            NullLogger<WeightIndicatorService>.Instance);
+
+        await service.ConnectAsync();
+
+        // Disconnect during long backoff should complete fast
+        var disconnectTask = service.DisconnectAsync();
+        var completed = await Task.WhenAny(disconnectTask, Task.Delay(2000));
+
+        Assert.Same(disconnectTask, completed);
+        Assert.Equal(ConnectionState.Disconnected, service.State);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_When_Disabled_Returns_False_And_Sets_Disabled_State()
+    {
+        var options = new HardwareOptions
+        {
+            WeightIndicator = new WeightIndicatorOptions
+            {
+                Enabled = false,
+                DriverType = "Serial",
+                PortName = "COM3",
+                BaudRate = 2400
+            }
+        };
+
+        var transport = new FakeSerialTransport(options.WeightIndicator);
+        var service = new WeightIndicatorService(
+            Options.Create(options),
+            transport,
+            new DelimitedFrameExtractor(),
+            new GenericAsciiProtocolParser(),
+            NullLogger<WeightIndicatorService>.Instance);
+
+        bool connected = await service.ConnectAsync();
+
+        Assert.False(connected);
+        Assert.Equal(ConnectionState.Disabled, service.State);
+        Assert.Equal(0, transport.OpenCount);
+    }
+
+    [Fact]
     public async Task Service_Emits_ReadingReceived_When_Live_Frames_Are_Parsed()
     {
         var options = new HardwareOptions

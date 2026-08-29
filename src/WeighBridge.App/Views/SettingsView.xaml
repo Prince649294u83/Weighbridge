@@ -158,8 +158,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                   <ComboBox IsEditable="True"
                             ItemsSource="{Binding AvailablePorts}"
-                            SelectedItem="{Binding PortName, Mode=TwoWay}"
-                            Text="{Binding PortName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                            Text="{Binding PortName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             Style="{StaticResource Settings.Choice}" />
                   <Button Command="{Binding RefreshPortsCommand}"
                           Content="Refresh"

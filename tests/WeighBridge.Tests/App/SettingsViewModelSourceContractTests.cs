@@ -38,8 +38,15 @@ public sealed class SettingsViewModelSourceContractTests
     }
 
     [Fact]
-    public void SettingsView_Binds_ComboBox_SelectedItem_To_PortName_With_TwoWay_Mode()
+    public void SettingsView_Binds_ComboBox_Text_To_PortName_With_PropertyChanged_UpdateSource()
     {
-        Assert.Contains("SelectedItem=\"{Binding PortName, Mode=TwoWay}\"", ViewSource);
+        Assert.Contains("Text=\"{Binding PortName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}\"", ViewSource);
+        Assert.DoesNotContain("SelectedItem=\"{Binding PortName", ViewSource);
+    }
+
+    [Fact]
+    public void SaveConfigurationAsync_Persists_PortName_To_Hardware_Options()
+    {
+        Assert.Contains("[\"Hardware:WeightIndicator:PortName\"] = PortName", ViewModelSource);
     }
 }
