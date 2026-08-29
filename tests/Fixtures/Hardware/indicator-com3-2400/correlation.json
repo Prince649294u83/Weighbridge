@@ -18,7 +18,8 @@
       "rawPayload": "0000000",
       "currentAppValueKg": 0.0,
       "requiredKg": 0.0,
-      "verified": true
+      "verified": true,
+      "category": "Baseline Zero"
     },
     {
       "physicalDisplayKg": 10.0,
@@ -26,7 +27,8 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 10.0,
-      "verified": false
+      "verified": false,
+      "category": "Low Range Standard"
     },
     {
       "physicalDisplayKg": 20.0,
@@ -34,7 +36,8 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 20.0,
-      "verified": false
+      "verified": false,
+      "category": "Low Range Standard"
     },
     {
       "physicalDisplayKg": 50.0,
@@ -42,7 +45,17 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 50.0,
-      "verified": false
+      "verified": false,
+      "category": "Mid Range Standard"
+    },
+    {
+      "physicalDisplayKg": 89.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 89.0,
+      "verified": false,
+      "category": "Transition Point (89-90-91)"
     },
     {
       "physicalDisplayKg": 90.0,
@@ -51,7 +64,17 @@
       "currentAppValueKg": 900.0,
       "requiredKg": 90.0,
       "verified": false,
+      "category": "Transition Point (89-90-91)",
       "note": "Observed candidate discrepancy: raw 0000900 parsed as 900.0 without decimal profile"
+    },
+    {
+      "physicalDisplayKg": 91.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 91.0,
+      "verified": false,
+      "category": "Transition Point (89-90-91)"
     },
     {
       "physicalDisplayKg": 95.0,
@@ -60,7 +83,17 @@
       "currentAppValueKg": 950.0,
       "requiredKg": 95.0,
       "verified": false,
+      "category": "Non-Round Candidate",
       "note": "Observed live stream candidate"
+    },
+    {
+      "physicalDisplayKg": 99.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 99.0,
+      "verified": false,
+      "category": "Transition Point (99-100-101)"
     },
     {
       "physicalDisplayKg": 100.0,
@@ -69,7 +102,17 @@
       "currentAppValueKg": 1000.0,
       "requiredKg": 100.0,
       "verified": false,
+      "category": "Transition Point (99-100-101)",
       "note": "Observed live stream candidate"
+    },
+    {
+      "physicalDisplayKg": 101.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 101.0,
+      "verified": false,
+      "category": "Transition Point (99-100-101)"
     },
     {
       "physicalDisplayKg": 125.0,
@@ -77,7 +120,8 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 125.0,
-      "verified": false
+      "verified": false,
+      "category": "Non-Round Standard"
     },
     {
       "physicalDisplayKg": 137.0,
@@ -85,7 +129,8 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 137.0,
-      "verified": false
+      "verified": false,
+      "category": "Non-Round Standard"
     },
     {
       "physicalDisplayKg": 200.0,
@@ -93,7 +138,8 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 200.0,
-      "verified": false
+      "verified": false,
+      "category": "Mid Range Standard"
     },
     {
       "physicalDisplayKg": 275.0,
@@ -101,7 +147,8 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 275.0,
-      "verified": false
+      "verified": false,
+      "category": "Non-Round Standard"
     },
     {
       "physicalDisplayKg": 500.0,
@@ -109,7 +156,8 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 500.0,
-      "verified": false
+      "verified": false,
+      "category": "High Range Standard"
     },
     {
       "physicalDisplayKg": 1000.0,
@@ -117,7 +165,17 @@
       "rawPayload": null,
       "currentAppValueKg": null,
       "requiredKg": 1000.0,
-      "verified": false
+      "verified": false,
+      "category": "High Range Standard"
+    },
+    {
+      "physicalDisplayKg": 1349.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 1349.0,
+      "verified": false,
+      "category": "Transition Point (1349-1350-1351)"
     },
     {
       "physicalDisplayKg": 1350.0,
@@ -126,7 +184,17 @@
       "currentAppValueKg": 1350.0,
       "requiredKg": 1350.0,
       "verified": true,
+      "category": "Transition Point (1349-1350-1351)",
       "note": "Verified live physical capture"
+    },
+    {
+      "physicalDisplayKg": 1351.0,
+      "rawHex": null,
+      "rawPayload": null,
+      "currentAppValueKg": null,
+      "requiredKg": 1351.0,
+      "verified": false,
+      "category": "Transition Point (1349-1350-1351)"
     },
     {
       "physicalDisplayKg": 1400.0,
@@ -135,6 +203,7 @@
       "currentAppValueKg": 1400.0,
       "requiredKg": 1400.0,
       "verified": true,
+      "category": "Baseline Standard",
       "note": "Verified live physical capture"
     },
     {
@@ -144,6 +213,7 @@
       "currentAppValueKg": 1450.0,
       "requiredKg": 1450.0,
       "verified": true,
+      "category": "Baseline Standard",
       "note": "Verified live physical capture"
     }
   ]
