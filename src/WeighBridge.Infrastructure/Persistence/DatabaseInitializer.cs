@@ -7,24 +7,8 @@ using WeighBridge.Core.Configuration;
 namespace WeighBridge.Infrastructure.Persistence;
 
 /// <summary>
-/// Creates the database file and brings the schema up to date during startup.
+/// Creates the database file and brings the schema up to date during startup with robust diagnostic containment.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Failure stops startup. This used to be non-fatal, on the reasoning that a shell
-/// reporting "Disconnected" is what an operator needs to see when a network share or a
-/// file permission is wrong. That outcome became unreachable when login was placed before
-/// the shell: authentication queries the database, so a failure here surfaced as an
-/// unhandled query exception a moment later instead. The failure is now reported against
-/// the database, with the path, by the caller.
-/// </para>
-/// <para>
-/// The work runs once per process however many callers ask for it. Startup begins it
-/// without waiting, and anything that needs the schema awaits the same task - a second
-/// caller must not start a concurrent migration, because SQLite would then be migrated
-/// twice through two connections.
-/// </para>
-/// </remarks>
 public sealed class DatabaseInitializer(
     IDbContextFactory<WeighBridgeDbContext> contextFactory,
     ConnectionStringProvider connectionStrings,
@@ -44,8 +28,6 @@ public sealed class DatabaseInitializer(
     {
         lock (_gate)
         {
-            // The first caller's cancellation token owns the work; a later caller joins the
-            // run in progress rather than starting one of its own.
             return _initialization ??= InitializeCoreAsync(cancellationToken);
         }
     }
@@ -61,17 +43,6 @@ public sealed class DatabaseInitializer(
                 Directory.CreateDirectory(directory);
             }
 
-            // A zero-byte file is a valid empty SQLite database, so MigrateAsync below would
-            // write a fresh schema over it and the login dialog would then offer first-run
-            // administrator setup, on a terminal that has been in service for months, with
-            // nothing on screen to say a database had been destroyed. The application never
-            // leaves a zero-byte file at this path - SQLite writes the header on the first
-            // write - so one here is damage, and migrating over it is what makes the damage
-            // permanent and invisible.
-            //
-            // Only when the connection string is the one derived from this path. A site that
-            // configures its own connection string points the provider somewhere else, and a
-            // stale file left at the default path says nothing about the database in use.
             if (string.IsNullOrWhiteSpace(_options.ConnectionString)
                 && File.Exists(_connectionStrings.DatabaseFilePath)
                 && new FileInfo(_connectionStrings.DatabaseFilePath).Length == 0)
@@ -95,8 +66,6 @@ public sealed class DatabaseInitializer(
 
             if (known.Count == 0)
             {
-                // Reachable only if every migration is removed from the assembly. Kept so
-                // that a build in that state still provisions a connectable database file.
                 await context.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
 
                 _logger.LogInformation(
@@ -126,13 +95,6 @@ public sealed class DatabaseInitializer(
                 _logger.LogInformation("Database schema is up to date ({Count} migration(s) applied previously)", known.Count);
             }
 
-            // No user account is seeded here. This used to create "admin" with a hash of a
-            // password published in the repository, which is a fixed known credential on
-            // every installation that has never had its password changed. The first
-            // administrator is now collected by the login dialog's first-run setup mode
-            // (IAuthenticationService.RequiresInitialSetupAsync), so the application ships
-            // with no password at all.
-
             return DatabaseInitializationResult.Success(
                 pending.Count > 0
                     ? $"Applied {pending.Count} migration(s)."
@@ -147,13 +109,35 @@ public sealed class DatabaseInitializer(
         {
             _logger.LogError(ex, "Database initialisation failed for {DatabasePath}", _connectionStrings.DatabaseFilePath);
 
-            // The path belongs in the message, not only in the exception detail behind "Show
-            // technical details": a site can have its database on a share or at a configured
-            // location, and "file is not a database" is not actionable without knowing which
-            // file is meant.
+            WriteMigrationDiagnosticFile(ex);
+
             return DatabaseInitializationResult.Failure(
                 $"The database could not be opened: {_connectionStrings.DatabaseFilePath}{Environment.NewLine}{Environment.NewLine}{ex.Message}",
                 ex);
+        }
+    }
+
+    private void WriteMigrationDiagnosticFile(Exception ex)
+    {
+        try
+        {
+            var dbPath = _connectionStrings.DatabaseFilePath;
+            var directory = Path.GetDirectoryName(dbPath);
+            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory)) return;
+
+            var diagFile = Path.Combine(directory, $"migration_failure_{DateTime.UtcNow:yyyyMMdd_HHmmss}.diag");
+            var content = $"Timestamp (UTC): {DateTime.UtcNow:O}{Environment.NewLine}" +
+                          $"Database Path: {dbPath}{Environment.NewLine}" +
+                          $"Exception: {ex.GetType().FullName}{Environment.NewLine}" +
+                          $"Message: {ex.Message}{Environment.NewLine}" +
+                          $"Stack Trace:{Environment.NewLine}{ex.StackTrace}{Environment.NewLine}";
+
+            File.WriteAllText(diagFile, content);
+            _logger.LogInformation("Wrote migration diagnostic file to {Path}", diagFile);
+        }
+        catch
+        {
+            // Best-effort diagnostic write; must not mask original migration exception
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,7 @@ using WeighBridge.Core.Commands;
 using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Events;
 using WeighBridge.Core.Health;
+using WeighBridge.Core.Messaging;
 using WeighBridge.Core.Navigation;
 using WeighBridge.Core.Notifications;
 using WeighBridge.Core.Security;
@@ -20,13 +22,14 @@ using WeighBridge.Services.Busy;
 using WeighBridge.Services.Commands;
 using WeighBridge.Services.Events;
 using WeighBridge.Services.Health;
+using WeighBridge.Services.Masters;
+using WeighBridge.Services.Messaging;
 using WeighBridge.Services.Navigation;
 using WeighBridge.Services.Notifications;
-using WeighBridge.Services.Undo;
 using WeighBridge.Services.Security;
 using WeighBridge.Services.Status;
 using WeighBridge.Services.Tasks;
-using WeighBridge.Services.Masters;
+using WeighBridge.Services.Undo;
 using WeighBridge.Services.Weighments;
 
 namespace WeighBridge.Services.DependencyInjection;
@@ -76,8 +79,7 @@ public static class ServicesServiceCollectionExtensions
         services.AddSingleton<UndoManager>();
         services.AddSingleton<IUndoManager>(provider => provider.GetRequiredService<UndoManager>());
 
-        // One permission state. Before the login system exists, the role is configuration;
-        // when a real operator table arrives, only this registration changes.
+        // One permission state.
         services.AddSingleton<PermissionService>();
         services.AddSingleton<IPermissionService>(provider => provider.GetRequiredService<PermissionService>());
 
@@ -104,6 +106,15 @@ public static class ServicesServiceCollectionExtensions
         services.AddSingleton<IVehicleService, VehicleService>();
         services.AddSingleton<IPartyService, PartyService>();
         services.AddSingleton<IMaterialService, MaterialService>();
+
+        // SMS Messaging Subsystem
+        services.TryAddSingleton<HttpClient>();
+        services.AddSingleton<HttpGatewaySmsProvider>();
+        services.AddSingleton<SmsTemplateEngine>();
+        services.AddSingleton<SmsRecipientResolver>();
+        services.AddSingleton<ISmsProvider, GsmModemSmsProvider>();
+        services.AddSingleton<ISmsProvider>(provider => provider.GetRequiredService<HttpGatewaySmsProvider>());
+        services.AddSingleton<ISmsService, SmsOutboxProcessor>();
 
         // SystemStatusService needs the database probe specifically; resolving
         // IHealthCheck by interface would be ambiguous once other checks register.

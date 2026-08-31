@@ -29,8 +29,10 @@ public sealed class AuditEntryConfiguration : IEntityTypeConfiguration<AuditEntr
         builder.Property(entry => entry.Details).HasMaxLength(AuditEntry.DetailsMaxLength);
         builder.Property(entry => entry.CorrelationId).HasMaxLength(AuditEntry.CorrelationIdMaxLength);
 
-        // The two questions a disputed day asks: what happened, in order; and who did it.
-        builder.HasIndex(entry => entry.OccurredAtUtc);
-        builder.HasIndex(entry => entry.OperatorName);
+        // High-performance audit query indices
+        builder.HasIndex(entry => new { entry.OccurredAtUtc, entry.OperatorName, entry.Action });
+        builder.HasIndex(entry => new { entry.Entity, entry.EntityId });
+        builder.HasIndex(entry => entry.Outcome);
+        builder.HasIndex(entry => entry.CorrelationId);
     }
 }

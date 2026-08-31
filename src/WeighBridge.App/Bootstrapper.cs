@@ -325,6 +325,7 @@ public sealed class Bootstrapper : IAsyncDisposable
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IWindowPlacementService, WindowPlacementService>();
         services.AddSingleton<IViewLocator, ViewLocator>();
+        services.AddSingleton<SessionInactivityService>();
 
         // Shell. Transient, not singleton: signing out closes the shell and the next
         // sign-in gets a new one. The navigation rail is filtered by permission in the

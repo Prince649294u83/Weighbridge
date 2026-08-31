@@ -4,7 +4,7 @@ using System.Text;
 namespace WeighBridge.Settings.Configuration;
 
 /// <summary>
-/// Protects machine-local secrets (camera passwords, server API keys) with Windows DPAPI
+/// Protects machine-local secrets (camera passwords, server API keys, GSM PINs) with Windows DPAPI
 /// at the current user's scope.
 /// </summary>
 /// <remarks>
@@ -13,12 +13,10 @@ namespace WeighBridge.Settings.Configuration;
 /// the file sits in <c>%LOCALAPPDATA%</c> precisely so it can be backed up and inspected.
 /// Values stored through <see cref="Protect"/> carry a <c>dpapi:</c> prefix and decrypt
 /// only for the same Windows user on the same machine, which is exactly the audience a
-/// terminal's camera password or sync key was meant to have.
+/// terminal's credentials were meant to have.
 /// </para>
 /// <para>
-/// The provisioner upgrades plaintext values in place on startup; the host decrypts them
-/// again when configuration loads, so no consumer of the options classes ever sees the
-/// prefix.
+/// Normal configuration keys and SQLite connection strings remain unencrypted structured JSON.
 /// </para>
 /// </remarks>
 public static class SecretProtector
@@ -26,13 +24,21 @@ public static class SecretProtector
     /// <summary>Marks a value as DPAPI-protected.</summary>
     public const string Prefix = "dpapi:";
 
-    /// <summary>The leaf keys whose values are secrets.</summary>
-    public static readonly IReadOnlyList<string> ProtectedLeafKeys = ["Password", "ApiKey", "ApiSecret"];
+    /// <summary>The authoritative explicit allowlist of leaf keys whose values are secrets.</summary>
+    public static readonly IReadOnlyList<string> ProtectedLeafKeys =
+    [
+        "Password",
+        "ApiKey",
+        "ApiSecret",
+        "GsmPin",
+        "HttpApiKey"
+    ];
 
+    /// <summary>Checks whether a string has a valid DPAPI prefix.</summary>
     public static bool IsProtected(string? value)
         => !string.IsNullOrEmpty(value) && value.StartsWith(Prefix, StringComparison.Ordinal);
 
-    /// <summary>Encrypts for the current Windows user. Idempotent.</summary>
+    /// <summary>Encrypts for the current Windows user. Idempotent and validates against double-encryption.</summary>
     /// <exception cref="PlatformNotSupportedException">On non-Windows platforms.</exception>
     public static string Protect(string plainText)
     {
@@ -40,6 +46,7 @@ public static class SecretProtector
 
         if (IsProtected(plainText))
         {
+            // Already protected; do not double-encrypt
             return plainText;
         }
 

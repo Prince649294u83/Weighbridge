@@ -1,23 +1,11 @@
+using System.Text.RegularExpressions;
 using WeighBridge.Domain.Common;
 
 namespace WeighBridge.Infrastructure.Persistence.Auditing;
 
 /// <summary>
-/// One row of the durable audit trail.
+/// Append-only durable audit trail row persisted directly to SQLite.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Lives in the same database as the weighments it describes, on purpose: a trail stored
-/// beside the evidence it covers cannot be deleted without deleting the evidence. It is
-/// append-only by convention — nothing in the application updates or deletes these rows,
-/// and the repository's soft-delete path is never used for them because they are never
-/// queried back through the generic repository.
-/// </para>
-/// <para>
-/// It carries the aggregate marker only so the generic repository can persist it; it is
-/// infrastructure bookkeeping, not a domain concept.
-/// </para>
-/// </remarks>
 public sealed class AuditEntry : EntityBase, IAggregateRoot
 {
     public const int ActionMaxLength = 128;
@@ -27,11 +15,15 @@ public sealed class AuditEntry : EntityBase, IAggregateRoot
     public const int DetailsMaxLength = 2048;
     public const int OperatorMaxLength = 64;
     public const int ModuleMaxLength = 64;
-    public const int CorrelationIdMaxLength = 32;
+    public const int CorrelationIdMaxLength = 36;
+
+    private static readonly Regex CredentialSanitizerPattern = new(
+        @"(?i)(password|pin|key|secret|token)\s*[:=]\s*([^\s,;]+)",
+        RegexOptions.Compiled);
 
     private AuditEntry()
     {
-        // EF Core materialisation.
+        // EF Core materialisation
     }
 
     private AuditEntry(
@@ -65,28 +57,26 @@ public sealed class AuditEntry : EntityBase, IAggregateRoot
     /// <summary>The module the action came from, when ambient scope knew it.</summary>
     public string? Module { get; private set; }
 
-    /// <summary>What was done.</summary>
+    /// <summary>What was done (e.g. AuditActions.WeighmentCompleted).</summary>
     public string Action { get; private set; } = string.Empty;
 
-    /// <summary>Succeeded / Denied / Failed.</summary>
+    /// <summary>Canonical outcome: SUCCESS, FAILURE, or DENIED.</summary>
     public string Outcome { get; private set; } = string.Empty;
 
-    /// <summary>What it was done to.</summary>
+    /// <summary>Entity name (e.g. Weighment, User, Configuration).</summary>
     public string? Entity { get; private set; }
 
-    /// <summary>Which one — slip number, username, row id.</summary>
+    /// <summary>Entity key/identifier (e.g. slip number, username).</summary>
     public string? EntityId { get; private set; }
 
-    /// <summary>Anything else worth keeping. Never secrets or passwords.</summary>
+    /// <summary>Sanitized details with credentials replaced by ***REDACTED***.</summary>
     public string? Details { get; private set; }
 
-    /// <summary>Ties the row to every log line written for the same operation.</summary>
+    /// <summary>Unified operation correlation GUID tying events across subsystems.</summary>
     public string? CorrelationId { get; private set; }
 
     /// <summary>
-    /// Creates an entry, truncating over-long fields rather than failing: losing the tail
-    /// of a long detail string beats losing the whole record to a constraint violation at
-    /// the moment being audited.
+    /// Creates an audit entry, applying deterministic credential redaction and length limits.
     /// </summary>
     public static AuditEntry Create(
         DateTime occurredAtUtc,
@@ -102,6 +92,8 @@ public sealed class AuditEntry : EntityBase, IAggregateRoot
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
         ArgumentException.ThrowIfNullOrWhiteSpace(outcome);
 
+        var sanitizedDetails = SanitizeDetails(details);
+
         return new AuditEntry(
             occurredAtUtc,
             Truncate(operatorName, OperatorMaxLength),
@@ -110,8 +102,14 @@ public sealed class AuditEntry : EntityBase, IAggregateRoot
             Truncate(outcome.Trim(), OutcomeMaxLength)!,
             Truncate(entity, EntityMaxLength),
             Truncate(entityId, EntityIdMaxLength),
-            Truncate(details, DetailsMaxLength),
+            Truncate(sanitizedDetails, DetailsMaxLength),
             Truncate(correlationId, CorrelationIdMaxLength));
+    }
+
+    public static string? SanitizeDetails(string? details)
+    {
+        if (string.IsNullOrWhiteSpace(details)) return details;
+        return CredentialSanitizerPattern.Replace(details, "$1=***REDACTED***");
     }
 
     private static string? Truncate(string? value, int maxLength)

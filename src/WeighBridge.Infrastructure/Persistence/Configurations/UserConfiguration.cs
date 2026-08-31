@@ -23,9 +23,6 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.Username)
             .IsRequired()
             .HasMaxLength(User.UsernameMaxLength)
-            // SQLite compares TEXT case-sensitively by default, which would let "Admin"
-            // and "admin" coexist in the unique index while the sign-in lookup treats
-            // them as one account. NOCASE makes the index agree with the lookup.
             .UseCollation("NOCASE");
 
         builder.Property(user => user.DisplayName)
@@ -41,6 +38,12 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(User.RoleNameMaxLength);
 
         builder.Property(user => user.IsActive).IsRequired();
+
+        // Persistent Lockout and Password Expiry Columns
+        builder.Property(user => user.FailedAccessCount).IsRequired().HasDefaultValue(0);
+        builder.Property(user => user.LockoutUntilUtc);
+        builder.Property(user => user.PasswordChangedAtUtc).IsRequired();
+        builder.Property(user => user.MustChangePassword).IsRequired().HasDefaultValue(false);
 
         // Audit columns
         builder.Property(user => user.CreatedBy).HasMaxLength(128);

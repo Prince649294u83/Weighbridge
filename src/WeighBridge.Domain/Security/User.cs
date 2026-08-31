@@ -44,7 +44,10 @@ public sealed class User : EntityBase, IAggregateRoot, ISoftDeletable
             DisplayName = trimmedDisplayName,
             PasswordHash = passwordHash,
             RoleName = roleName,
-            IsActive = true
+            IsActive = true,
+            PasswordChangedAtUtc = DateTime.UtcNow,
+            MustChangePassword = false,
+            FailedAccessCount = 0
         };
     }
 
@@ -62,6 +65,18 @@ public sealed class User : EntityBase, IAggregateRoot, ISoftDeletable
 
     /// <summary>Whether this user can currently log in.</summary>
     public bool IsActive { get; private set; } = true;
+
+    /// <summary>Persistent consecutive failed sign-in attempts count.</summary>
+    public int FailedAccessCount { get; private set; }
+
+    /// <summary>Persistent UTC timestamp until which the account is locked.</summary>
+    public DateTime? LockoutUntilUtc { get; private set; }
+
+    /// <summary>UTC timestamp when password was last changed.</summary>
+    public DateTime PasswordChangedAtUtc { get; private set; } = DateTime.UtcNow;
+
+    /// <summary>Whether user is forced to change password before operational access is permitted.</summary>
+    public bool MustChangePassword { get; private set; }
 
     /// <inheritdoc />
     public bool IsDeleted { get; set; }
@@ -88,11 +103,46 @@ public sealed class User : EntityBase, IAggregateRoot, ISoftDeletable
         RoleName = roleName;
     }
 
-    /// <summary>Updates the user's password hash.</summary>
+    /// <summary>Updates the user's password hash and records change timestamp.</summary>
     public void ChangePassword(string newPasswordHash)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(newPasswordHash);
         PasswordHash = newPasswordHash;
+        PasswordChangedAtUtc = DateTime.UtcNow;
+        MustChangePassword = false;
+        ResetFailedAccess();
+    }
+
+    /// <summary>Records a failed login attempt and locks account if threshold exceeded.</summary>
+    public bool RecordFailedAccess(int maxAttempts, TimeSpan lockoutDuration)
+    {
+        FailedAccessCount++;
+        if (FailedAccessCount >= maxAttempts)
+        {
+            LockoutUntilUtc = DateTime.UtcNow.Add(lockoutDuration);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>Resets failed attempt count and clears active lockout.</summary>
+    public void ResetFailedAccess()
+    {
+        FailedAccessCount = 0;
+        LockoutUntilUtc = null;
+    }
+
+    /// <summary>Administratively unlocks the user account.</summary>
+    public void Unlock()
+    {
+        ResetFailedAccess();
+        IsActive = true;
+    }
+
+    /// <summary>Flags user account for mandatory password update.</summary>
+    public void SetMustChangePassword(bool mustChange)
+    {
+        MustChangePassword = mustChange;
     }
 
     /// <summary>Activates the user account.</summary>

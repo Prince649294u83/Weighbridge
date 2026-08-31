@@ -7,7 +7,7 @@ using WeighBridge.Core.Configuration;
 namespace WeighBridge.Settings.Configuration;
 
 /// <summary>
-/// Writes configuration values into <c>appsettings.json</c> in place.
+/// Writes configuration values into <c>appsettings.json</c> in place with transactional atomic safety.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,10 +17,9 @@ namespace WeighBridge.Settings.Configuration;
 /// <c>Logging</c> section, which no options class in this application owns.
 /// </para>
 /// <para>
-/// Writes go through a temporary file and a move, the same as
-/// <see cref="ConfigurationProvisioner"/>: an interrupted write must never be able to
-/// leave the application without a readable configuration, and this one runs while the
-/// application is up and the operator is watching.
+/// Writes go through a temporary file (.tmp), a backup file (.bak), and an atomic move, so an
+/// interrupted write never leaves the application without a readable configuration, and
+/// failures roll back cleanly.
 /// </para>
 /// </remarks>
 public sealed class JsonConfigurationWriter(
@@ -50,6 +49,8 @@ public sealed class JsonConfigurationWriter(
         ArgumentNullException.ThrowIfNull(values);
 
         var path = _paths.ConfigurationFile;
+        var tempPath = path + ".tmp";
+        var bakPath = path + ".bak";
 
         await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -61,10 +62,40 @@ public sealed class JsonConfigurationWriter(
                 Assign(root, key, value);
             }
 
-            var tempPath = path + ".tmp";
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            // 1. Write to temporary file
             await File.WriteAllTextAsync(tempPath, root.ToJsonString(WriteOptions), cancellationToken)
                 .ConfigureAwait(false);
-            File.Move(tempPath, path, overwrite: true);
+
+            // 2. Backup existing configuration if present
+            if (File.Exists(path))
+            {
+                File.Copy(path, bakPath, overwrite: true);
+            }
+
+            try
+            {
+                // 3. Atomic move/replace
+                File.Move(tempPath, path, overwrite: true);
+            }
+            catch (Exception replaceEx)
+            {
+                _logger.LogError(replaceEx, "Atomic replace failed for {Path}; attempting rollback from {BakPath}", path, bakPath);
+                if (File.Exists(bakPath))
+                {
+                    File.Copy(bakPath, path, overwrite: true);
+                }
+                TryDeleteFile(tempPath);
+                throw;
+            }
+
+            // Cleanup temp and backup files on success
+            TryDeleteFile(tempPath);
 
             _logger.LogInformation(
                 "Saved {Count} configuration value(s) to {Path}: {Keys}",
@@ -80,14 +111,24 @@ public sealed class JsonConfigurationWriter(
         }
     }
 
+    private static void TryDeleteFile(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+        catch
+        {
+            // Best effort cleanup
+        }
+    }
+
     /// <summary>
     /// Reads the document, or starts a fresh one when the file is missing or unreadable.
     /// </summary>
-    /// <remarks>
-    /// A save must not fail because the file on disk is corrupt — the provisioner already
-    /// quarantines and regenerates in that case on the next start, and refusing to save
-    /// here would leave the operator unable to fix a bad port number through the screen.
-    /// </remarks>
     private async Task<JsonObject> ReadRootAsync(string path, CancellationToken cancellationToken)
     {
         if (!File.Exists(path))
@@ -136,8 +177,6 @@ public sealed class JsonConfigurationWriter(
                 continue;
             }
 
-            // Either absent, or a scalar where a section is needed — a hand edit that put
-            // a string at "Hardware" must not stop the operator saving a port number.
             var created = new JsonObject();
             node[segment] = created;
             node = created;
@@ -155,14 +194,9 @@ public sealed class JsonConfigurationWriter(
     }
 
     /// <summary>
-    /// Converts a value to a JSON node, encrypting anything under a secret key name.
+    /// Converts a value to a JSON node, encrypting only keys in the explicit secret allowlist.
+    /// Normal configuration keys and SQLite connection strings remain plain structured JSON.
     /// </summary>
-    /// <remarks>
-    /// The check is on the key, not the value, and matches
-    /// <see cref="SecretProtector.ProtectedLeafKeys"/> — so a camera password typed into the
-    /// screen is protected on the way in, rather than sitting in plaintext until the next
-    /// start happens to run the provisioner over it.
-    /// </remarks>
     private static JsonNode ToJsonValue(string leafKey, object value)
     {
         if (value is string text &&
@@ -179,10 +213,6 @@ public sealed class JsonConfigurationWriter(
             int i => JsonValue.Create(i)!,
             long l => JsonValue.Create(l)!,
             double d => JsonValue.Create(d)!,
-
-            // Written as a JSON number, not a quoted string: the configuration binder
-            // accepts either, but a human comparing the file against the defaults should
-            // not see one number quoted and its neighbour not.
             decimal m => JsonValue.Create(m)!,
             Enum e => JsonValue.Create(e.ToString())!,
             _ => JsonValue.Create(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "")!,
