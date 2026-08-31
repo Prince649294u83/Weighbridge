@@ -18,6 +18,7 @@ using System;
 using System.Runtime.InteropServices;
 public static class WeighBridgeFocus {
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 }
 '@
 }
@@ -210,22 +211,32 @@ function Invoke-WeighBridgeLogin {
     $usernameBox = Find-Field 'UsernameBox'
     $usernameBox.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Username)
 
-    # A PasswordBox deliberately refuses ValuePattern.SetValue, so the password is
-    # typed into the focused field the way an operator types it. Each field is cleared
-    # first with ^a{DEL}: a stray keystroke landing before the text (observed as "ladmin"
-    # on one machine) would otherwise be submitted, and a retry after a failed setup left
-    # residue in the confirm box ("passwords do not match").
-    (Find-Field 'PasswordBox').SetFocus()
-    [System.Windows.Forms.SendKeys]::SendWait('^a{DEL}')
+    function Send-SafeKeys($targetElement, $text) {
+        $targetElement.SetFocus()
+        Start-Sleep -Milliseconds 60
+        try {
+            [System.Windows.Forms.SendKeys]::SendWait($text)
+        }
+        catch {
+            $hWnd = [IntPtr]$login.Current.NativeWindowHandle
+            foreach ($c in $text.ToCharArray()) {
+                [WeighBridgeFocus]::PostMessage($hWnd, 0x0102, [IntPtr][int]$c, [IntPtr]::Zero) | Out-Null
+                Start-Sleep -Milliseconds 15
+            }
+        }
+    }
+
+    $pwField = Find-Field 'PasswordBox'
+    Send-SafeKeys $pwField '^a{DEL}'
     Start-Sleep -Milliseconds 80
-    [System.Windows.Forms.SendKeys]::SendWait($Password)
+    Send-SafeKeys $pwField $Password
 
     if ($mode -eq $script:SetupWindowTitle) {
         # Only present in setup mode, and the dialog refuses to submit without it.
-        (Find-Field 'ConfirmPasswordBox').SetFocus()
-        [System.Windows.Forms.SendKeys]::SendWait('^a{DEL}')
+        $confirmField = Find-Field 'ConfirmPasswordBox'
+        Send-SafeKeys $confirmField '^a{DEL}'
         Start-Sleep -Milliseconds 80
-        [System.Windows.Forms.SendKeys]::SendWait($Password)
+        Send-SafeKeys $confirmField $Password
     }
 
     (Find-Field 'LoginButton').GetCurrentPattern(

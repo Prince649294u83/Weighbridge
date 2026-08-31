@@ -8,9 +8,10 @@ Phase 0.5 — Enterprise Infrastructure Layer, Prompt 7 — Vehicle Entry, Promp
 | Measure | Value | How it was obtained |
 | --- | --- | --- |
 | Build | 0 errors, 0 warnings | `dotnet build WeighBridge.sln --nologo -v q` |
-| Tests | 707 passed (639 baseline after cleanup + 21 decoder/lifecycle tests + 10 domain/persistence tests + 37 application service & concurrency tests), 0 failed, 0 skipped | `dotnet test --nologo`, cross-checked across all test suites |
+| Tests | 722 passed (historical: 639 baseline → 649 decoder → 660 hardware → 670 Gates 2B/2C → 707 Gate 2D → 722 Gate 2E/2F seal), 0 failed, 0 skipped | `dotnet test --nologo -v q`, cross-checked across all test suites |
 | Hardware Diagnostic Pipeline | Verified (9-byte framing, 8N1 @ 2400 on COM3, DecimalPlaces=1 locked) | `WeighBridge.SerialDiagnostic` & `WeightIndicatorService` |
-| F1/F2 Workflow Status | Gates 2A, 2B, 2C, 2D Completed (Legacy specs sealed, `Weighment.cs` aggregate delta, `AddF1F2WorkflowFields` migration, `IWeighmentService` F2 operations, Permission matrix, Concurrency via `Guid Version`, `NetWeightPolicy` resolution) | `WeighmentDomainTests`, `WeighmentPersistenceTests`, `WeighmentServiceTests` |
+| F1/F2 Workflow Status | Gates 2A, 2B, 2C, 2D, 2E, 2F Completed & Sealed (Legacy parity specifications, `Weighment.cs` domain aggregate delta, `AddF1F2WorkflowFields` migration, `IWeighmentService` F2 operations, `VehicleEntryViewModel` state machine, deterministic ticket allocation, snapshot locking, scanner search, bag deduction, concurrency conflict preservation, hotkey focus handling, Esc UI clear safety, process-level crash recovery verified) | `VehicleEntryWorkflowTests`, `WeighmentServiceTests`, `WeighmentPersistenceTests`, `WeighmentDomainTests` |
+| Runtime — F1/F2 Workflow Smoke | verified, exit code 0 | `scripts/f1f2-smoke.ps1` |
 | Runtime — shell | verified, exit code 0 | `scripts/runtime-smoke.ps1` |
 | Runtime — Vehicle Entry | verified, exit code 0 | `scripts/vehicle-entry-smoke.ps1` |
 | Runtime — Master Data | verified, exit code 0 | `scripts/masters-smoke.ps1` |

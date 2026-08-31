@@ -16,8 +16,7 @@ namespace WeighBridge.App.ViewModels;
 /// </para>
 /// <para>
 /// The formatting lives here rather than in converters because it is this screen's phrasing,
-/// not a reusable rule: a converter per null-dash and per unit suffix would be seven
-/// converters serving one view. The domain's own <see cref="Weighment.NextAction"/> text is
+/// not a reusable rule. The domain's own <see cref="Weighment.NextAction"/> text is
 /// carried through unchanged so the screen and the record agree on what happens next.
 /// </para>
 /// </remarks>
@@ -42,9 +41,28 @@ public sealed record WeighmentSummary(
     WeightSource? SecondWeightSource,
     DateTime OpenedAtLocal,
     DateTime? ClosedAtLocal,
-    string? CancellationReason)
+    string? CancellationReason,
+    Guid Version,
+    decimal Charges,
+    decimal SecondCharges,
+    decimal TotalCharges,
+    int? NumberOfBags,
+    decimal? BagWeightKg,
+    decimal? TotalBagWeightKg,
+    decimal? ActualWeightKg,
+    string? GatePassNumber,
+    string? CustomField1,
+    string? CustomField2,
+    string? CustomField3,
+    string? CustomField4,
+    string? VehicleTypeName,
+    string? CreatedBy,
+    string? ModifiedBy,
+    DateTime? FirstWeightTimeLocal,
+    string WaitingDurationText)
 {
     private const string WeightFormat = "#,##0.##";
+    private const string CurrencyFormat = "N2";
 
     /// <summary>Shown where a weight has not been taken yet.</summary>
     private const string Absent = "—";
@@ -55,6 +73,30 @@ public sealed record WeighmentSummary(
         ArgumentNullException.ThrowIfNull(weighment);
 
         var closedAtUtc = weighment.CompletedAtUtc ?? weighment.CancelledAtUtc;
+        var firstWeightTimeUtc = weighment.FirstWeight?.CapturedAtUtc;
+
+        // Calculate waiting duration for pending tickets
+        string waitingDuration = Absent;
+        if (weighment.Status == WeighmentStatus.AwaitingSecondWeight && firstWeightTimeUtc.HasValue)
+        {
+            var span = DateTime.UtcNow - firstWeightTimeUtc.Value;
+            if (span.TotalMinutes < 1)
+            {
+                waitingDuration = "< 1m";
+            }
+            else if (span.TotalHours < 1)
+            {
+                waitingDuration = $"{(int)span.TotalMinutes}m";
+            }
+            else if (span.TotalDays < 1)
+            {
+                waitingDuration = $"{(int)span.TotalHours}h {span.Minutes}m";
+            }
+            else
+            {
+                waitingDuration = $"{(int)span.TotalDays}d {span.Hours}h";
+            }
+        }
 
         return new WeighmentSummary(
             weighment.Id,
@@ -77,7 +119,25 @@ public sealed record WeighmentSummary(
             weighment.SecondWeight?.Source,
             weighment.CreatedAtUtc.ToLocalTime(),
             closedAtUtc?.ToLocalTime(),
-            weighment.CancellationReason);
+            weighment.CancellationReason,
+            weighment.Version,
+            weighment.Charges,
+            weighment.SecondCharges,
+            weighment.Charges + weighment.SecondCharges,
+            weighment.NumberOfBags,
+            weighment.BagWeightKg,
+            weighment.TotalBagWeightKg,
+            weighment.ActualWeightKg,
+            weighment.GatePassNumber,
+            weighment.CustomField1,
+            weighment.CustomField2,
+            weighment.CustomField3,
+            weighment.CustomField4,
+            weighment.VehicleTypeName,
+            weighment.CreatedBy,
+            weighment.ModifiedBy,
+            firstWeightTimeUtc?.ToLocalTime(),
+            waitingDuration);
     }
 
     /// <summary>True while the weighment can still be worked on.</summary>
@@ -89,10 +149,6 @@ public sealed record WeighmentSummary(
     /// <summary>
     /// Whether the weight the operator is about to enter is the gross.
     /// </summary>
-    /// <remarks>
-    /// Derived from the mode and the stage rather than read off <see cref="NextAction"/>:
-    /// matching on display text would break the screen the first time somebody rewords it.
-    /// </remarks>
     public bool NeedsGrossNext => Status == WeighmentStatus.Created
         ? Mode == WeighmentMode.GrossFirst
         : Mode == WeighmentMode.TareFirst;
@@ -142,8 +198,29 @@ public sealed record WeighmentSummary(
     /// <summary>The weight taken first, whichever it was, or a dash.</summary>
     public string FirstWeightText => Format(FirstWeightKg);
 
+    /// <summary>True when bag deduction is configured.</summary>
+    public bool HasBagDeduction => TotalBagWeightKg.HasValue && TotalBagWeightKg.Value > 0;
+
+    /// <summary>Total packaging bag deduction weight, or a dash.</summary>
+    public string BagDeductionText => TotalBagWeightKg.HasValue ? Format(TotalBagWeightKg.Value) : Absent;
+
+    /// <summary>Actual material weight after bag deductions, or a dash.</summary>
+    public string ActualWeightText => ActualWeightKg.HasValue ? Format(ActualWeightKg.Value) : Absent;
+
+    /// <summary>Formatted charges in rupees.</summary>
+    public string ChargesText => Charges > 0 ? $"₹ {Charges.ToString(CurrencyFormat)}" : Absent;
+
+    /// <summary>Formatted second charges in rupees.</summary>
+    public string SecondChargesText => SecondCharges > 0 ? $"₹ {SecondCharges.ToString(CurrencyFormat)}" : Absent;
+
+    /// <summary>Formatted total charges in rupees.</summary>
+    public string TotalChargesText => TotalCharges > 0 ? $"₹ {TotalCharges.ToString(CurrencyFormat)}" : Absent;
+
     /// <summary>When the weighment was opened.</summary>
     public string OpenedAtText => OpenedAtLocal.ToString("dd MMM yyyy HH:mm");
+
+    /// <summary>When the first weight was captured.</summary>
+    public string FirstWeightTimeText => FirstWeightTimeLocal?.ToString("dd MMM yyyy HH:mm") ?? Absent;
 
     /// <summary>Party, material and driver on one line, skipping whatever was left blank.</summary>
     public string Details => string.Join(
@@ -153,10 +230,6 @@ public sealed record WeighmentSummary(
     /// <summary>
     /// Whether to state where the weight came from.
     /// </summary>
-    /// <remarks>
-    /// Only shown once a weight exists. A weighment with no weight has no provenance to
-    /// report, and claiming one would be worse than saying nothing.
-    /// </remarks>
     public bool ShowProvenance => FirstWeightKg.HasValue;
 
     /// <summary>Where the weight came from, in a sentence an auditor can read.</summary>
@@ -184,14 +257,5 @@ public sealed record WeighmentSummary(
 /// <param name="Text">How it reads on screen.</param>
 public sealed record WeighmentModeOption(WeighmentMode Value, string Text)
 {
-    /// <summary>
-    /// The label, so the closed picker reads as the option and not as the record.
-    /// </summary>
-    /// <remarks>
-    /// A ComboBox renders its dropdown items through the item container, which honours
-    /// <c>DisplayMemberPath</c>, but the closed selection box renders the selected object
-    /// directly - and a record's generated <c>ToString</c> prints its members, which is what
-    /// the operator was being shown. Naming the option here covers both.
-    /// </remarks>
     public override string ToString() => Text;
 }

@@ -1,15 +1,13 @@
 <!--
   VehicleEntryView
 
-  The weighbridge operator's screen. Two columns:
-    - left: the form that opens a weighment for an arriving vehicle
-    - right: the weighment being worked on, and the vehicles expected back for their
-      second weight
-
-  Everything the operator has to know is on screen without a click: which vehicle, which
-  stage, the weights taken so far, what happens next, and what the last action did. The
-  status line is the only report of success or failure, because the notification centre
-  has no visual host yet.
+  The weighbridge operator's screen.
+  Industrial F1/F2 workflow:
+    - F1: First Entry (Vehicle details, Allocate Ticket, Record First Weight)
+    - F2: Second Entry (Search / Queue selection, Historical Snapshot Locked, Second Entry fields, Complete Weighment)
+    - F3: Read Indicator (Transfer live scale weight to input)
+    - F5: Context-aware Submit (Allocate / Record Weight / Complete)
+    - Esc: Clear active form context
 -->
 <UserControl x:Class="WeighBridge.App.Views.VehicleEntryView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -20,28 +18,42 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
              d:DataContext="{d:DesignInstance Type=viewModels:VehicleEntryViewModel}"
-             d:DesignHeight="700"
-             d:DesignWidth="1000"
+             d:DesignHeight="800"
+             d:DesignWidth="1100"
              mc:Ignorable="d">
+
+  <UserControl.InputBindings>
+    <KeyBinding Key="F1" Command="{Binding SwitchToFirstEntryCommand}" />
+    <KeyBinding Key="F2" Command="{Binding SwitchToSecondEntryCommand}" />
+    <KeyBinding Key="F3" Command="{Binding ReadIndicatorCommand}" />
+    <KeyBinding Key="F5" Command="{Binding SubmitWorkflowCommand}" />
+    <KeyBinding Key="Escape" Command="{Binding ClearContextCommand}" />
+  </UserControl.InputBindings>
 
   <UserControl.Resources>
     <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
     <converters:InverseBooleanToVisibilityConverter x:Key="Converter.InverseBooleanToVisibility" />
 
-    <!--  Field label sitting above its input.  -->
     <Style x:Key="Field.Label"
            BasedOn="{StaticResource Text.Label}"
            TargetType="TextBlock">
-      <Setter Property="Margin" Value="0,12,0,4" />
+      <Setter Property="Margin" Value="0,10,0,3" />
     </Style>
 
-    <!--
-      Severity colour for the status line.
+    <Style x:Key="Field.LockedLabel"
+           BasedOn="{StaticResource Text.Caption}"
+           TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
+      <Setter Property="Margin" Value="0,4,0,1" />
+    </Style>
 
-      A triggered Background with DynamicResource rather than a converter, for the reason
-      the shell's status dots use one: a converter hands back the brush that was current
-      when it ran, so the colour would stay behind after a theme switch.
-    -->
+    <Style x:Key="Field.LockedValue"
+           BasedOn="{StaticResource Text.Body}"
+           TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+    </Style>
+
     <Style x:Key="StatusLine.Accent" TargetType="Border">
       <Setter Property="Background" Value="{DynamicResource Brush.Neutral.Default}" />
       <Setter Property="CornerRadius" Value="2" />
@@ -61,11 +73,6 @@
       </Style.Triggers>
     </Style>
 
-    <!--
-      Shown in place of the waiting list while nothing is waiting. BasedOn the control's own
-      default style, because an explicit Style replaces the default outright rather than
-      adding to it - without it the control loses its template and draws nothing at all.
-    -->
     <Style x:Key="Waiting.Empty"
            BasedOn="{StaticResource {x:Type controls:EmptyState}}"
            TargetType="controls:EmptyState">
@@ -81,134 +88,553 @@
   <Grid Margin="{StaticResource Thickness.PageContent}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
+    <!--  Header  -->
     <controls:SectionHeader Grid.Row="0"
                             Description="{Binding Description}"
                             Icon="{StaticResource Icon.VehicleEntry}"
                             ShowSeparator="True"
                             Title="{Binding Title}">
       <controls:SectionHeader.Actions>
-        <StackPanel Orientation="Horizontal">
-          <!--
-            The badge takes its colour from the indicator's real state, and Text is set
-            before ConnectionState so the control keeps this wording rather than
-            substituting the enum name.
-          -->
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <controls:StatusBadge Margin="0,0,8,0"
+                                Severity="{Binding WorkflowStateBadgeSeverity}"
+                                Text="{Binding WorkflowStateBadgeText}" />
           <controls:StatusBadge Text="{Binding IndicatorText}" ConnectionState="{Binding IndicatorState}" />
-
           <Button Margin="10,0,0,0"
                   AutomationProperties.Name="Reload the waiting list"
                   Command="{Binding RefreshCommand}"
                   Content="{StaticResource Icon.Refresh}"
                   Style="{StaticResource Button.Icon}"
-                  ToolTip="Reload the waiting list" />
+                  ToolTip="Reload masters &amp; waiting list" />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <Grid Grid.Row="1" Margin="0,20,0,0">
+    <!--  Workflow Action Bar (Hotkeys & Quick Switch)  -->
+    <Border Grid.Row="1"
+            Margin="0,12,0,0"
+            Padding="12,8"
+            Background="{DynamicResource Brush.Surface.Sunken}"
+            CornerRadius="{StaticResource Radius.MD}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button AutomationProperties.Name="First Entry"
+                  Command="{Binding SwitchToFirstEntryCommand}"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Secondary}"
+                  ToolTip="Start a new First Entry transaction (F1)">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Accent.Default}" Text="[F1]" Margin="0,0,6,0" />
+              <TextBlock Text="First Entry" />
+            </StackPanel>
+          </Button>
+
+          <Button AutomationProperties.Name="Second Entry"
+                  Command="{Binding SwitchToSecondEntryCommand}"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Secondary}"
+                  ToolTip="Search &amp; complete Second Entry transaction (F2)">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Accent.Default}" Text="[F2]" Margin="0,0,6,0" />
+              <TextBlock Text="Second Entry" />
+            </StackPanel>
+          </Button>
+
+          <Button AutomationProperties.Name="Clear Context"
+                  Command="{Binding ClearContextCommand}"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Text}"
+                  ToolTip="Clear current form inputs (Esc)">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock FontWeight="Bold" Text="[Esc]" Margin="0,0,6,0" />
+              <TextBlock Text="Clear Context" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Style="{StaticResource Text.Caption}"
+                     VerticalAlignment="Center"
+                     Foreground="{DynamicResource Brush.Text.Muted}"
+                     Text="Hotkeys: [F1] First Entry  ·  [F2] Second Entry  ·  [F3] Read Indicator  ·  [F5] Submit  ·  [Esc] Clear" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!--  Main 2-Column Content Grid  -->
+    <Grid Grid.Row="2" Margin="0,16,0,0">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="380" />
+        <ColumnDefinition Width="420" />
         <ColumnDefinition Width="20" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
       <!--  ============================================================
-            New weighment
+            LEFT COLUMN: WORKSPACE (F1 / F2 / IDLE)
             ============================================================  -->
-      <ScrollViewer Grid.Column="0"
-                    Style="{StaticResource ScrollViewer.Default}"
-                    VerticalScrollBarVisibility="Auto">
-        <controls:ModernCard Header="New weighment"
+      <Grid Grid.Column="0">
+        <!--  F1 (First Entry) Workspace  -->
+        <ScrollViewer Style="{StaticResource ScrollViewer.Default}"
+                      VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsF1Mode, Converter={StaticResource Converter.BooleanToVisibility}}">
+          <controls:ModernCard Header="First Entry (F1)"
+                               Icon="{StaticResource Icon.Scale}"
+                               SubHeader="Open a new weighment for arriving vehicle">
+            <StackPanel>
+              <!--  Vehicle Number & Standard Tare  -->
+              <Grid Margin="0,2,0,2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Style="{StaticResource Text.Label}" Text="Vehicle number *" />
+                <TextBlock Grid.Column="1"
+                           Style="{StaticResource Text.Caption}"
+                           Foreground="{DynamicResource Brush.Accent.Default}"
+                           VerticalAlignment="Bottom"
+                           Margin="0,0,0,2"
+                           Visibility="{Binding HasStandardTareWeight, Converter={StaticResource Converter.BooleanToVisibility}}"
+                           Text="{Binding StandardTareWeightKg, StringFormat='Std Tare: {0:N0} kg'}" />
+              </Grid>
+              <ComboBox AutomationProperties.Name="Vehicle number"
+                        IsEditable="True"
+                        ItemsSource="{Binding ActiveVehicles}"
+                        SelectedItem="{Binding SelectedVehicleOption, Mode=TwoWay}"
+                        Text="{Binding VehicleNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ComboBox.Default}" />
+
+              <!--  Vehicle Type & Arrival Mode  -->
+              <Grid Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="10" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Vehicle type" />
+                  <ComboBox AutomationProperties.Name="Vehicle type"
+                            ItemsSource="{Binding ActiveVehicleTypes}"
+                            SelectedItem="{Binding SelectedVehicleTypeOption, Mode=TwoWay}"
+                            Style="{StaticResource ComboBox.Default}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Arrival mode *" />
+                  <ComboBox AutomationProperties.Name="Arrival mode"
+                            ItemsSource="{Binding ArrivalModeOptions}"
+                            SelectedItem="{Binding SelectedArrivalMode}"
+                            Style="{StaticResource ComboBox.Default}" />
+                </StackPanel>
+              </Grid>
+
+              <!--  Party & Material  -->
+              <TextBlock Style="{StaticResource Field.Label}" Text="Party / Customer" />
+              <ComboBox AutomationProperties.Name="Party"
+                        IsEditable="True"
+                        ItemsSource="{Binding ActiveParties}"
+                        SelectedItem="{Binding SelectedPartyOption, Mode=TwoWay}"
+                        Text="{Binding PartyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ComboBox.Default}" />
+
+              <TextBlock Style="{StaticResource Field.Label}" Text="Material / Commodity" />
+              <ComboBox AutomationProperties.Name="Material"
+                        IsEditable="True"
+                        ItemsSource="{Binding ActiveMaterials}"
+                        SelectedItem="{Binding SelectedMaterialOption, Mode=TwoWay}"
+                        Text="{Binding MaterialName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ComboBox.Default}" />
+
+              <!--  Driver & Transporter  -->
+              <Grid Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="10" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Driver name" />
+                  <TextBox AutomationProperties.Name="Driver"
+                           Style="{StaticResource TextBox.Default}"
+                           Text="{Binding DriverName, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Transporter" />
+                  <TextBox AutomationProperties.Name="Transporter"
+                           Style="{StaticResource TextBox.Default}"
+                           Text="{Binding TransporterName, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+              </Grid>
+
+              <!--  Charges & Remarks  -->
+              <Grid Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="120" />
+                  <ColumnDefinition Width="10" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Charges (₹)" />
+                  <TextBox AutomationProperties.Name="Charges"
+                           Style="{StaticResource TextBox.Numeric}"
+                           Text="{Binding Charges, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Remarks" />
+                  <TextBox AutomationProperties.Name="Remarks"
+                           Style="{StaticResource TextBox.Default}"
+                           Text="{Binding Remarks, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+              </Grid>
+
+              <!--  Custom Fields 1 & 2  -->
+              <Grid Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="10" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Custom Field 1" />
+                  <TextBox AutomationProperties.Name="CustomField1"
+                           Style="{StaticResource TextBox.Default}"
+                           Text="{Binding CustomField1, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Custom Field 2" />
+                  <TextBox AutomationProperties.Name="CustomField2"
+                           Style="{StaticResource TextBox.Default}"
+                           Text="{Binding CustomField2, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+              </Grid>
+
+              <Separator Margin="0,16,0,16" Style="{StaticResource Separator.Horizontal}" />
+
+              <!--  F1 Step 1: Allocate Ticket Button  -->
+              <Button AutomationProperties.Name="1. Allocate Ticket"
+                      Command="{Binding AllocateTicketCommand}"
+                      HorizontalAlignment="Stretch"
+                      Content="1. Allocate Ticket"
+                      Style="{StaticResource Button.Secondary}" />
+
+              <!--  F1 Step 2: Weight Input & First Weight Commit (F5)  -->
+              <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="140" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                  <TextBlock Style="{StaticResource Text.Label}" Text="First weight (kg)" />
+                  <TextBox AutomationProperties.Name="First weight in kilograms"
+                           Style="{StaticResource TextBox.Numeric}"
+                           Text="{Binding WeightInput, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        AutomationProperties.Name="Read (F3)"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Bottom"
+                        Command="{Binding ReadIndicatorCommand}"
+                        Content="Read (F3)"
+                        Style="{StaticResource Button.Secondary}"
+                        ToolTip="Capture settled weight from indicator" />
+
+                <Button Grid.Column="2"
+                        AutomationProperties.Name="2. Record Wt (F5)"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Bottom"
+                        Command="{Binding RecordFirstWeightCommand}"
+                        Content="2. Record Wt (F5)"
+                        Style="{StaticResource Button.Primary}"
+                        ToolTip="Record first weight and queue for second weight" />
+              </Grid>
+            </StackPanel>
+          </controls:ModernCard>
+        </ScrollViewer>
+
+        <!--  F2 (Second Entry) Workspace  -->
+        <ScrollViewer Style="{StaticResource ScrollViewer.Default}"
+                      VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding IsF2Mode, Converter={StaticResource Converter.BooleanToVisibility}}">
+          <controls:ModernCard Header="Second Entry (F2)"
+                               Icon="{StaticResource Icon.Clock}"
+                               SubHeader="Search pending ticket or select from queue below">
+            <StackPanel>
+              <!--  Scanner-style Search Header  -->
+              <TextBlock Style="{StaticResource Text.Label}" Text="Search Ticket / Vehicle (Enter to resolve)" />
+              <Grid Margin="0,4,0,12">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox Grid.Column="0"
+                         AutomationProperties.Name="Search pending ticket"
+                         Style="{StaticResource TextBox.Default}"
+                         Text="{Binding F2SearchKey, UpdateSourceTrigger=PropertyChanged}">
+                  <TextBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding SearchPendingSecondEntryCommand}" />
+                  </TextBox.InputBindings>
+                </TextBox>
+
+                <Button Grid.Column="1"
+                        AutomationProperties.Name="Search"
+                        Margin="8,0,0,0"
+                        Command="{Binding SearchPendingSecondEntryCommand}"
+                        Content="Search"
+                        Style="{StaticResource Button.Secondary}" />
+              </Grid>
+
+              <!--  🔒 Locked Historical Snapshot Section  -->
+              <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                      CornerRadius="{StaticResource Radius.MD}"
+                      Padding="12"
+                      Margin="0,0,0,14"
+                      Visibility="{Binding HasCurrent, Converter={StaticResource Converter.BooleanToVisibility}}">
+                <StackPanel>
+                  <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBlock Text="🔒" Margin="0,0,6,0" VerticalAlignment="Center" />
+                      <TextBlock Text="Historical F1 Snapshot (Locked)" FontWeight="Bold" Style="{StaticResource Text.Subtitle}" />
+                    </StackPanel>
+
+                    <controls:StatusBadge Grid.Column="1" Severity="Warning" Text="Immutable" />
+                  </Grid>
+
+                  <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                      <TextBlock Style="{StaticResource Field.LockedLabel}" Text="Slip Number" />
+                      <TextBlock Style="{StaticResource Field.LockedValue}" Text="{Binding Current.SlipNumber}" />
+
+                      <TextBlock Style="{StaticResource Field.LockedLabel}" Text="Party" />
+                      <TextBlock Style="{StaticResource Field.LockedValue}" Text="{Binding Current.PartyName, TargetNullValue='—'}" />
+
+                      <TextBlock Style="{StaticResource Field.LockedLabel}" Text="First Weight" />
+                      <TextBlock Style="{StaticResource Field.LockedValue}" Foreground="{DynamicResource Brush.Accent.Default}" Text="{Binding Current.FirstWeightText}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                      <TextBlock Style="{StaticResource Field.LockedLabel}" Text="Vehicle" />
+                      <TextBlock Style="{StaticResource Field.LockedValue}" Text="{Binding Current.VehicleNumber}" />
+
+                      <TextBlock Style="{StaticResource Field.LockedLabel}" Text="Material" />
+                      <TextBlock Style="{StaticResource Field.LockedValue}" Text="{Binding Current.MaterialName, TargetNullValue='—'}" />
+
+                      <TextBlock Style="{StaticResource Field.LockedLabel}" Text="First Charges" />
+                      <TextBlock Style="{StaticResource Field.LockedValue}" Text="{Binding Current.ChargesText}" />
+                    </StackPanel>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <!--  ✏️ Editable Second Entry Section  -->
+              <Border Background="{DynamicResource Brush.Surface.Card}"
+                      BorderBrush="{DynamicResource Brush.Border.Default}"
+                      BorderThickness="1"
+                      CornerRadius="{StaticResource Radius.MD}"
+                      Padding="12"
+                      Visibility="{Binding HasCurrent, Converter={StaticResource Converter.BooleanToVisibility}}">
+                <StackPanel>
+                  <TextBlock Text="✏️ Second Entry Details (Editable)" FontWeight="Bold" Style="{StaticResource Text.Subtitle}" Margin="0,0,0,8" />
+
+                  <!--  Charges & Gate Pass  -->
+                  <Grid Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="10" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Style="{StaticResource Field.Label}" Text="Second Charges (₹)" />
+                      <TextBox AutomationProperties.Name="Second charges"
+                               Style="{StaticResource TextBox.Numeric}"
+                               Text="{Binding SecondCharges, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                      <TextBlock Style="{StaticResource Field.Label}" Text="Gate Pass Number" />
+                      <TextBox AutomationProperties.Name="Gate pass number"
+                               Style="{StaticResource TextBox.Default}"
+                               Text="{Binding GatePassNumber, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <!--  Bags & Bag Weight  -->
+                  <Grid Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="10" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Style="{StaticResource Field.Label}" Text="Number of Bags" />
+                      <TextBox AutomationProperties.Name="Number of bags"
+                               Style="{StaticResource TextBox.Numeric}"
+                               Text="{Binding NumberOfBags, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                      <TextBlock Style="{StaticResource Field.Label}" Text="Bag Wt (kg)" />
+                      <TextBox AutomationProperties.Name="Bag weight in kg"
+                               Style="{StaticResource TextBox.Numeric}"
+                               Text="{Binding BagWeightKg, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <!--  Computed Bag Deduction Info  -->
+                  <Grid Margin="0,4,0,0" Visibility="{Binding HasBagDeduction, Converter={StaticResource Converter.BooleanToVisibility}}">
+                    <TextBlock Style="{StaticResource Text.Caption}"
+                               Foreground="{DynamicResource Brush.Info.Default}"
+                               Text="{Binding TotalBagWeightKg, StringFormat='Total Bag Deduction: {0:N2} kg'}" />
+                  </Grid>
+
+                  <!--  Remarks & Custom Fields 3 & 4  -->
+                  <TextBlock Style="{StaticResource Field.Label}" Text="Remarks" />
+                  <TextBox AutomationProperties.Name="F2 Remarks"
+                           Style="{StaticResource TextBox.Default}"
+                           Text="{Binding F2Remarks, UpdateSourceTrigger=PropertyChanged}" />
+
+                  <Grid Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="10" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Style="{StaticResource Field.Label}" Text="Custom Field 3" />
+                      <TextBox AutomationProperties.Name="CustomField3"
+                               Style="{StaticResource TextBox.Default}"
+                               Text="{Binding CustomField3, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                      <TextBlock Style="{StaticResource Field.Label}" Text="Custom Field 4" />
+                      <TextBox AutomationProperties.Name="CustomField4"
+                               Style="{StaticResource TextBox.Default}"
+                               Text="{Binding CustomField4, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <!--  Concurrency Conflict Banner  -->
+                  <Border Background="{DynamicResource Brush.Danger.Subtle}"
+                          BorderBrush="{DynamicResource Brush.Danger.Default}"
+                          BorderThickness="1"
+                          CornerRadius="{StaticResource Radius.SM}"
+                          Padding="8"
+                          Margin="0,12,0,0"
+                          Visibility="{Binding HasConcurrencyConflict, Converter={StaticResource Converter.BooleanToVisibility}}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0"
+                                 VerticalAlignment="Center"
+                                 Style="{StaticResource Text.Caption}"
+                                 Foreground="{DynamicResource Brush.Danger.Default}"
+                                 Text="Weighment modified by another process. Unsaved edits preserved." />
+                      <Button Grid.Column="1"
+                              Margin="8,0,0,0"
+                              Command="{Binding ReloadActiveTransactionCommand}"
+                              Content="Reload"
+                              Style="{StaticResource Button.Secondary}" />
+                    </Grid>
+                  </Border>
+
+                  <Separator Margin="0,14,0,14" Style="{StaticResource Separator.Horizontal}" />
+
+                  <!--  Second Weight Input & Complete (F5)  -->
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="140" />
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Style="{StaticResource Text.Label}" Text="Second weight (kg)" />
+                      <TextBox AutomationProperties.Name="Second weight in kilograms"
+                               Style="{StaticResource TextBox.Numeric}"
+                               Text="{Binding WeightInput, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Bottom"
+                            Command="{Binding ReadIndicatorCommand}"
+                            Content="Read (F3)"
+                            Style="{StaticResource Button.Secondary}"
+                            ToolTip="Capture settled weight from indicator" />
+
+                    <Button Grid.Column="2"
+                            AutomationProperties.Name="Complete (F5)"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Bottom"
+                            Command="{Binding RecordSecondWeightCommand}"
+                            Content="Complete (F5)"
+                            Style="{StaticResource Button.Primary}"
+                            ToolTip="Record second weight and finalize weighment" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </controls:ModernCard>
+        </ScrollViewer>
+
+        <!--  Idle / Resting Workspace  -->
+        <controls:ModernCard Header="Operator Workflow"
                              Icon="{StaticResource Icon.Scale}"
-                             SubHeader="Open a weighment for an arriving vehicle">
-          <StackPanel>
-            <Grid Margin="0,4,0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0"
-                         Style="{StaticResource Text.Label}"
-                         Text="Vehicle number" />
-              <TextBlock Grid.Column="1"
-                         Style="{StaticResource Text.Caption}"
-                         Foreground="{DynamicResource Brush.Accent.Default}"
-                         VerticalAlignment="Bottom"
-                         Margin="0,0,0,2"
-                         Visibility="{Binding HasStandardTareWeight, Converter={StaticResource Converter.BooleanToVisibility}}"
-                         Text="{Binding StandardTareWeightKg, StringFormat='Std Tare: {0:N0} kg'}" />
-            </Grid>
-            <ComboBox AutomationProperties.Name="Vehicle number"
-                      IsEditable="True"
-                      ItemsSource="{Binding ActiveVehicles}"
-                      SelectedItem="{Binding SelectedVehicleOption, Mode=TwoWay}"
-                      Text="{Binding VehicleNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                      Style="{StaticResource ComboBox.Default}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="Vehicle type" />
-            <ComboBox AutomationProperties.Name="Vehicle type"
-                      ItemsSource="{Binding ActiveVehicleTypes}"
-                      SelectedItem="{Binding SelectedVehicleTypeOption, Mode=TwoWay}"
-                      Style="{StaticResource ComboBox.Default}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="Arrived" />
-            <ComboBox AutomationProperties.Name="Whether the vehicle arrived loaded or empty"
-                      ItemsSource="{Binding ArrivalModeOptions}"
-                      SelectedItem="{Binding SelectedArrivalMode}"
-                      Style="{StaticResource ComboBox.Default}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="Party" />
-            <ComboBox AutomationProperties.Name="Party"
-                      IsEditable="True"
-                      ItemsSource="{Binding ActiveParties}"
-                      SelectedItem="{Binding SelectedPartyOption, Mode=TwoWay}"
-                      Text="{Binding PartyName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                      Style="{StaticResource ComboBox.Default}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="Material" />
-            <ComboBox AutomationProperties.Name="Material"
-                      IsEditable="True"
-                      ItemsSource="{Binding ActiveMaterials}"
-                      SelectedItem="{Binding SelectedMaterialOption, Mode=TwoWay}"
-                      Text="{Binding MaterialName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                      Style="{StaticResource ComboBox.Default}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="Driver" />
-            <TextBox AutomationProperties.Name="Driver"
-                     Style="{StaticResource TextBox.Default}"
-                     Text="{Binding DriverName, UpdateSourceTrigger=PropertyChanged}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="Transporter" />
-            <TextBox AutomationProperties.Name="Transporter"
-                     Style="{StaticResource TextBox.Default}"
-                     Text="{Binding TransporterName, UpdateSourceTrigger=PropertyChanged}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="Remarks" />
-            <TextBox Height="64"
-                     AutomationProperties.Name="Remarks"
-                     Style="{StaticResource TextBox.Multiline}"
-                     Text="{Binding Remarks, UpdateSourceTrigger=PropertyChanged}" />
-
-            <StackPanel Margin="0,20,0,0"
-                        HorizontalAlignment="Right"
-                        Orientation="Horizontal">
-              <Button Command="{Binding ClearFormCommand}"
-                      Content="Clear"
-                      Style="{StaticResource Button.Text}" />
-              <Button Margin="10,0,0,0"
-                      Command="{Binding OpenWeighmentCommand}"
-                      Content="Open weighment"
-                      Style="{StaticResource Button.Primary}" />
+                             SubHeader="Select an action to begin weighing"
+                             Visibility="{Binding IsIdle, Converter={StaticResource Converter.BooleanToVisibility}}">
+          <StackPanel VerticalAlignment="Center" Margin="0,30,0,30">
+            <controls:EmptyState Icon="{StaticResource Icon.Scale}"
+                                 Message="Press [F1] to start a new vehicle First Entry, or [F2] / double-click a waiting vehicle below to complete a Second Entry."
+                                 Title="Ready for Transaction" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
+              <Button Command="{Binding SwitchToFirstEntryCommand}"
+                      Margin="0,0,12,0"
+                      Style="{StaticResource Button.Primary}"
+                      Content="Start First Entry (F1)" />
+              <Button Command="{Binding SwitchToSecondEntryCommand}"
+                      Style="{StaticResource Button.Secondary}"
+                      Content="Search Second Entry (F2)" />
             </StackPanel>
           </StackPanel>
         </controls:ModernCard>
-      </ScrollViewer>
+      </Grid>
 
       <!--  ============================================================
-            Current weighment and the vehicles expected back
+            RIGHT COLUMN: HUD, STATUS, SUMMARY, PENDING QUEUE
             ============================================================  -->
       <Grid Grid.Column="2">
         <Grid.RowDefinitions>
@@ -220,7 +646,7 @@
 
         <!--  Live Scale Weight HUD Card  -->
         <controls:ModernCard Grid.Row="0"
-                             Margin="0,0,0,16"
+                             Margin="0,0,0,12"
                              Header="Live Scale Readout">
           <controls:ModernCard.HeaderActions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -259,16 +685,16 @@
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal">
               <Button Margin="8,0,0,0"
                       Command="{Binding ReadIndicatorCommand}"
-                      Content="Read indicator"
+                      Content="Read indicator (F3)"
                       Style="{StaticResource Button.Secondary}"
-                      ToolTip="Capture the settled weight from indicator into input field" />
+                      ToolTip="Capture settled weight from indicator" />
             </StackPanel>
           </Grid>
         </controls:ModernCard>
 
-        <!--  Status line: the operator's only report of what the last action did.  -->
+        <!--  Status Line  -->
         <Border Grid.Row="1"
-                Margin="0,0,0,16"
+                Margin="0,0,0,12"
                 Background="{DynamicResource Brush.Surface.Sunken}"
                 CornerRadius="{StaticResource Radius.MD}"
                 AutomationProperties.LiveSetting="Polite"
@@ -288,22 +714,23 @@
           </Grid>
         </Border>
 
+        <!--  Active Weighment Summary Card  -->
         <controls:ModernCard Grid.Row="2"
-                             Header="Current weighment"
+                             Margin="0,0,0,12"
+                             Header="Current Weighment Summary"
                              Visibility="{Binding HasCurrent, Converter={StaticResource Converter.BooleanToVisibility}}">
           <controls:ModernCard.HeaderActions>
             <controls:StatusBadge Severity="{Binding Current.StatusSeverity}" Text="{Binding Current.StatusText}" />
           </controls:ModernCard.HeaderActions>
 
           <StackPanel>
-            <!--  Identity: slip number, vehicle, how it arrived.  -->
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
 
-              <StackPanel Grid.Column="0" Margin="0,0,28,0">
+              <StackPanel Grid.Column="0" Margin="0,0,24,0">
                 <TextBlock Style="{StaticResource Text.Label}" Text="Slip" />
                 <TextBlock Style="{StaticResource Text.Numeric.Emphasis}" Text="{Binding Current.SlipNumber}" />
               </StackPanel>
@@ -315,11 +742,12 @@
               </StackPanel>
             </Grid>
 
-            <Separator Margin="0,16,0,16" Style="{StaticResource Separator.Horizontal}" />
+            <Separator Margin="0,10,0,10" Style="{StaticResource Separator.Horizontal}" />
 
-            <!--  The two figures that were weighed.  -->
+            <!--  Weights Grid: Gross, Tare, Net, Bag Deduction, Actual Material Weight  -->
             <Grid>
               <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
@@ -333,141 +761,92 @@
                 <TextBlock Style="{StaticResource Text.Label}" Text="Tare (kg)" />
                 <TextBlock Style="{StaticResource Text.Numeric}" Text="{Binding Current.TareText}" />
               </StackPanel>
+
+              <StackPanel Grid.Column="2">
+                <TextBlock Style="{StaticResource Text.Label}" Text="Net (kg)" />
+                <TextBlock Style="{StaticResource Text.Numeric.Emphasis}" Text="{Binding Current.NetText}" />
+              </StackPanel>
             </Grid>
 
-            <!--
-              The figure the slip is about, on its own line and at the full width of the card.
-              Inside a Viewbox because an ellipsised weight is worse than a small one: at the
-              default window size a third of the card is 96px, and "20,249.5" at the display
-              size needs 192px, so sharing a row with the other two rendered it as "20 , ...".
-            -->
-            <TextBlock Margin="0,14,0,0" Style="{StaticResource Text.Label}" Text="Net (kg)" />
-            <Viewbox HorizontalAlignment="Left" StretchDirection="DownOnly">
-              <TextBlock Style="{StaticResource Text.Numeric.Large}"
-                         Text="{Binding Current.NetText}"
-                         TextTrimming="None" />
-            </Viewbox>
+            <!--  Bag Deduction & Actual Material Breakdown  -->
+            <Grid Margin="0,8,0,0" Visibility="{Binding Current.HasBagDeduction, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
 
-            <TextBlock Margin="0,14,0,0"
+              <StackPanel Grid.Column="0">
+                <TextBlock Style="{StaticResource Text.Label}" Text="Bags" />
+                <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding Current.NumberOfBags, TargetNullValue='—'}" />
+              </StackPanel>
+
+              <StackPanel Grid.Column="1">
+                <TextBlock Style="{StaticResource Text.Label}" Text="Bag Deduction (kg)" />
+                <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding Current.BagDeductionText}" />
+              </StackPanel>
+
+              <StackPanel Grid.Column="2">
+                <TextBlock Style="{StaticResource Text.Label}" Text="Actual Material (kg)" />
+                <TextBlock Style="{StaticResource Text.Caption}" FontWeight="Bold" Foreground="{DynamicResource Brush.Success.Default}" Text="{Binding Current.ActualWeightText}" />
+              </StackPanel>
+            </Grid>
+
+            <TextBlock Margin="0,8,0,0"
                        Style="{StaticResource Text.Caption}"
                        Text="{Binding Current.ProvenanceText}"
                        Visibility="{Binding Current.ShowProvenance, Converter={StaticResource Converter.BooleanToVisibility}}" />
 
-            <!--  Next step. Hidden once the weighment is closed.  -->
-            <StackPanel Margin="0,16,0,0" Visibility="{Binding Current.IsOpen, Converter={StaticResource Converter.BooleanToVisibility}}">
-              <Separator Margin="0,0,0,16" Style="{StaticResource Separator.Horizontal}" />
+            <!--  Cancellation Section  -->
+            <Grid Margin="0,10,0,0" Visibility="{Binding CanCancel, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
 
-              <TextBlock Style="{StaticResource Text.Subtitle}" Text="{Binding Current.NextAction}" />
+              <TextBox Grid.Column="0"
+                       AutomationProperties.Name="Reason for cancelling"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding CancellationReason, UpdateSourceTrigger=PropertyChanged}" />
 
-              <Grid Margin="0,12,0,0">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="200" />
-                  <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                  <TextBlock Margin="0,0,0,4"
-                             Style="{StaticResource Text.Label}"
-                             Text="{Binding Current.WeightLabel}" />
-                  <TextBox AutomationProperties.Name="Weight in kilograms"
-                           Style="{StaticResource TextBox.Numeric}"
-                           Text="{Binding WeightInput, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
-
-                <Button Grid.Column="1"
-                        Margin="10,0,0,0"
-                        VerticalAlignment="Bottom"
-                        Command="{Binding ReadIndicatorCommand}"
-                        Content="Read indicator"
-                        Style="{StaticResource Button.Secondary}"
-                        ToolTip="Take the weight from the connected indicator" />
-
-                <Button Grid.Column="2"
-                        Margin="10,0,0,0"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Bottom"
-                        Command="{Binding RecordWeightCommand}"
-                        Content="{Binding Current.ActionLabel}"
-                        Style="{StaticResource Button.Primary}" />
-              </Grid>
-
-              <!--  Cancelling keeps the record, so it asks for a reason.  -->
-              <Grid Margin="0,16,0,0" Visibility="{Binding CanCancel, Converter={StaticResource Converter.BooleanToVisibility}}">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                  <TextBlock Margin="0,0,0,4"
-                             Style="{StaticResource Text.Label}"
-                             Text="Reason for cancelling" />
-                  <TextBox AutomationProperties.Name="Reason for cancelling"
-                           Style="{StaticResource TextBox.Default}"
-                           Text="{Binding CancellationReason, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
-
-                <Button Grid.Column="1"
-                        Margin="10,0,0,0"
-                        VerticalAlignment="Bottom"
-                        Command="{Binding CancelWeighmentCommand}"
-                        Content="Cancel weighment"
-                        Style="{StaticResource Button.Danger}" />
-              </Grid>
-            </StackPanel>
-
-            <!--  Finished state actions.  -->
-            <StackPanel Margin="0,16,0,0" Visibility="{Binding Current.IsOpen, Converter={StaticResource Converter.InverseBooleanToVisibility}}">
-              <Separator Margin="0,0,0,16" Style="{StaticResource Separator.Horizontal}" />
-
-              <Button HorizontalAlignment="Left"
-                      Command="{Binding PrintSlipCommand}"
-                      Content="Print weighment slip"
-                      Style="{StaticResource Button.Primary}" />
-            </StackPanel>
+              <Button Grid.Column="1"
+                      Margin="8,0,0,0"
+                      Command="{Binding CancelWeighmentCommand}"
+                      Content="Cancel Slip"
+                      Style="{StaticResource Button.Danger}" />
+            </Grid>
           </StackPanel>
         </controls:ModernCard>
 
-        <controls:ModernCard Grid.Row="2" Visibility="{Binding HasCurrent, Converter={StaticResource Converter.InverseBooleanToVisibility}}">
-          <controls:EmptyState Icon="{StaticResource Icon.Scale}"
-                               Message="Open a weighment on the left, or pick a vehicle from the waiting list below."
-                               Title="No weighment in hand" />
-        </controls:ModernCard>
-
+        <!--  Pending Queue Card  -->
         <controls:ModernCard Grid.Row="3"
-                             Margin="0,16,0,0"
                              Header="Waiting for second weight"
                              Icon="{StaticResource Icon.Clock}"
-                             SubHeader="Vehicles weighed once and expected back">
+                             SubHeader="Double-click or press Enter on a row to load into Second Entry">
           <Grid>
             <DataGrid AutomationProperties.Name="Vehicles waiting for their second weight"
                       ItemsSource="{Binding AwaitingSecondWeight}"
                       SelectedItem="{Binding SelectedAwaiting}"
+                      MouseDoubleClick="OnWaitingRowDoubleClick"
                       Style="{StaticResource DataGrid.Default}">
+              <DataGrid.InputBindings>
+                <KeyBinding Key="Enter" Command="{Binding SelectPendingTransactionCommand}" />
+              </DataGrid.InputBindings>
               <DataGrid.Columns>
-                <DataGridTextColumn Binding="{Binding VehicleNumber}"
-                                    Header="Vehicle"
-                                    Width="140" />
-                <DataGridTextColumn Binding="{Binding SlipNumber}"
-                                    Header="Slip"
-                                    Width="110" />
-                <DataGridTextColumn Binding="{Binding FirstWeightText}"
-                                    Header="First weight (kg)"
-                                    Width="130" />
-                <DataGridTextColumn Binding="{Binding NextAction}"
-                                    Header="Next"
-                                    Width="*" />
-                <DataGridTextColumn Binding="{Binding OpenedAtText}"
-                                    Header="Opened"
-                                    Width="140" />
+                <DataGridTextColumn Binding="{Binding SlipNumber}" Header="Slip" Width="100" />
+                <DataGridTextColumn Binding="{Binding VehicleNumber}" Header="Vehicle" Width="130" />
+                <DataGridTextColumn Binding="{Binding PartyName}" Header="Party" Width="140" />
+                <DataGridTextColumn Binding="{Binding MaterialName}" Header="Material" Width="120" />
+                <DataGridTextColumn Binding="{Binding FirstWeightText}" Header="1st Wt (kg)" Width="100" />
+                <DataGridTextColumn Binding="{Binding WaitingDurationText}" Header="Waiting" Width="80" />
+                <DataGridTextColumn Binding="{Binding OpenedAtText}" Header="Time In" Width="*" />
               </DataGrid.Columns>
             </DataGrid>
 
             <controls:EmptyState Icon="{StaticResource Icon.CheckMark}"
-                                 Message="Every vehicle that has been weighed once has already been weighed twice."
+                                 Message="No vehicles waiting for second weight."
                                  Style="{StaticResource Waiting.Empty}"
-                                 Title="Nothing waiting" />
+                                 Title="Queue Empty" />
           </Grid>
         </controls:ModernCard>
       </Grid>

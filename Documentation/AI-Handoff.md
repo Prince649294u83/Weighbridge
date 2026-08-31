@@ -38,12 +38,20 @@ rebuilding. The repository is the source of truth, not the prompt, and not this 
 - **Settings Binding:** Single authoritative `Text` binding with `UpdateSourceTrigger=PropertyChanged` on editable ComboBox; competing `SelectedItem` removed.
 - **Service Lifecycle:** `WeightIndicatorService` maintains single background worker task and transport owner with robust `ConnectAsync` coordination and cancellation guards.
 - **Active Measurement Profile:** Locked to `DecimalPlaces = 1`, `WeightDigits = 7`, `ScaleFactor = 1.0` following empirical correlation across 0–145 kg (`0000150` $\rightarrow$ `15.0 kg`, `0000900` $\rightarrow$ `90.0 kg`, `0001450` $\rightarrow$ `145.0 kg`).
-- **Phase 2 Status:** 
+- **Phase 2 Status (Phase 2 F1/F2 Workflow Sealed in Gate 2F):**
   - Gate 2A (Legacy Research & 29-Point Specification) Sealed in `Documentation/F1F2-LegacyBehavior.md`.
   - Gate 2B (Domain Aggregate Delta) Completed: `NetWeightPolicy`, `Weighment.cs` extended with charges/bags/custom/Version, F1 historical locking in `AwaitingSecondWeight`.
   - Gate 2C (Persistence Delta & Migration) Completed: `AddF1F2WorkflowFields` migration with non-empty Version GUID seeding for historical records, integer grams/paise storage.
-  - Gate 2D (Application Service & Query Extensions) Completed: `IWeighmentService` extended with `FindPendingSecondEntryAsync`, `UpdateSecondEntryDetailsAsync`, and `RecordSecondWeightAsync`. Permission matrix enforced (`WeighmentCreate` for F1, `WeighmentEdit` for F2 update/complete, `WeighmentCancel` for cancel). Optimistic concurrency token (`Guid Version`) enforced at EF Core `SaveChanges` boundary. Net weight policy resolved via `WeighmentOptions`.
-- **Test Metric:** **707 unit/persistence/service tests passing** (670 baseline + 37 test cases across 26 new service integration tests, 0 failed, 0 skipped).
+  - Gate 2D (Application Service & Query Extensions) Completed: `IWeighmentService` extended with `FindPendingSecondEntryAsync`, `UpdateSecondEntryDetailsAsync`, and `RecordSecondWeightAsync`. Permission matrix enforced (`WeighmentCreate` for F1, `WeighmentEdit` for F2 update/complete, `WeighmentCancel` for cancel). Optimistic concurrency token (`Guid Version`) enforced at EF Core `SaveChanges` boundary.
+  - Gate 2E (Modern WPF F1/F2 Operator Workflow) Completed: `VehicleEntryViewModel` state machine (`WeighmentWorkflowState`), deterministic ticket allocation in SQLite at `Status = Created`, historical snapshot locking, scanner search with `Enter` resolution, bag calculations, Esc UI clear safety, dirty-state mode switch confirmation, and focus-resilient hotkeys (`F1`, `F2`, `F3`, `F5`, `Esc`).
+  - Gate 2F (Final Phase 2 Verification & Seal) Completed: Real WPF process crash-recovery verified, double-submit protection verified (Case A busy & Case B completed), master immutability verified across restarts, Phase 1 hardware diff audit confirmed 0 changes against `f060d31`.
+- **Historical Test Metric Progression:**
+  - `639` passed (Baseline after audit cleanup)
+  - `649` passed (Decoder & framing tests)
+  - `660` passed (Hardware profile acceptance)
+  - `670` passed (Gates 2B & 2C Domain/Persistence)
+  - `707` passed (Gate 2D Application Service & Concurrency)
+  - `722` passed (Gate 2E/2F Phase 2 Final Verified Total: 722 passed, 0 failed, 0 skipped)
 - **Physical Stream Status:** Live physical streaming verified on COM3; HUD and captured indicator readings match physical display with zero UI secondary conversions.
 
 ## What this application is

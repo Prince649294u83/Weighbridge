@@ -246,13 +246,16 @@ would be a state the domain cannot describe.
 `WeighmentCompletedEvent`, `WeighmentCancelledEvent`) are published from its event stage. The
 ViewModel holds no `DbContext` and no SQL.
 
-### F1 / F2 Operational Workflow & Domain Invariants
-- **Single Service Boundary:** `IWeighmentService` is the sole business boundary for weighment mutations.
-- **F1 Historical Immutability:** Once the first weight is captured (`AwaitingSecondWeight`), `UpdateDetails(...)` strictly rejects modifications. F2 only modifies dedicated second-entry fields via `UpdateSecondEntryDetails(...)`.
-- **Mode-Aware Net Weight & `NetWeightPolicy`:** GrossFirst and TareFirst modes calculate net weight consistently (Gross - Tare). The domain strictly rejects Gross < Tare; zero net (Gross == Tare) is governed by `NetWeightPolicy` (`RejectZero` vs `AllowZero`).
+### F1 / F2 Operational Workflow & Presentation Architecture
+- **Single Service Boundary:** `IWeighmentService` is the sole business boundary for weighment mutations. `VehicleEntryViewModel` acts as presentation coordinator without direct database access.
+- **Presentation State Machine (`WeighmentWorkflowState`):** Decouples UI presentation states (`Idle`, `F1Entry`, `TicketAllocated`, `AwaitingFirstWeight`, `F2Entry`, `F2Selected`, `AwaitingSecondWeightCapture`, `Completed`) from the persisted domain lifecycle (`WeighmentStatus`: `Created`, `AwaitingSecondWeight`, `Completed`, `Cancelled`).
+- **Deterministic Ticket Allocation:** Clicking "1. Allocate Ticket" creates and commits an authoritative record in SQLite (`Status = Created`), generating a durable `SlipNumber` before weight capture. This prevents lost tickets upon crashes.
+- **F1 Historical Immutability:** Once the first weight is captured (`AwaitingSecondWeight`), `UpdateDetails(...)` strictly rejects modifications. F2 only modifies dedicated second-entry fields via `UpdateSecondEntryDetails(...)`. UI renders historical F1 data in a read-only locked card.
+- **F2 Esc / Clear Safety:** Invoking `Esc` or `ClearContextCommand` resets active UI context (`ActiveWeighmentId = null`, `ActiveVersion = null`, form inputs cleared) while preserving the underlying database record in `AwaitingSecondWeight`.
+- **Mode-Aware Net Weight & `NetWeightPolicy`:** GrossFirst and TareFirst modes calculate net weight consistently ($|\text{Gross} - \text{Tare}|$). The domain strictly rejects Gross < Tare; zero net (Gross == Tare) is governed by `NetWeightPolicy` (`RejectZero` vs `AllowZero`).
 - **Calculated Bag Invariants:** Inputs `NumberOfBags` and `BagWeightKg` are persisted, while `TotalBagWeightKg` and `ActualWeightKg` are calculated properties. Negative actual material weight is refused by the domain.
 - **Exact Integer Storage:** Weights are converted to integer grams (`long NetWeightGrams`, `long BagWeightGrams`), and monetary charges to integer paise (`long ChargesPaise`, `long SecondChargesPaise`).
-- **Optimistic Concurrency:** `Weighment.Version` (`Guid`) is regenerated on every material state transition and mapped as an EF Core concurrency token (`IsConcurrencyToken()`). Stale saves trigger `DbUpdateConcurrencyException`.
+- **Optimistic Concurrency:** `Weighment.Version` (`Guid`) is regenerated on every material state transition and mapped as an EF Core concurrency token (`IsConcurrencyToken()`). Stale saves trigger `DbUpdateConcurrencyException`. In the UI, concurrency conflicts preserve entered F2 values in memory and present an explicit Reload action.
 
 ## Subsystem health
 

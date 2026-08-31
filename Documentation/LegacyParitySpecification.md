@@ -10,16 +10,17 @@ This specification establishes the authoritative, permanent behavioral and opera
 
 ---
 
-## 1. Requirement Status Legend
+## 1. 4-Tier Legacy Evidence Taxonomy & Requirement Status Legend
 
-| Status Indicator | Meaning |
+| Status / Tier Indicator | Meaning & Evidence Source |
 | :--- | :--- |
+| **`[LEGACY VERIFIED]`** | Proven by physical legacy artifacts (`Logs.txt`, `Print_Ticket*.txt`, `SMS Format.txt`, `WBS.accdb`). |
+| **`[LEGACY INFERRED]`** | Deduced from runtime UI screenshots, dialog messages, or compiled DLL metadata where source code is absent. |
+| **`[MODERN PRODUCT REQUIREMENT]`** | Architectural and security rules established for the modern system where legacy source code was absent or obsolete. |
+| **`[REMOVED BY DECISION]`** | Archaic legacy capabilities explicitly purged from Modern WeighBridge (e.g. RFID / UHF reader permanently removed). |
 | `[CONFIRMED]` | Requirement verified against physical hardware, client specification, and legacy repository artifacts. |
-| `[IMPLEMENTED]` | Fully implemented and verified in the current modern codebase (`hardware-diagnostic` branch). |
-| `[PENDING]` | Specified and approved for execution in Phase 5 parity passes. |
-| `[VERIFIED FROM LEGACY]` | Operation and syntax specifically matched against legacy codebase/UI artifacts. |
-| `[VERIFICATION]` | Code implemented; pending physical weighbridge terminal verification. |
-| `[REMOVED BY DECISION]` | Legacy artifact or anti-pattern explicitly rejected in favor of secure modern design. |
+| `[IMPLEMENTED]` | Fully implemented, tested, and verified in the current modern codebase (`hardware-diagnostic` branch). |
+| `[PENDING]` | Specified and approved for execution in Phase 3+ parity passes. |
 
 ---
 

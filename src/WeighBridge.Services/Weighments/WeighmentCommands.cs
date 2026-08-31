@@ -141,14 +141,28 @@ public sealed class RecordFirstWeightCommand(
 /// only completed would have to be paired with one that only weighed, and a weighment could
 /// then sit holding both weights while nobody was expected to do anything about it.
 /// </remarks>
-public sealed class RecordSecondWeightCommand(
-    IWeighmentService weighments,
-    long weighmentId,
-    decimal kilograms,
-    WeightSource source) : IApplicationCommand<Weighment>, IValidatable, IRequiresPermission
+/// <summary>
+/// Records the second weight and updates second entry details, which completes the weighment.
+/// </summary>
+public sealed class RecordSecondWeightCommand : IApplicationCommand<Weighment>, IValidatable, IRequiresPermission
 {
-    private readonly IWeighmentService _weighments = weighments
-        ?? throw new ArgumentNullException(nameof(weighments));
+    private readonly IWeighmentService _weighments;
+    private readonly RecordSecondWeightRequest _request;
+
+    public RecordSecondWeightCommand(IWeighmentService weighments, RecordSecondWeightRequest request)
+    {
+        _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
+        _request = request ?? throw new ArgumentNullException(nameof(request));
+    }
+
+    public RecordSecondWeightCommand(
+        IWeighmentService weighments,
+        long weighmentId,
+        decimal kilograms,
+        WeightSource source)
+        : this(weighments, new RecordSecondWeightRequest(weighmentId, kilograms, source))
+    {
+    }
 
     /// <inheritdoc />
     public string Name => "Record second weight";
@@ -159,16 +173,31 @@ public sealed class RecordSecondWeightCommand(
     /// <inheritdoc />
     public async Task<ValidationResult> ValidateAsync(CancellationToken cancellationToken = default)
     {
-        if (WeighmentRules.CheckWeight(kilograms) is { } weightProblem)
+        if (WeighmentRules.CheckWeight(_request.Kilograms) is { } weightProblem)
         {
             return weightProblem;
         }
 
-        var weighment = await _weighments.GetAsync(weighmentId, cancellationToken).ConfigureAwait(false);
+        if (_request.SecondCharges < 0)
+        {
+            return ValidationResult.Failure(nameof(_request.SecondCharges), "Second charges cannot be negative.");
+        }
+
+        if (_request.NumberOfBags < 0)
+        {
+            return ValidationResult.Failure(nameof(_request.NumberOfBags), "Number of bags cannot be negative.");
+        }
+
+        if (_request.BagWeightKg < 0)
+        {
+            return ValidationResult.Failure(nameof(_request.BagWeightKg), "Bag weight cannot be negative.");
+        }
+
+        var weighment = await _weighments.GetAsync(_request.WeighmentId, cancellationToken).ConfigureAwait(false);
 
         if (weighment is null)
         {
-            return WeighmentRules.NotFound(weighmentId);
+            return WeighmentRules.NotFound(_request.WeighmentId);
         }
 
         if (weighment.Status != WeighmentStatus.AwaitingSecondWeight)
@@ -180,18 +209,31 @@ public sealed class RecordSecondWeightCommand(
                     : $"Weighment {weighment.SlipNumber} is {weighment.Status} and cannot take another weight.");
         }
 
-        // The same comparison the aggregate makes, so the operator is told which figure is
-        // wrong instead of being shown a failed operation.
         var first = weighment.FirstWeight!.Kilograms;
-        var gross = weighment.Mode == WeighmentMode.GrossFirst ? first : kilograms;
-        var tare = weighment.Mode == WeighmentMode.GrossFirst ? kilograms : first;
+        var gross = weighment.Mode == WeighmentMode.GrossFirst ? first : _request.Kilograms;
+        var tare = weighment.Mode == WeighmentMode.GrossFirst ? _request.Kilograms : first;
 
-        return gross > tare
-            ? ValidationResult.Success
-            : ValidationResult.Failure(
-                nameof(kilograms),
+        if (gross < tare)
+        {
+            return ValidationResult.Failure(
+                nameof(_request.Kilograms),
                 $"The gross weight ({gross:0.##} kg) must be greater than the tare weight ({tare:0.##} kg). "
                 + "Check whether the vehicle arrived loaded or empty.");
+        }
+
+        var net = gross - tare;
+        if (_request.NumberOfBags.HasValue && _request.BagWeightKg.HasValue)
+        {
+            var totalBagWeight = _request.NumberOfBags.Value * _request.BagWeightKg.Value;
+            if (totalBagWeight > net)
+            {
+                return ValidationResult.Failure(
+                    nameof(_request.NumberOfBags),
+                    $"Total bag deduction ({totalBagWeight:0.##} kg) exceeds the net weight ({net:0.##} kg).");
+            }
+        }
+
+        return ValidationResult.Success;
     }
 
     /// <inheritdoc />
@@ -199,16 +241,17 @@ public sealed class RecordSecondWeightCommand(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        context.ReportStatus("Recording weight…");
+        context.ReportStatus("Recording second weight…");
 
         var weighment = await _weighments
-            .RecordSecondWeightAsync(weighmentId, kilograms, source, context.CancellationToken)
+            .RecordSecondWeightAsync(_request, context.CancellationToken)
             .ConfigureAwait(false);
 
         context.Audit("SlipNumber", weighment.SlipNumber)
-            .Audit("Kilograms", kilograms)
-            .Audit("WeightSource", source.ToString())
-            .Audit("NetKilograms", weighment.NetWeightKg);
+            .Audit("Kilograms", _request.Kilograms)
+            .Audit("WeightSource", _request.Source.ToString())
+            .Audit("NetKilograms", weighment.NetWeightKg)
+            .Audit("SecondCharges", _request.SecondCharges);
 
         return CommandResult<Weighment>.Success(
             weighment,

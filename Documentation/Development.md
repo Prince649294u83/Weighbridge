@@ -46,13 +46,11 @@ Compilation is not verification, and neither is a passing unit suite for anythin
 
 ```bash
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/runtime-smoke.ps1        # the shell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/vehicle-entry-smoke.ps1  # the workflow
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/f1f2-smoke.ps1           # F1/F2 operator workflow & crash recovery
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/vehicle-entry-smoke.ps1  # the base workflow
 ```
 
-Both must exit 0. The second **deletes the database** and writes test weighments â€” never run it
-on a machine holding real data. Both save screenshots to `%TEMP%\weighbridge-*.png`; look at
-them, because an assertion only checks what somebody thought to assert. Two UI defects survived
-21 green assertions in this codebase and were found by reading the picture.
+All must exit 0. Both `f1f2-smoke.ps1` and `vehicle-entry-smoke.ps1` execute in isolated throwaway temporary data roots (`$env:TEMP\WeighBridge.Smoke\...`) to ensure live operator databases are never modified or destroyed.
 
 `scripts/uia-dump.ps1` dumps the automation tree when an element cannot be found.
 
