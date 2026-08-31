@@ -1,5 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
+using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Events;
 using WeighBridge.Core.Events.Catalog;
 using WeighBridge.Core.Security;
@@ -15,8 +18,8 @@ namespace WeighBridge.Services.Weighments;
 /// <para>
 /// Takes a <see cref="Func{IUnitOfWork}"/> rather than an <see cref="IUnitOfWork"/>. The
 /// unit of work is registered transient because it owns a <c>DbContext</c> and its change
-/// tracker; a singleton service that captured one would hold the same tracker â€” and the
-/// same open connection â€” for the weeks this application stays running, accumulating every
+/// tracker; a singleton service that captured one would hold the same tracker — and the
+/// same open connection — for the weeks this application stays running, accumulating every
 /// row any operator ever looked at. The factory hands out a fresh one per operation and the
 /// <c>await using</c> disposes it.
 /// </para>
@@ -27,33 +30,40 @@ namespace WeighBridge.Services.Weighments;
 /// </para>
 /// <para>
 /// Business rules the operator can fix live in the validators the commands run. What is
-/// enforced here is only what the aggregate itself refuses â€” the service does not re-check
+/// enforced here is only what the aggregate itself refuses — the service does not re-check
 /// an invariant the domain already owns, because two copies of a rule are one rule and one
 /// bug waiting for them to disagree.
 /// </para>
 /// </remarks>
-public sealed class WeighmentService(
-    Func<IUnitOfWork> unitOfWork,
-    IPermissionService permissions,
-    IEventPublisher events,
-    ILogger<WeighmentService> logger) : IWeighmentService
+public sealed class WeighmentService : IWeighmentService
 {
     private const string ModuleName = "VehicleEntry";
 
-    private readonly Func<IUnitOfWork> _unitOfWork = unitOfWork
-        ?? throw new ArgumentNullException(nameof(unitOfWork));
+    private readonly Func<IUnitOfWork> _unitOfWork;
+    private readonly IPermissionService _permissions;
+    private readonly IEventPublisher _events;
+    private readonly IOptions<WeighmentOptions>? _options;
+    private readonly ILogger<WeighmentService> _logger;
 
-    private readonly IPermissionService _permissions = permissions
-        ?? throw new ArgumentNullException(nameof(permissions));
-
-    private readonly IEventPublisher _events = events ?? throw new ArgumentNullException(nameof(events));
-
-    private readonly ILogger<WeighmentService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    public WeighmentService(
+        Func<IUnitOfWork> unitOfWork,
+        IPermissionService permissions,
+        IEventPublisher events,
+        ILogger<WeighmentService> logger,
+        IOptions<WeighmentOptions>? options = null)
+    {
+        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
+        _events = events ?? throw new ArgumentNullException(nameof(events));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _options = options;
+    }
 
     /// <inheritdoc />
     public async Task<Weighment> CreateAsync(NewWeighment request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        _permissions.Ensure(Permissions.WeighmentCreate);
 
         var weighment = Weighment.Open(
             request.VehicleNumber,
@@ -67,7 +77,13 @@ public sealed class WeighmentService(
             request.PartyId,
             request.MaterialId,
             request.VehicleTypeId,
-            request.VehicleTypeName);
+            request.VehicleTypeName,
+            request.Charges,
+            request.NumberOfBags,
+            request.BagWeightKg,
+            request.GatePassNumber,
+            request.CustomField1,
+            request.CustomField2);
 
         weighment.CreatedBy = CurrentOperatorName;
 
@@ -136,6 +152,8 @@ public sealed class WeighmentService(
         WeightSource source,
         CancellationToken cancellationToken = default)
     {
+        _permissions.Ensure(Permissions.WeighmentCreate);
+
         var weighment = await MutateAsync(
             weighmentId,
             target => target.RecordFirstWeight(new WeightCapture(kilograms, DateTime.UtcNow, source)),
@@ -160,30 +178,79 @@ public sealed class WeighmentService(
     }
 
     /// <inheritdoc />
-    public async Task<Weighment> RecordSecondWeightAsync(
-        long weighmentId,
-        decimal kilograms,
-        WeightSource source,
+    public async Task<Weighment> UpdateSecondEntryDetailsAsync(
+        UpdateSecondEntryDetailsRequest request,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        _permissions.Ensure(Permissions.WeighmentEdit);
+
         var weighment = await MutateAsync(
-            weighmentId,
-            target => target.RecordSecondWeight(new WeightCapture(kilograms, DateTime.UtcNow, source)),
+            request.WeighmentId,
+            target => target.UpdateSecondEntryDetails(
+                request.SecondCharges,
+                request.NumberOfBags,
+                request.BagWeightKg,
+                request.GatePassNumber,
+                request.Remarks,
+                request.CustomField3,
+                request.CustomField4),
             cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Second weight {Kilograms} kg ({Source}) recorded on {SlipNumber}; net {Net} kg",
-            kilograms,
-            source,
+            "Second-entry details updated for {SlipNumber} ({VehicleNumber}) by {Operator}",
             weighment.SlipNumber,
-            weighment.NetWeightKg);
+            weighment.VehicleNumber,
+            weighment.ModifiedBy);
+
+        return weighment;
+    }
+
+    /// <inheritdoc />
+    public async Task<Weighment> RecordSecondWeightAsync(
+        RecordSecondWeightRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        _permissions.Ensure(Permissions.WeighmentEdit);
+
+        var policy = (_options?.Value?.AllowZeroNetWeight == true)
+            ? NetWeightPolicy.AllowZero
+            : NetWeightPolicy.RejectZero;
+
+        var weighment = await MutateAsync(
+            request.WeighmentId,
+            target =>
+            {
+                target.UpdateSecondEntryDetails(
+                    request.SecondCharges,
+                    request.NumberOfBags,
+                    request.BagWeightKg,
+                    request.GatePassNumber,
+                    request.Remarks,
+                    request.CustomField3,
+                    request.CustomField4);
+
+                target.RecordSecondWeight(
+                    new WeightCapture(request.Kilograms, DateTime.UtcNow, request.Source),
+                    policy);
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "Second weight {Kilograms} kg ({Source}) recorded on {SlipNumber}; net {Net} kg (Actual: {Actual} kg)",
+            request.Kilograms,
+            request.Source,
+            weighment.SlipNumber,
+            weighment.NetWeightKg,
+            weighment.ActualWeightKg);
 
         _events.Publish(new SecondWeightRecordedEvent(
             weighment.Id,
             weighment.SlipNumber,
             weighment.VehicleNumber,
-            kilograms,
-            source,
+            request.Kilograms,
+            request.Source,
             ModuleName));
 
         // Two events for one call, because they are two facts. A yard display cares that a
@@ -201,12 +268,74 @@ public sealed class WeighmentService(
     }
 
     /// <inheritdoc />
+    public Task<Weighment> RecordSecondWeightAsync(
+        long weighmentId,
+        decimal kilograms,
+        WeightSource source,
+        CancellationToken cancellationToken = default)
+        => RecordSecondWeightAsync(
+            new RecordSecondWeightRequest(weighmentId, kilograms, source),
+            cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<Weighment?> FindPendingSecondEntryAsync(
+        string searchKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchKey))
+        {
+            return null;
+        }
+
+        await using var unitOfWork = _unitOfWork();
+        var repository = unitOfWork.Repository<Weighment>();
+
+        // Canonical or human-entered ticket number resolution (e.g. WB-000001, 1, 000001, wb-1)
+        if (SlipNumbers.Normalise(searchKey) is { } canonicalSlip)
+        {
+            var matches = await repository.FindAsync(
+                w => w.SlipNumber == canonicalSlip && w.Status == WeighmentStatus.AwaitingSecondWeight,
+                cancellationToken).ConfigureAwait(false);
+
+            if (matches.Count > 0)
+            {
+                return matches[0];
+            }
+        }
+
+        // Canonical vehicle registration resolution
+        var canonicalVehicle = Weighment.NormaliseVehicleNumber(searchKey);
+        if (string.IsNullOrWhiteSpace(canonicalVehicle))
+        {
+            return null;
+        }
+
+        var vehicleMatches = await repository.FindAsync(
+            w => w.VehicleNumber == canonicalVehicle && w.Status == WeighmentStatus.AwaitingSecondWeight,
+            cancellationToken).ConfigureAwait(false);
+
+        if (vehicleMatches.Count == 0)
+        {
+            return null;
+        }
+
+        if (vehicleMatches.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Multiple pending transactions found for vehicle '{searchKey}'. Please select from the waiting list or enter the exact ticket number.");
+        }
+
+        return vehicleMatches[0];
+    }
+
+    /// <inheritdoc />
     public async Task<Weighment> CancelAsync(
         long weighmentId,
         string reason,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        _permissions.Ensure(Permissions.WeighmentCancel);
 
         var weighment = await MutateAsync(
             weighmentId,
@@ -352,7 +481,7 @@ public sealed class WeighmentService(
     /// <remarks>
     /// The transition itself is the aggregate's; this only supplies the transaction and the
     /// audit stamp. An <see cref="InvalidOperationException"/> out of
-    /// <paramref name="transition"/> reaches the caller unchanged â€” the command pipeline
+    /// <paramref name="transition"/> reaches the caller unchanged — the command pipeline
     /// turns it into a failed result with the domain's own message, which is written for the
     /// operator, so wrapping it here would replace a useful sentence with a generic one.
     /// </remarks>
@@ -373,7 +502,17 @@ public sealed class WeighmentService(
         weighment.ModifiedBy = CurrentOperatorName;
         repository.Update(weighment);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict saving weighment {Id}", weighmentId);
+            throw new InvalidOperationException(
+                $"Weighment {weighment.SlipNumber ?? weighmentId.ToString()} was modified by another operator or process. Please reload the transaction before making changes.",
+                ex);
+        }
 
         return weighment;
     }
@@ -392,7 +531,7 @@ public sealed class WeighmentService(
         {
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateException exception)
+        catch (DbUpdateException exception)
             when (exception.InnerException?.Message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase) == true)
         {
             throw new InvalidOperationException(

@@ -8,9 +8,9 @@ Phase 0.5 — Enterprise Infrastructure Layer, Prompt 7 — Vehicle Entry, Promp
 | Measure | Value | How it was obtained |
 | --- | --- | --- |
 | Build | 0 errors, 0 warnings | `dotnet build WeighBridge.sln --nologo -v q` |
-| Tests | 670 passed (639 baseline after cleanup + 21 decoder/lifecycle tests + 10 domain/persistence tests), 0 failed, 0 skipped | `dotnet test --nologo`, cross-checked across all test suites |
+| Tests | 707 passed (639 baseline after cleanup + 21 decoder/lifecycle tests + 10 domain/persistence tests + 37 application service & concurrency tests), 0 failed, 0 skipped | `dotnet test --nologo`, cross-checked across all test suites |
 | Hardware Diagnostic Pipeline | Verified (9-byte framing, 8N1 @ 2400 on COM3, DecimalPlaces=1 locked) | `WeighBridge.SerialDiagnostic` & `WeightIndicatorService` |
-| F1/F2 Workflow Status | Gates 2A, 2B, 2C Completed (`Weighment.cs`, `NetWeightPolicy`, bags, paise, Version token, migration) | `WeighmentDomainTests`, `WeighmentPersistenceTests` |
+| F1/F2 Workflow Status | Gates 2A, 2B, 2C, 2D Completed (Legacy specs sealed, `Weighment.cs` aggregate delta, `AddF1F2WorkflowFields` migration, `IWeighmentService` F2 operations, Permission matrix, Concurrency via `Guid Version`, `NetWeightPolicy` resolution) | `WeighmentDomainTests`, `WeighmentPersistenceTests`, `WeighmentServiceTests` |
 | Runtime — shell | verified, exit code 0 | `scripts/runtime-smoke.ps1` |
 | Runtime — Vehicle Entry | verified, exit code 0 | `scripts/vehicle-entry-smoke.ps1` |
 | Runtime — Master Data | verified, exit code 0 | `scripts/masters-smoke.ps1` |

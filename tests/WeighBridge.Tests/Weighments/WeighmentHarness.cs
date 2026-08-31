@@ -1,8 +1,9 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
+using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Logging;
 using WeighBridge.Core.Notifications;
 using WeighBridge.Core.Security;
@@ -42,7 +43,7 @@ internal sealed class WeighmentHarness : IDisposable
     private readonly TempDataRoot _root = new();
     private readonly DbContextOptions<WeighBridgeDbContext> _options;
 
-    public WeighmentHarness()
+    public WeighmentHarness(IOptions<WeighmentOptions>? weighmentOptions = null)
     {
         _options = MigratedDatabase(_root);
 
@@ -67,7 +68,8 @@ internal sealed class WeighmentHarness : IDisposable
             () => new UnitOfWork(CreateContext(), Operator),
             Permissions,
             Events,
-            factory.CreateLogger<WeighmentService>());
+            factory.CreateLogger<WeighmentService>(),
+            weighmentOptions);
 
         Undo = new UndoManager(Options.Create(new UndoOptions { MaxDepth = 20 }), applicationLogger);
 
@@ -114,7 +116,7 @@ internal sealed class WeighmentHarness : IDisposable
     /// <summary>A context on the same file, with an empty change tracker.</summary>
     public SignedInOperator Operator { get; }
 
-        public WeighBridgeDbContext CreateContext() => new(_options);
+    public WeighBridgeDbContext CreateContext() => new(_options);
 
     public void SignInAs(Role role)
         => Permissions.SetOperator(new OperatorIdentity("tester", "Tester", role));

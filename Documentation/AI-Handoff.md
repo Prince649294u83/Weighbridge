@@ -42,7 +42,8 @@ rebuilding. The repository is the source of truth, not the prompt, and not this 
   - Gate 2A (Legacy Research & 29-Point Specification) Sealed in `Documentation/F1F2-LegacyBehavior.md`.
   - Gate 2B (Domain Aggregate Delta) Completed: `NetWeightPolicy`, `Weighment.cs` extended with charges/bags/custom/Version, F1 historical locking in `AwaitingSecondWeight`.
   - Gate 2C (Persistence Delta & Migration) Completed: `AddF1F2WorkflowFields` migration with non-empty Version GUID seeding for historical records, integer grams/paise storage.
-- **Test Metric:** **670 unit/persistence tests passing** (639 baseline + 21 decoder/lifecycle tests + 10 domain/persistence tests, 0 failed, 0 skipped).
+  - Gate 2D (Application Service & Query Extensions) Completed: `IWeighmentService` extended with `FindPendingSecondEntryAsync`, `UpdateSecondEntryDetailsAsync`, and `RecordSecondWeightAsync`. Permission matrix enforced (`WeighmentCreate` for F1, `WeighmentEdit` for F2 update/complete, `WeighmentCancel` for cancel). Optimistic concurrency token (`Guid Version`) enforced at EF Core `SaveChanges` boundary. Net weight policy resolved via `WeighmentOptions`.
+- **Test Metric:** **707 unit/persistence/service tests passing** (670 baseline + 37 test cases across 26 new service integration tests, 0 failed, 0 skipped).
 - **Physical Stream Status:** Live physical streaming verified on COM3; HUD and captured indicator readings match physical display with zero UI secondary conversions.
 
 ## What this application is

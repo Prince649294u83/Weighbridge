@@ -52,6 +52,9 @@ public static class CoreServiceCollectionExtensions
         services.AddOptions<FileLoggingOptions>()
             .Bind(configuration.GetSection(FileLoggingOptions.SectionName));
 
+        services.AddOptions<WeighmentOptions>()
+            .Bind(configuration.GetSection(WeighmentOptions.SectionName));
+
         // Bound even though appsettings.json carries no Notifications section yet: an
         // absent section leaves the defaults in place, and adding the section later needs
         // no code change here.

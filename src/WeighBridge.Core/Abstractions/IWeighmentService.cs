@@ -35,6 +35,24 @@ public sealed record NewWeighment
     /// <summary>Anything else that belongs on the record.</summary>
     public string? Remarks { get; init; }
 
+    /// <summary>First-entry weighbridge fee collected from vehicle in rupees.</summary>
+    public decimal Charges { get; init; } = 0m;
+
+    /// <summary>Count of packages / bags for deduction calculation.</summary>
+    public int? NumberOfBags { get; init; }
+
+    /// <summary>Tare weight per bag in kilograms.</summary>
+    public decimal? BagWeightKg { get; init; }
+
+    /// <summary>External security gate pass reference number.</summary>
+    public string? GatePassNumber { get; init; }
+
+    /// <summary>User-configured field 1 (e.g. Consigner / Container No), locked in F2.</summary>
+    public string? CustomField1 { get; init; }
+
+    /// <summary>User-configured field 2 (e.g. Consignee / Seal No), locked in F2.</summary>
+    public string? CustomField2 { get; init; }
+
     /// <summary>Optional master record foreign key for vehicle.</summary>
     public long? VehicleId { get; init; }
 
@@ -50,6 +68,34 @@ public sealed record NewWeighment
     /// <summary>Optional vehicle type name snapshot.</summary>
     public string? VehicleTypeName { get; init; }
 }
+
+/// <summary>
+/// Carries second-entry details to update on an open weighment awaiting second weight.
+/// </summary>
+public sealed record UpdateSecondEntryDetailsRequest(
+    long WeighmentId,
+    decimal SecondCharges,
+    int? NumberOfBags,
+    decimal? BagWeightKg,
+    string? GatePassNumber,
+    string? Remarks,
+    string? CustomField3 = null,
+    string? CustomField4 = null);
+
+/// <summary>
+/// Carries second weight capture and optional second-entry details to complete a weighment.
+/// </summary>
+public sealed record RecordSecondWeightRequest(
+    long WeighmentId,
+    decimal Kilograms,
+    WeightSource Source,
+    decimal SecondCharges = 0m,
+    int? NumberOfBags = null,
+    decimal? BagWeightKg = null,
+    string? GatePassNumber = null,
+    string? Remarks = null,
+    string? CustomField3 = null,
+    string? CustomField4 = null);
 
 /// <summary>
 /// Everything the application does to a weighment.
@@ -93,6 +139,27 @@ public interface IWeighmentService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates second-entry operational fields on an open transaction awaiting second weight.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// No such weighment, it is not awaiting its second weight, or a concurrency conflict occurred.
+    /// </exception>
+    Task<Weighment> UpdateSecondEntryDetailsAsync(
+        UpdateSecondEntryDetailsRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Records the second weight with typed request parameters, fixing the net weight and completing the transaction.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// No such weighment, it is not awaiting its second weight, or the two weights do not
+    /// yield a valid net weight.
+    /// </exception>
+    Task<Weighment> RecordSecondWeightAsync(
+        RecordSecondWeightRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Records the second weight, which fixes the net weight and completes the weighment.
     /// </summary>
     /// <exception cref="InvalidOperationException">
@@ -103,6 +170,21 @@ public interface IWeighmentService
         long weighmentId,
         decimal kilograms,
         WeightSource source,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Looks up a single open transaction waiting for second weight by human-entered search text
+    /// (canonical slip number or vehicle registration).
+    /// </summary>
+    /// <returns>
+    /// The matching <see cref="Weighment"/> aggregate if exactly one pending record matches;
+    /// <c>null</c> if no pending transaction matches; or throws if multiple pending records match a vehicle.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// Multiple pending transactions match the given vehicle number.
+    /// </exception>
+    Task<Weighment?> FindPendingSecondEntryAsync(
+        string searchKey,
         CancellationToken cancellationToken = default);
 
     /// <summary>Abandons an open weighment, keeping the row and the reason.</summary>

@@ -154,7 +154,7 @@ public sealed class RecordSecondWeightCommand(
     public string Name => "Record second weight";
 
     /// <inheritdoc />
-    public Permission? RequiredPermission => Permissions.WeighmentCreate;
+    public Permission? RequiredPermission => Permissions.WeighmentEdit;
 
     /// <inheritdoc />
     public async Task<ValidationResult> ValidateAsync(CancellationToken cancellationToken = default)
