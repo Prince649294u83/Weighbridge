@@ -1,0 +1,31 @@
+<Start>
+<Name><Nameset>
+                               
+<Address1><Header>
+<Address2><Header>
+      
+     [Date : <date>]               
+     Serial No.     : <ticket>      Party Name     : <party>             
+     Vehicle No     : <vehicle>Material       : <item> 
+     Vehicle Type   : <vtype>Charges        : Rs. <charges>                        
+     --------------------------------------------------------------
+     Gross Weight   : [<gweight>] Kg.   <gdate> <gtime>
+
+     Tare Weight    : [<tweight>] Kg.   <tdate> <ttime> 
+
+     Net Weight     : [<nweight>] Kg.
+      
+                                                 Operator Sign.
+                                             User Name : <username>
+     --------------------------------------------------------------
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+<->

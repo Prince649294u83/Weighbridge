@@ -1,0 +1,39 @@
+   <Name>                               
+     
+    <Address1>
+    <Address2>  
+                        
+     Date : <date> 
+
+     <SlipType>
+     ---------------------------------------------------------------------------
+     Ticket No.     : <ticket>
+     Party Name     : <party>        
+     Vehicle No     : <vehicle> 
+     Vehicle Type   : <vtype>           
+     Material       : <item>          
+     Charges        : Rs. <charges>  
+     No. of Bags    : <bags>
+     Gate Pass      : <gatepass>        
+     ------------------------------------------------------------------
+     Gross Weight   : <gweight> Kg.	 <gdate> <gtime>
+     Tare Weight    : <tweight> Kg. 	 <tdate> <ttime>
+     Empty Bag Wt.  : <emptybagwt>
+     ------------------------------------------------------------------    
+   Net Weight  : <nweight> Kg. 
+  
+   Actual Wt.  : <acualwt> Kg.
+      
+                                                    Operator Sign.
+                                                  User Name : Admin
+     ------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+<->

@@ -1,0 +1,25 @@
+<Name><Nameset>
+                               
+<Address1><Header>
+<Address2><Header>
+                        
+     Date : <date> 
+
+     <SlipType>
+     ---------------------------------------------------------------------------
+     Ticket No.     : <ticket>
+     Party Name     : <party>        
+     Vehicle No     : <vehicle> 
+     Vehicle Type   : <vtype>           
+     Material       : <item>          
+     Charges        : Rs. <charges>         
+     --------------------------------------------------------------
+     Gross Weight   : <gweight> Kg.	 <gdate> <gtime>
+     Tare Weight    : <tweight> Kg. 	 <tdate> <ttime>   
+     Net Weight     : <nweight> Kg.      <Bold>
+      
+                                                   Operator Sign.
+                                                 User Name : Admin
+     --------------------------------------------------------------
+
+<->

@@ -1,14 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <!--
-    WeighBridge.Tests
-    xUnit test project covering the foundation: MVVM primitives, navigation history,
-    settings persistence, configuration provisioning, file logging and the database
-    health check. Targets net8.0 (no WPF) so tests run headless on CI.
-  -->
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
     <RootNamespace>WeighBridge.Tests</RootNamespace>
     <AssemblyName>WeighBridge.Tests</AssemblyName>
     <IsPackable>false</IsPackable>
@@ -20,10 +15,11 @@
     <ProjectReference Include="..\..\src\WeighBridge.Domain\WeighBridge.Domain.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Hardware\WeighBridge.Hardware.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Infrastructure\WeighBridge.Infrastructure.csproj" />
-
+    <ProjectReference Include="..\..\src\WeighBridge.Printing\WeighBridge.Printing.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Reporting\WeighBridge.Reporting.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Services\WeighBridge.Services.csproj" />
     <ProjectReference Include="..\..\src\WeighBridge.Settings\WeighBridge.Settings.csproj" />
+    <ProjectReference Include="..\..\src\WeighBridge.App\WeighBridge.App.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +42,13 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Fixtures\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

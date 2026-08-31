@@ -1,0 +1,9 @@
+Ticket No %%|ticketno^{"inputtype" : "text", "maxlength" : "20"}%%
+Vehicle No %%|vehicleno^{"inputtype" : "text", "maxlength" : "50"}%%
+Party %%|party^{"inputtype" : "text", "maxlength" : "50"}%%
+Item %%|item^{"inputtype" : "text", "maxlength" : "50"}%%
+Charges %%|charges^{"inputtype" : "text", "maxlength" : "50"}%%
+VehicalType %%|vehicaltype^{"inputtype" : "text", "maxlength" : "50"}%%
+G WT%%|Gwt^{"inputtype" : "text", "maxlength" : "50"}%%
+T WT %%|Twt^{"inputtype" : "text", "maxlength" : "50"}%%
+Net WT %%|Nettwt^{"inputtype" : "text", "maxlength" : "50"}%%

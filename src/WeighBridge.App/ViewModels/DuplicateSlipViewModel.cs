@@ -1,15 +1,18 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using WeighBridge.App.Controls;
+using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Commands;
+using WeighBridge.Core.Configuration;
+using WeighBridge.Core.Logging;
 using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Navigation;
-using WeighBridge.Core.Abstractions;
-using WeighBridge.Core.Logging;
+using WeighBridge.Core.Printing;
 using WeighBridge.Domain.Enums;
 using WeighBridge.Domain.Weighments;
+using WeighBridge.Printing.Services;
 
 namespace WeighBridge.App.ViewModels;
 
@@ -17,6 +20,7 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
 {
     private readonly IRepository<Weighment> _weighments;
     private readonly IPrintService _printService;
+    private readonly IOptions<CompanyOptions> _companyOptions;
     private readonly IAuditLogger _audit;
     private readonly ILogger<DuplicateSlipViewModel> _logger;
     private readonly AsyncRelayCommand _searchCommand;
@@ -33,11 +37,13 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
     public DuplicateSlipViewModel(
         IRepository<Weighment> weighments,
         IPrintService printService,
+        IOptions<CompanyOptions> companyOptions,
         IAuditLogger audit,
         ILogger<DuplicateSlipViewModel> logger)
     {
         _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
         _printService = printService ?? throw new ArgumentNullException(nameof(printService));
+        _companyOptions = companyOptions ?? throw new ArgumentNullException(nameof(companyOptions));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -112,9 +118,7 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// The most rows one search will materialise. A wide date range with no term used to
-    /// pull every completed weighment into memory before filtering; the grid is a pick
-    /// list for a reprint, not a history export, so it is capped and ordered newest-first.
+    /// The most rows one search will materialise. Capped and ordered newest-first.
     /// </summary>
     private const int MaxResults = 500;
 
@@ -188,46 +192,78 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
 
     private async Task ReprintAsync(WeighmentSummary? summary)
     {
-        if (summary is null)
-        {
-            return;
-        }
+        if (summary is null) return;
 
         IsBusy = true;
 
         try
         {
-            var data = new Dictionary<string, object?>
+            var weighment = await _weighments.GetByIdAsync(summary.Id).ConfigureAwait(true);
+            if (weighment is null)
             {
-                { "SlipNumber", summary.SlipNumber },
-                { "VehicleNumber", summary.VehicleNumber },
-                { "TimeIn", summary.OpenedAtLocal.ToString("g", CultureInfo.CurrentCulture) },
-                { "TimeOut", summary.ClosedAtLocal?.ToString("g", CultureInfo.CurrentCulture) },
-                { "PartyName", summary.PartyName },
-                { "MaterialName", summary.MaterialName },
-                { "DriverName", summary.DriverName },
-                { "TransporterName", summary.TransporterName },
-                { "GrossWeightKg", summary.GrossKg },
-                { "TareWeightKg", summary.TareKg },
-                { "NetWeightKg", summary.NetKg },
-                { "Remarks", summary.Remarks },
-                { "IsDuplicate", true } // Flag to print DUPLICATE
-            };
+                Show($"Weighment with slip '{summary.SlipNumber}' was not found.", BadgeSeverity.Danger);
+                return;
+            }
 
-            var printResult = await _printService.PrintAsync("WeighmentSlip", data).ConfigureAwait(true);
-            
+            if (weighment.Status != WeighmentStatus.Completed)
+            {
+                Show($"Cannot reprint slip for weighment in status '{weighment.Status}'. Only completed weighments can be reprinted.", BadgeSeverity.Warning);
+                return;
+            }
+
+            // Construct calculation-free print data from authoritative snapshot + current company options
+            var printData = WeighmentPrintDataFactory.Create(
+                weighment,
+                _companyOptions.Value,
+                isDuplicate: true,
+                duplicateWatermark: "WEIGHMENT SLIP (DUPLICATE)");
+
+            PrintResult printResult;
+            if (_printService is WindowsPrintService wps)
+            {
+                printResult = await wps.PrintSlipAsync(printData).ConfigureAwait(true);
+            }
+            else
+            {
+                var dict = new Dictionary<string, object?>
+                {
+                    ["SlipNumber"] = printData.SlipNumber,
+                    ["VehicleNumber"] = printData.VehicleNumber,
+                    ["PartyName"] = printData.PartyName,
+                    ["MaterialName"] = printData.MaterialName,
+                    ["DriverName"] = printData.DriverName,
+                    ["TransporterName"] = printData.TransporterName,
+                    ["GatePassNumber"] = printData.GatePassNumber,
+                    ["CustomField1"] = printData.CustomField1,
+                    ["CustomField2"] = printData.CustomField2,
+                    ["GrossWeightKg"] = printData.GrossWeightKg,
+                    ["TareWeightKg"] = printData.TareWeightKg,
+                    ["NetWeightKg"] = printData.NetWeightKg,
+                    ["Charges"] = printData.TotalCharges,
+                    ["Remarks"] = printData.Remarks,
+                    ["IsDuplicate"] = true
+                };
+                printResult = await _printService.PrintAsync("WeighmentSlip", dict).ConfigureAwait(true);
+            }
+
             if (printResult.Succeeded)
             {
                 _audit.Record(
-                    "Printed",
-                    "DuplicateSlip",
+                    "Reprint",
+                    "Weighment",
                     summary.SlipNumber,
-                    $"Vehicle: {summary.VehicleNumber}");
+                    $"Vehicle: {summary.VehicleNumber}, Outcome: SUCCESS, Copies: 1");
 
                 Show(printResult.Message, BadgeSeverity.Success);
             }
             else
             {
+                _audit.Record(
+                    "Reprint",
+                    "Weighment",
+                    summary.SlipNumber,
+                    $"Vehicle: {summary.VehicleNumber}, Outcome: FAILURE, Reason: {printResult.Message}");
+
                 Show(printResult.Message, BadgeSeverity.Danger);
             }
         }

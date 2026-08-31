@@ -1,0 +1,29 @@
+
+
+<Start>      
+        <Name> <TNameset1>
+                               
+ <Address1> 
+ <Address2>  
+                        
+ Date : <date>       
+<SlipType>
+---------------------------------
+Ticket No.   : <ticket> <TNameset>
+Party Name   : <party>        
+Vehicle No   : <vehicle> 
+Vehicle Type : <vtype>           
+Material     : <item>          
+Charges      : Rs. <charges>         
+---------------------------------
+G Weight:<gweight> Kg.<gdate> <gtime>
+T Weight:<tweight> Kg.<tdate> <ttime>
+------------------------------------  
+Net Weight  : <nweight> Kg. <TNameset>
+
+operator sign
+User Name: <username>
+------------------------------------
+
+<Cut>
+<->

@@ -4,23 +4,15 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Configuration;
+using WeighBridge.Core.Reporting;
 using WeighBridge.Core.Security;
 using WeighBridge.Domain.Weighments;
 
 namespace WeighBridge.Reporting.Services;
 
 /// <summary>
-/// Writes weighment reports as CSV files.
+/// Writes weighment reports as hardened CSV files with injection protection and summary statistics.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Stateless on purpose. An earlier revision was a singleton holding an injected
-/// repository — which pinned one <see cref="WeighBridgeDbContext"/>, and its change
-/// tracker, for the life of the process: memory crept with every export and two
-/// concurrent exports raced the same context. Each generation now resolves a fresh
-/// unit of work per report and pages through the database, so nothing accumulates.
-/// </para>
-/// </remarks>
 public sealed class CsvReportService(
     Func<IUnitOfWork> unitOfWork,
     IPermissionService permissions,
@@ -30,16 +22,17 @@ public sealed class CsvReportService(
     /// <summary>Hard ceiling even when configuration is misconfigured to something huge.</summary>
     private const int AbsoluteMaxRows = 100_000;
 
-    private const string DailyReportKey = "DailyWeighments";
-    private const string PartyReportKey = "PartyWeighments";
-    private const string MaterialReportKey = "MaterialWeighments";
+    public const string DailyReportKey = "DailyWeighments";
+    public const string PartyReportKey = "PartyWeighments";
+    public const string MaterialReportKey = "MaterialWeighments";
+    public const string SummaryReportKey = "SummaryReport";
 
     private readonly Func<IUnitOfWork> _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
     private readonly IPermissionService _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
     private readonly ReportingOptions _options = options.Value;
     private readonly ILogger<CsvReportService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    public IReadOnlyList<string> AvailableReports => [DailyReportKey, PartyReportKey, MaterialReportKey];
+    public IReadOnlyList<string> AvailableReports => [DailyReportKey, PartyReportKey, MaterialReportKey, SummaryReportKey];
 
     public IReadOnlyList<ReportFormat> SupportedFormats => [ReportFormat.Csv];
 
@@ -50,11 +43,6 @@ public sealed class CsvReportService(
         string? outputPath = null,
         CancellationToken cancellationToken = default)
     {
-        // Reports.Export is declared, granted to Administrator and Supervisor and withheld
-        // from Operator and ReadOnly - and was enforced nowhere, so a ReadOnly gate terminal
-        // could write the site's whole weighment history to a CSV file and carry it away.
-        // Checked here rather than in the view model because this method is what leaves the
-        // file on disk, and a check in front of one caller only guards that caller.
         var authorization = _permissions.Authorize(Permissions.ReportsExport);
         if (!authorization.IsAuthorized)
         {
@@ -110,19 +98,12 @@ public sealed class CsvReportService(
                          w.CompletedAtUtc < endDate.AddDays(1).ToUniversalTime() &&
                          w.MaterialName == materialName,
 
-                // The daily report ignores name filters; the party and material variants
-                // fall back to the date window alone when no name was supplied.
+                // Daily report and Summary report filter on the date window
                 _ =>
                     w => w.CompletedAtUtc != null &&
                          w.CompletedAtUtc >= startDate.ToUniversalTime() &&
                          w.CompletedAtUtc < endDate.AddDays(1).ToUniversalTime(),
             };
-
-            // Paged reads: the database sorts and windows; only one page is ever in memory.
-            int pageSize = 500;
-            int skip = 0;
-            long totalWritten = 0;
-            bool truncated = false;
 
             var dir = string.IsNullOrEmpty(outputPath) ? _options.OutputDirectory : Path.GetDirectoryName(outputPath) ?? _options.OutputDirectory;
             Directory.CreateDirectory(dir);
@@ -133,68 +114,12 @@ public sealed class CsvReportService(
 
             var finalPath = Path.Combine(dir, fileName);
 
-            using (var writer = new StreamWriter(finalPath))
+            if (string.Equals(reportKey, SummaryReportKey, StringComparison.OrdinalIgnoreCase))
             {
-                await writer.WriteLineAsync(
-                    "Slip Number,Vehicle,Party,Material,Gross (kg),Tare (kg),Net (kg),Opened At,Completed At,Status");
-
-                while (!truncated)
-                {
-                    var page = await scope.Repository<Weighment>().QueryAsync(
-                        filter,
-                        query => query
-                            .OrderBy(w => w.CompletedAtUtc)
-                            .ThenBy(w => w.Id)
-                            .Skip(skip)
-                            .Take(pageSize),
-                        cancellationToken);
-
-                    if (page.Count == 0)
-                    {
-                        break;
-                    }
-
-                    foreach (var w in page)
-                    {
-                        var line = string.Join(',',
-                            EscapeCsv(w.SlipNumber),
-                            EscapeCsv(w.VehicleNumber),
-                            EscapeCsv(w.PartyName),
-                            EscapeCsv(w.MaterialName),
-                            w.Gross?.Kilograms.ToString(CultureInfo.InvariantCulture) ?? "",
-                            w.Tare?.Kilograms.ToString(CultureInfo.InvariantCulture) ?? "",
-                            w.NetWeightKg?.ToString(CultureInfo.InvariantCulture) ?? "",
-                            w.CreatedAtUtc.ToLocalTime().ToString("g", CultureInfo.InvariantCulture),
-                            w.CompletedAtUtc?.ToLocalTime().ToString("g", CultureInfo.InvariantCulture) ?? "",
-                            w.Status.ToString()
-                        );
-
-                        await writer.WriteLineAsync(line);
-                        totalWritten++;
-
-                        if (totalWritten >= maxRows)
-                        {
-                            truncated = true;
-                            break;
-                        }
-                    }
-
-                    skip += page.Count;
-                }
+                return await GenerateSummaryReportAsync(scope, filter, maxRows, finalPath, cancellationToken);
             }
 
-            _logger.LogInformation(
-                "Report {ReportKey} generated at {Path} with {Rows} row(s){Truncated}",
-                reportKey,
-                finalPath,
-                totalWritten,
-                truncated ? " — truncated by MaxRowsPerReport" : "");
-
-            return ReportResult.Success(
-                truncated
-                    ? $"Report generated with the first {totalWritten} rows (row limit reached)."
-                    : $"Report generated with {totalWritten} row(s).",
-                finalPath);
+            return await GenerateDetailedReportAsync(reportKey, scope, filter, maxRows, finalPath, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -207,29 +132,180 @@ public sealed class CsvReportService(
         }
     }
 
+    private async Task<ReportResult> GenerateDetailedReportAsync(
+        string reportKey,
+        IUnitOfWork scope,
+        Expression<Func<Weighment, bool>> filter,
+        int maxRows,
+        string finalPath,
+        CancellationToken cancellationToken)
+    {
+        int pageSize = 500;
+        int skip = 0;
+        long totalWritten = 0;
+        bool truncated = false;
+
+        using (var writer = new StreamWriter(finalPath))
+        {
+            await writer.WriteLineAsync(
+                "Slip Number,Vehicle,Party,Material,Gross (kg),Tare (kg),Net (kg),Opened At,Completed At,Status");
+
+            while (!truncated)
+            {
+                var page = await scope.Repository<Weighment>().QueryAsync(
+                    filter,
+                    query => query
+                        .OrderBy(w => w.CompletedAtUtc)
+                        .ThenBy(w => w.Id)
+                        .Skip(skip)
+                        .Take(pageSize),
+                    cancellationToken);
+
+                if (page.Count == 0) break;
+
+                foreach (var w in page)
+                {
+                    decimal? gross = w.Gross?.Kilograms;
+                    decimal? tare = w.Tare?.Kilograms;
+                    decimal? net = w.NetWeightKg;
+
+                    var line = string.Join(',',
+                        EscapeCsv(w.SlipNumber),
+                        EscapeCsv(w.VehicleNumber),
+                        EscapeCsv(w.PartyName),
+                        EscapeCsv(w.MaterialName),
+                        gross?.ToString(CultureInfo.InvariantCulture) ?? "",
+                        tare?.ToString(CultureInfo.InvariantCulture) ?? "",
+                        net?.ToString(CultureInfo.InvariantCulture) ?? "",
+                        EscapeCsv(w.CreatedAtUtc.ToLocalTime().ToString("g", CultureInfo.InvariantCulture)),
+                        EscapeCsv(w.CompletedAtUtc?.ToLocalTime().ToString("g", CultureInfo.InvariantCulture) ?? ""),
+                        EscapeCsv(w.Status.ToString())
+                    );
+
+                    await writer.WriteLineAsync(line);
+                    totalWritten++;
+
+                    if (totalWritten >= maxRows)
+                    {
+                        truncated = true;
+                        break;
+                    }
+                }
+
+                skip += page.Count;
+            }
+        }
+
+        _logger.LogInformation(
+            "Detailed report {ReportKey} generated at {Path} with {Rows} row(s){Truncated}",
+            reportKey,
+            finalPath,
+            totalWritten,
+            truncated ? " — truncated by MaxRowsPerReport" : "");
+
+        return ReportResult.Success(
+            truncated
+                ? $"Report generated with the first {totalWritten} rows (row limit reached)."
+                : $"Report generated with {totalWritten} row(s).",
+            finalPath);
+    }
+
+    private async Task<ReportResult> GenerateSummaryReportAsync(
+        IUnitOfWork scope,
+        Expression<Func<Weighment, bool>> filter,
+        int maxRows,
+        string finalPath,
+        CancellationToken cancellationToken)
+    {
+        var weighments = await scope.Repository<Weighment>().QueryAsync(
+            filter,
+            query => query
+                .OrderBy(w => w.PartyName)
+                .ThenBy(w => w.MaterialName)
+                .Take(maxRows),
+            cancellationToken);
+
+        var groups = weighments
+            .GroupBy(w => new { Party = w.PartyName ?? "-", Material = w.MaterialName ?? "-" })
+            .OrderBy(g => g.Key.Party)
+            .ThenBy(g => g.Key.Material)
+            .ToList();
+
+        decimal grandGross = 0m;
+        decimal grandTare = 0m;
+        decimal grandNet = 0m;
+        decimal grandCharges = 0m;
+        long totalTrips = 0;
+
+        using (var writer = new StreamWriter(finalPath))
+        {
+            await writer.WriteLineAsync("Party,Material,Trips,Total Gross (kg),Total Tare (kg),Total Net (kg),Total Charges (Rs)");
+
+            foreach (var g in groups)
+            {
+                int trips = g.Count();
+                decimal gross = g.Sum(w => w.Gross?.Kilograms ?? 0m);
+                decimal tare = g.Sum(w => w.Tare?.Kilograms ?? 0m);
+                decimal net = g.Sum(w => w.NetWeightKg ?? 0m);
+                decimal charges = g.Sum(w => w.Charges + w.SecondCharges);
+
+                totalTrips += trips;
+                grandGross += gross;
+                grandTare += tare;
+                grandNet += net;
+                grandCharges += charges;
+
+                var line = string.Join(',',
+                    EscapeCsv(g.Key.Party),
+                    EscapeCsv(g.Key.Material),
+                    trips,
+                    gross.ToString("F1", CultureInfo.InvariantCulture),
+                    tare.ToString("F1", CultureInfo.InvariantCulture),
+                    net.ToString("F1", CultureInfo.InvariantCulture),
+                    charges.ToString("F2", CultureInfo.InvariantCulture)
+                );
+
+                await writer.WriteLineAsync(line);
+            }
+
+            await writer.WriteLineAsync();
+            await writer.WriteLineAsync("--- GRAND TOTALS ---");
+            await writer.WriteLineAsync($"Total Trips,{totalTrips}");
+            await writer.WriteLineAsync($"Grand Gross (kg),{grandGross.ToString("F1", CultureInfo.InvariantCulture)}");
+            await writer.WriteLineAsync($"Grand Tare (kg),{grandTare.ToString("F1", CultureInfo.InvariantCulture)}");
+            await writer.WriteLineAsync($"Grand Net (kg),{grandNet.ToString("F1", CultureInfo.InvariantCulture)}");
+            await writer.WriteLineAsync($"Grand Charges (Rs),{grandCharges.ToString("F2", CultureInfo.InvariantCulture)}");
+        }
+
+        return ReportResult.Success($"Summary report generated with {groups.Count} aggregated group(s) across {totalTrips} transaction(s).", finalPath);
+    }
+
     /// <summary>
-    /// Quotes what CSV requires and neutralises what spreadsheets execute: a field whose
-    /// first character is <c>= + - @</c> or tab would be evaluated as a formula the moment
-    /// the file is opened in Excel — a party literally named "=SUM(A1)" must arrive in a
-    /// spreadsheet as text, not run.
+    /// Quotes what CSV requires and neutralises formula injection: a field whose
+    /// first character is <c>= + - @</c> or tab would be evaluated as a formula when
+    /// opened in spreadsheet applications.
     /// </summary>
-    private static string EscapeCsv(string? value)
+    public static string EscapeCsv(string? value)
     {
         if (string.IsNullOrEmpty(value))
         {
             return "";
         }
 
+        // Clean out carriage returns
         value = value.Replace("\r", " ");
 
+        // Neutralize formula injection
+        bool formulaRisk = value.Length > 0 && (value[0] is '=' or '+' or '-' or '@' or '\t');
+        if (formulaRisk)
+        {
+            value = "'" + value;
+        }
+
+        // Quote if containing comma, quote, or newline
         if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
         {
             value = $"\"{value.Replace("\"", "\"\"")}\"";
-        }
-
-        if (value.Length > 0 && (value[0] is '=' or '+' or '-' or '@' or '\t'))
-        {
-            return $"'{value}";
         }
 
         return value;

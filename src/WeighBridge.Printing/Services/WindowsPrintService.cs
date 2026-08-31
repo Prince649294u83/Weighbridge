@@ -1,24 +1,46 @@
-using System.Drawing;
 using System.Drawing.Printing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Configuration;
+using WeighBridge.Core.Printing;
 using WeighBridge.Core.Security;
+using WeighBridge.Printing.Outputs;
+using WeighBridge.Printing.Template;
 
 namespace WeighBridge.Printing.Services;
 
 /// <summary>
-/// A Windows-native print service that sends weighment slips to the configured printer using System.Drawing.Printing.
+/// Authoritative Windows print service implementing both GDI graphical printing and Win32 raw spooling
+/// using AST-parsed templates and calculation-free <see cref="WeighmentPrintData"/>.
 /// </summary>
-public sealed class WindowsPrintService(
-    IOptions<PrinterOptions> options,
-    IPermissionService permissions,
-    ILogger<WindowsPrintService> logger) : IPrintService
+public sealed class WindowsPrintService : IPrintService
 {
-    private readonly PrinterOptions _options = options.Value;
-    private readonly IPermissionService _permissions = permissions;
-    private readonly ILogger<WindowsPrintService> _logger = logger;
+    private readonly PrinterOptions _options;
+    private readonly CompanyOptions _companyOptions;
+    private readonly IPermissionService _permissions;
+    private readonly ITemplateEngine _templateEngine;
+    private readonly WindowsGdiPrintOutput _gdiOutput;
+    private readonly RawSpoolPrintOutput _rawSpoolOutput;
+    private readonly ILogger<WindowsPrintService> _logger;
+
+    public WindowsPrintService(
+        IOptions<PrinterOptions> options,
+        IOptions<CompanyOptions> companyOptions,
+        IPermissionService permissions,
+        ITemplateEngine templateEngine,
+        WindowsGdiPrintOutput gdiOutput,
+        RawSpoolPrintOutput rawSpoolOutput,
+        ILogger<WindowsPrintService> logger)
+    {
+        _options = options.Value;
+        _companyOptions = companyOptions.Value;
+        _permissions = permissions;
+        _templateEngine = templateEngine;
+        _gdiOutput = gdiOutput;
+        _rawSpoolOutput = rawSpoolOutput;
+        _logger = logger;
+    }
 
     /// <inheritdoc />
     public string Name => "Printer";
@@ -44,28 +66,27 @@ public sealed class WindowsPrintService(
             : _options.DefaultPrinterName);
     }
 
-    /// <inheritdoc />
-    public async Task<PrintResult> PrintAsync(
-        string documentKey,
-        IReadOnlyDictionary<string, object?> data,
-        string? printerName = null,
+    /// <summary>
+    /// Prints a weighment slip using canonical print data, resolving the template and printer profile.
+    /// </summary>
+    public async Task<PrintResult> PrintSlipAsync(
+        WeighmentPrintData data,
+        string? templateName = null,
+        PrinterProfile? profile = null,
         int copies = 1,
         CancellationToken cancellationToken = default)
     {
-        // Weighment.Reprint is declared and withheld from the ReadOnly role, and was enforced
-        // nowhere: the Duplicate Slip screen is on the navigation rail for every role, so any
-        // signed-in account could reissue any slip. Checked here rather than in that screen
-        // because this method is what puts paper in someone's hand, and because "duplicate" is
-        // already decided by this flag - the control and the DUPLICATE stamp below now read the
-        // same field and cannot disagree. A first print carries no flag and is unaffected.
-        if (IsDuplicate(data))
+        ArgumentNullException.ThrowIfNull(data);
+
+        // Security check for duplicate slip reprinting
+        if (data.IsDuplicate)
         {
             var authorization = _permissions.Authorize(Permissions.WeighmentReprint);
             if (!authorization.IsAuthorized)
             {
                 _logger.LogWarning(
-                    "Reprint of {DocumentKey} refused for {Operator} as {Role}: {Reason}",
-                    documentKey,
+                    "Reprint of slip {SlipNumber} refused for {Operator} as {Role}: {Reason}",
+                    data.SlipNumber,
                     _permissions.CurrentOperator.UserName,
                     _permissions.CurrentOperator.Role.Name,
                     authorization.Reason);
@@ -80,129 +101,123 @@ public sealed class WindowsPrintService(
             return PrintResult.Failure("Printing is disabled.");
         }
 
-        var targetPrinter = printerName ?? await GetDefaultPrinterAsync(cancellationToken);
+        var effectiveTemplateName = !string.IsNullOrWhiteSpace(templateName)
+            ? templateName
+            : _options.SlipTemplate;
+
+        var targetPrinter = profile?.PrinterName ?? await GetDefaultPrinterAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(targetPrinter))
         {
-            _logger.LogWarning("No printer specified and no default printer found.");
+            _logger.LogWarning("No target printer configured or available.");
             return PrintResult.Failure("No printer specified and no default printer could be found.");
         }
 
+        // Determine profile
+        var effectiveProfile = profile ?? ResolveDefaultProfile(effectiveTemplateName, targetPrinter);
+
         try
         {
-            _logger.LogInformation("Printing {DocumentKey} to {PrinterName} ({Copies} copies)", documentKey, targetPrinter, copies);
+            string templateContent = BuiltInTemplates.GetByName(effectiveTemplateName);
+            var document = _templateEngine.Parse(templateContent, strictValidation: false);
 
-            using var document = new PrintDocument();
-            document.PrinterSettings.PrinterName = targetPrinter;
-            document.PrinterSettings.Copies = (short)Math.Max(1, copies);
+            IPrintOutput outputDriver = effectiveProfile.OutputMode == PrinterOutputMode.RawSpool
+                ? _rawSpoolOutput
+                : _gdiOutput;
 
-            if (!document.PrinterSettings.IsValid)
-            {
-                return PrintResult.Failure($"Printer '{targetPrinter}' is not valid or accessible.");
-            }
+            string docTitle = $"Weighment Slip - {data.SlipNumber}";
+            int effectiveCopies = copies > 0 ? copies : Math.Max(1, _options.CopyCount);
 
-            document.PrintPage += (s, e) =>
-            {
-                if (e.Graphics is null) return;
-                DrawSlip(e.Graphics, e.MarginBounds, data);
-            };
+            _logger.LogInformation("Executing print job for {SlipNumber} on '{PrinterName}' via {OutputMode} ({Copies} copies)",
+                data.SlipNumber, effectiveProfile.PrinterName, effectiveProfile.OutputMode, effectiveCopies);
 
-            document.Print();
-
-            return PrintResult.Success($"Document sent to {targetPrinter}.");
+            return await outputDriver.OutputAsync(docTitle, document, data, effectiveProfile, effectiveCopies, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to print {DocumentKey} to {PrinterName}", documentKey, targetPrinter);
+            _logger.LogError(ex, "Failed to print weighment slip {SlipNumber} to '{PrinterName}'", data.SlipNumber, targetPrinter);
             return PrintResult.Failure($"Printing failed: {ex.Message}");
         }
     }
 
-    private static bool IsDuplicate(IReadOnlyDictionary<string, object?> data)
-        => data.TryGetValue("IsDuplicate", out var value) && value is bool flag && flag;
-
-    private void DrawSlip(Graphics g, Rectangle bounds, IReadOnlyDictionary<string, object?> data)
+    /// <inheritdoc />
+    public async Task<PrintResult> PrintAsync(
+        string documentKey,
+        IReadOnlyDictionary<string, object?> data,
+        string? printerName = null,
+        int copies = 1,
+        CancellationToken cancellationToken = default)
     {
-        // Simple slip template drawing. Every GDI object is disposed before the page ends:
-        // four leaked Font handles per slip used to drain the GDI handle pool on a
-        // terminal that prints for weeks without restarting.
-        using var titleFont = new Font("Arial", 16, FontStyle.Bold);
-        using var headerFont = new Font("Arial", 12, FontStyle.Bold);
-        using var normalFont = new Font("Arial", 10, FontStyle.Regular);
-        using var labelFont = new Font("Arial", 10, FontStyle.Bold);
+        bool isDuplicate = data.TryGetValue("IsDuplicate", out var val) && val is bool b && b;
 
-        using var brush = new SolidBrush(Color.Black);
-        using var pen = new Pen(Color.Black, 1);
+        var printData = new WeighmentPrintData(
+            WeighmentId: 0,
+            SlipNumber: GetString(data, "SlipNumber"),
+            VehicleNumber: GetString(data, "VehicleNumber"),
+            VehicleTypeName: GetString(data, "VehicleTypeName"),
+            PartyName: GetString(data, "PartyName"),
+            MaterialName: GetString(data, "MaterialName"),
+            DriverName: GetString(data, "DriverName"),
+            TransporterName: GetString(data, "TransporterName"),
+            GatePassNumber: GetString(data, "GatePassNumber"),
+            CustomField1: GetString(data, "CustomField1"),
+            CustomField2: GetString(data, "CustomField2"),
+            CustomField3: GetString(data, "CustomField3"),
+            CustomField4: GetString(data, "CustomField4"),
+            GrossWeightKg: GetDecimal(data, "GrossWeightKg"),
+            GrossCapturedAtLocal: null,
+            TareWeightKg: GetDecimal(data, "TareWeightKg"),
+            TareCapturedAtLocal: null,
+            NetWeightKg: GetDecimal(data, "NetWeightKg"),
+            NumberOfBags: null,
+            BagWeightKg: null,
+            TotalBagWeightKg: null,
+            ActualWeightKg: null,
+            FirstCharges: 0m,
+            SecondCharges: 0m,
+            TotalCharges: GetDecimal(data, "Charges"),
+            OpenedAtLocal: DateTime.Now,
+            CompletedAtLocal: DateTime.Now,
+            OperatorUsername: _permissions.CurrentOperator.UserName,
+            OperatorDisplayName: _permissions.CurrentOperator.DisplayName,
+            Remarks: GetString(data, "Remarks"),
+            IsDuplicate: isDuplicate,
+            DuplicateWatermarkText: isDuplicate ? "WEIGHMENT SLIP (DUPLICATE)" : null,
+            CompanyName: _companyOptions.CompanyName,
+            AddressLine1: _companyOptions.AddressLine1,
+            AddressLine2: _companyOptions.AddressLine2
+        );
 
-        float y = bounds.Top + 10;
-        float left = bounds.Left + 10;
-        float right = bounds.Right - 10;
-        float middle = left + (right - left) / 2;
+        string targetPrinter = printerName ?? await GetDefaultPrinterAsync(cancellationToken) ?? string.Empty;
+        var profile = PrinterProfile.DefaultGdi(targetPrinter);
 
-        // Title
-        string title = IsDuplicate(data) ? "WEIGHMENT SLIP (DUPLICATE)" : "WEIGHMENT SLIP";
-        var titleSize = g.MeasureString(title, titleFont);
-        g.DrawString(title, titleFont, brush, left + (bounds.Width - titleSize.Width) / 2, y);
-        y += 40;
-
-        g.DrawLine(pen, left, y, right, y);
-        y += 10;
-
-        // Header info
-        DrawField(g, left, ref y, "Slip No:", GetString(data, "SlipNumber"), labelFont, normalFont, brush);
-        DrawField(g, middle, ref y, "Vehicle No:", GetString(data, "VehicleNumber"), labelFont, normalFont, brush, resetY: true);
-        
-        DrawField(g, left, ref y, "Date/Time In:", GetString(data, "TimeIn"), labelFont, normalFont, brush);
-        DrawField(g, middle, ref y, "Date/Time Out:", GetString(data, "TimeOut"), labelFont, normalFont, brush, resetY: true);
-
-        DrawField(g, left, ref y, "Party:", GetString(data, "PartyName"), labelFont, normalFont, brush);
-        DrawField(g, middle, ref y, "Material:", GetString(data, "MaterialName"), labelFont, normalFont, brush, resetY: true);
-
-        DrawField(g, left, ref y, "Driver:", GetString(data, "DriverName"), labelFont, normalFont, brush);
-        DrawField(g, middle, ref y, "Transporter:", GetString(data, "TransporterName"), labelFont, normalFont, brush, resetY: true);
-
-        y += 10;
-        g.DrawLine(pen, left, y, right, y);
-        y += 10;
-
-        // Weights
-        DrawField(g, left, ref y, "Gross Weight:", GetString(data, "GrossWeightKg") + " kg", labelFont, normalFont, brush);
-        DrawField(g, middle, ref y, "Gross Time:", GetString(data, "GrossTime"), labelFont, normalFont, brush, resetY: true);
-
-        DrawField(g, left, ref y, "Tare Weight:", GetString(data, "TareWeightKg") + " kg", labelFont, normalFont, brush);
-        DrawField(g, middle, ref y, "Tare Time:", GetString(data, "TareTime"), labelFont, normalFont, brush, resetY: true);
-
-        y += 10;
-        DrawField(g, left, ref y, "Net Weight:", GetString(data, "NetWeightKg") + " kg", headerFont, headerFont, brush);
-
-        y += 20;
-        g.DrawLine(pen, left, y, right, y);
-        y += 10;
-
-        // Footer
-        DrawField(g, left, ref y, "Remarks:", GetString(data, "Remarks"), labelFont, normalFont, brush);
-        
-        y += 60;
-        g.DrawString("Operator Signature", normalFont, brush, left, y);
-        g.DrawString("Driver Signature", normalFont, brush, right - 120, y);
+        return await PrintSlipAsync(printData, documentKey, profile, copies, cancellationToken);
     }
 
-    private void DrawField(Graphics g, float x, ref float y, string label, string value, Font labelFont, Font valueFont, Brush brush, bool resetY = false)
+    private static PrinterProfile ResolveDefaultProfile(string templateName, string printerName)
     {
-        g.DrawString(label, labelFont, brush, x, y);
-        g.DrawString(value, valueFont, brush, x + 100, y);
-        if (!resetY)
+        if (string.Equals(templateName, "thermal", StringComparison.OrdinalIgnoreCase))
         {
-            y += 25;
+            return PrinterProfile.Thermal80mm(printerName);
         }
+        if (string.Equals(templateName, "dot", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(templateName, "dotmatrix", StringComparison.OrdinalIgnoreCase))
+        {
+            return PrinterProfile.DotMatrix(printerName);
+        }
+        return PrinterProfile.DefaultGdi(printerName);
     }
 
-    private string GetString(IReadOnlyDictionary<string, object?> data, string key)
+    private static string GetString(IReadOnlyDictionary<string, object?> data, string key)
+        => data.TryGetValue(key, out var v) && v != null ? v.ToString() ?? "-" : "-";
+
+    private static decimal GetDecimal(IReadOnlyDictionary<string, object?> data, string key)
     {
-        if (data.TryGetValue(key, out var value) && value != null)
+        if (data.TryGetValue(key, out var v) && v != null)
         {
-            return value.ToString() ?? "-";
+            if (v is decimal d) return d;
+            if (decimal.TryParse(v.ToString(), out var parsed)) return parsed;
         }
-        return "-";
+        return 0m;
     }
 
     /// <inheritdoc />

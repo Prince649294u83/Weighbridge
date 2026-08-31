@@ -1,0 +1,38 @@
+<Start>
+<Name><Nameset>
+
+<Address1><Nameset>
+
+<Address2><Nameset>
+
+     Slip No.     : <ticket>          Vehicle No.   : <vehicle>
+     Consignee    : <party>GR / GI No.   : <vtype> 
+     Food Grain   : <item>
+     Consigner    : <field1>
+
+     Gross Weight :[<gweight> Kg.]   Date <gdate>   Time <gtime>
+
+     Tare Weight  :[<tweight> Kg.]   Date <tdate>   Time <ttime>  
+  
+     Net Weight   :[<nweight> Kg.]   
+
+    --------------------------------- 
+      
+     Material Wt. :[<field4> Kg.]
+                   
+    ---------------------------------  
+                                                Operator Sign.
+     No.of Bags      : <field2> 
+     Empty Bag Wt.   : <field3> g.
+     Total bag weight: <totalbagweight> Kg.
+
+
+
+
+
+
+
+
+
+
+<->
