@@ -436,6 +436,84 @@ namespace WeighBridge.Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("WeighBridge.Domain.Weighments.TicketReservation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConsumedBy")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ConsumedByWeighmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SlipNumber")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TentativeVehicleNumber")
+                        .HasMaxLength(24)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TerminalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumedByWeighmentId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TicketReservations_ConsumedByWeighmentId")
+                        .HasFilter("[ConsumedByWeighmentId] IS NOT NULL");
+
+                    b.HasIndex("CreatedAtUtc")
+                        .HasDatabaseName("IX_TicketReservations_CreatedAtUtc");
+
+                    b.HasIndex("SlipNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TicketReservations_SlipNumber")
+                        .HasFilter("[SlipNumber] <> ''");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_TicketReservations_Status");
+
+                    b.ToTable("TicketReservations", (string)null);
+                });
+
             modelBuilder.Entity("WeighBridge.Domain.Weighments.Weighment", b =>
                 {
                     b.Property<long>("Id")
@@ -538,6 +616,9 @@ namespace WeighBridge.Infrastructure.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("ReservationId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("SecondCharges")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -582,6 +663,11 @@ namespace WeighBridge.Infrastructure.Migrations
                     b.HasIndex("MaterialId");
 
                     b.HasIndex("PartyId");
+
+                    b.HasIndex("ReservationId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Weighments_ReservationId")
+                        .HasFilter("[ReservationId] IS NOT NULL");
 
                     b.HasIndex("SlipNumber")
                         .IsUnique()
@@ -738,6 +824,14 @@ namespace WeighBridge.Infrastructure.Migrations
                     b.Navigation("VehicleType");
                 });
 
+            modelBuilder.Entity("WeighBridge.Domain.Weighments.TicketReservation", b =>
+                {
+                    b.HasOne("WeighBridge.Domain.Weighments.Weighment", null)
+                        .WithMany()
+                        .HasForeignKey("ConsumedByWeighmentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
             modelBuilder.Entity("WeighBridge.Domain.Weighments.Weighment", b =>
                 {
                     b.HasOne("WeighBridge.Domain.Masters.Material", null)
@@ -748,6 +842,11 @@ namespace WeighBridge.Infrastructure.Migrations
                     b.HasOne("WeighBridge.Domain.Masters.Party", null)
                         .WithMany()
                         .HasForeignKey("PartyId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("WeighBridge.Domain.Weighments.TicketReservation", null)
+                        .WithMany()
+                        .HasForeignKey("ReservationId")
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("WeighBridge.Domain.Masters.Vehicle", null)

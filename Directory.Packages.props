@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <!--
     Central Package Management.
     Package versions are declared once here; projects reference packages without a
@@ -34,11 +34,15 @@
   <ItemGroup Label="Hardware">
     <PackageVersion Include="System.IO.Ports" Version="8.0.0" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <PackageVersion Include="System.Data.Odbc" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+    <PackageVersion Include="System.Drawing.Common" Version="8.0.10" />
+    <PackageVersion Include="FlaUI.Core" Version="5.0.0" />
+    <PackageVersion Include="FlaUI.UIA3" Version="5.0.0" />
   </ItemGroup>
 </Project>

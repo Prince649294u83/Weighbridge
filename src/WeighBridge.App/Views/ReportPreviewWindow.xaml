@@ -1,0 +1,127 @@
+<Window x:Class="WeighBridge.App.Views.ReportPreviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
+        Title="Report Preview"
+        Width="1050"
+        Height="700"
+        MinWidth="800"
+        MinHeight="500"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Surface.Default}"
+        Foreground="{DynamicResource Brush.Text.Primary}"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=viewModels:ReportPreviewViewModel}">
+
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!--  Header  -->
+    <Grid Grid.Row="0" Margin="0,0,0,12">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <StackPanel Grid.Column="0">
+        <TextBlock Style="{StaticResource Text.H2}" Text="Report Preview" />
+        <TextBlock Style="{StaticResource Text.Caption}"
+                   Foreground="{DynamicResource Brush.Text.Muted}"
+                   Text="{Binding Description}" />
+      </StackPanel>
+    </Grid>
+
+    <!--  Monospace Preview Area (Screenshot 3 Parity)  -->
+    <Border Grid.Row="1"
+            Background="{DynamicResource Brush.Paper.Background}"
+            BorderBrush="{DynamicResource Brush.Border.Default}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource Radius.MD}"
+            Padding="16">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <TextBox FontFamily="Consolas, Courier New, monospace"
+                 FontSize="13"
+                 Foreground="{DynamicResource Brush.Paper.Text}"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 IsReadOnly="True"
+                 TextWrapping="NoWrap"
+                 Text="{Binding FormattedPreviewText, Mode=OneWay}" />
+      </ScrollViewer>
+    </Border>
+
+    <!--  Bottom Actions Bar (Screenshot 3 Parity: Print, Email, Excel, PDF, Close)  -->
+    <Border Grid.Row="2"
+            Margin="0,12,0,0"
+            Padding="12,8"
+            Background="{DynamicResource Brush.Surface.Sunken}"
+            CornerRadius="{StaticResource Radius.MD}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button AutomationProperties.Name="Print Report"
+                  Command="{Binding PrintCommand}"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Primary}"
+                  ToolTip="Print report to default printer">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Print}" Margin="0,0,6,0" FontSize="14" />
+              <TextBlock Text="Print" />
+            </StackPanel>
+          </Button>
+
+          <Button AutomationProperties.Name="Email Report"
+                  Command="{Binding EmailCommand}"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Secondary}"
+                  ToolTip="Email report document">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Email}" Margin="0,0,6,0" FontSize="14" />
+              <TextBlock Text="Email" />
+            </StackPanel>
+          </Button>
+
+          <Button AutomationProperties.Name="Export Excel"
+                  Command="{Binding ExportExcelCommand}"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Secondary}"
+                  ToolTip="Export as Excel (.xlsx)">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Export}" Margin="0,0,6,0" FontSize="14" />
+              <TextBlock Text="Export as Excel" />
+            </StackPanel>
+          </Button>
+
+          <Button AutomationProperties.Name="Export PDF"
+                  Command="{Binding ExportPdfCommand}"
+                  Margin="0,0,8,0"
+                  Style="{StaticResource Button.Secondary}"
+                  ToolTip="Export as PDF (.pdf)">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Document}" Margin="0,0,6,0" FontSize="14" />
+              <TextBlock Text="Export as PDF" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <Button Grid.Column="1"
+                AutomationProperties.Name="Close Preview"
+                Command="{Binding CloseCommand}"
+                Style="{StaticResource Button.Secondary}"
+                ToolTip="Close report preview window">
+          <TextBlock Text="Close" />
+        </Button>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Printing;
+using WeighBridge.Core.Reporting;
 using WeighBridge.Core.Security;
 using WeighBridge.Printing.Outputs;
 using WeighBridge.Printing.Template;
@@ -18,11 +19,15 @@ public sealed class WindowsPrintService : IPrintService
 {
     private readonly PrinterOptions _options;
     private readonly CompanyOptions _companyOptions;
+    private readonly IOptionsMonitor<PrinterOptions>? _optionsMonitor;
+    private readonly IOptionsMonitor<CompanyOptions>? _companyOptionsMonitor;
+    private readonly IDateTimeFormatter? _dateTimeFormatter;
     private readonly IPermissionService _permissions;
     private readonly ITemplateEngine _templateEngine;
     private readonly WindowsGdiPrintOutput _gdiOutput;
     private readonly RawSpoolPrintOutput _rawSpoolOutput;
     private readonly ILogger<WindowsPrintService> _logger;
+    private int _reportPrintInProgress;
 
     public WindowsPrintService(
         IOptions<PrinterOptions> options,
@@ -31,7 +36,10 @@ public sealed class WindowsPrintService : IPrintService
         ITemplateEngine templateEngine,
         WindowsGdiPrintOutput gdiOutput,
         RawSpoolPrintOutput rawSpoolOutput,
-        ILogger<WindowsPrintService> logger)
+        ILogger<WindowsPrintService> logger,
+        IOptionsMonitor<PrinterOptions>? optionsMonitor = null,
+        IOptionsMonitor<CompanyOptions>? companyOptionsMonitor = null,
+        IDateTimeFormatter? dateTimeFormatter = null)
     {
         _options = options.Value;
         _companyOptions = companyOptions.Value;
@@ -40,6 +48,9 @@ public sealed class WindowsPrintService : IPrintService
         _gdiOutput = gdiOutput;
         _rawSpoolOutput = rawSpoolOutput;
         _logger = logger;
+        _optionsMonitor = optionsMonitor;
+        _companyOptionsMonitor = companyOptionsMonitor;
+        _dateTimeFormatter = dateTimeFormatter;
     }
 
     /// <inheritdoc />
@@ -53,7 +64,8 @@ public sealed class WindowsPrintService : IPrintService
         {
             printers.Add(printer);
         }
-        return Task.FromResult<IReadOnlyList<string>>(printers);
+        return Task.FromResult<IReadOnlyList<string>>(
+            printers.OrderBy(printer => printer, StringComparer.CurrentCultureIgnoreCase).ToList());
     }
 
     /// <inheritdoc />
@@ -61,9 +73,10 @@ public sealed class WindowsPrintService : IPrintService
     {
         var settings = new PrinterSettings();
         var defaultPrinter = settings.IsDefaultPrinter ? settings.PrinterName : null;
-        return Task.FromResult(string.IsNullOrWhiteSpace(_options.DefaultPrinterName)
+        var options = CurrentPrinterOptions;
+        return Task.FromResult(string.IsNullOrWhiteSpace(options.DefaultPrinterName)
             ? defaultPrinter
-            : _options.DefaultPrinterName);
+            : options.DefaultPrinterName);
     }
 
     /// <summary>
@@ -95,7 +108,8 @@ public sealed class WindowsPrintService : IPrintService
             }
         }
 
-        if (!_options.Enabled)
+        var options = CurrentPrinterOptions;
+        if (!options.Enabled)
         {
             _logger.LogWarning("Printing is disabled in configuration.");
             return PrintResult.Failure("Printing is disabled.");
@@ -103,13 +117,18 @@ public sealed class WindowsPrintService : IPrintService
 
         var effectiveTemplateName = !string.IsNullOrWhiteSpace(templateName)
             ? templateName
-            : _options.SlipTemplate;
+            : options.SlipTemplate;
 
         var targetPrinter = profile?.PrinterName ?? await GetDefaultPrinterAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(targetPrinter))
         {
             _logger.LogWarning("No target printer configured or available.");
             return PrintResult.Failure("No printer specified and no default printer could be found.");
+        }
+
+        if (!IsInstalledPrinter(targetPrinter))
+        {
+            return PrintResult.Failure($"Printer '{targetPrinter}' is not installed.");
         }
 
         // Determine profile
@@ -125,7 +144,7 @@ public sealed class WindowsPrintService : IPrintService
                 : _gdiOutput;
 
             string docTitle = $"Weighment Slip - {data.SlipNumber}";
-            int effectiveCopies = copies > 0 ? copies : Math.Max(1, _options.CopyCount);
+            int effectiveCopies = copies > 0 ? copies : Math.Max(1, options.CopyCount);
 
             _logger.LogInformation("Executing print job for {SlipNumber} on '{PrinterName}' via {OutputMode} ({Copies} copies)",
                 data.SlipNumber, effectiveProfile.PrinterName, effectiveProfile.OutputMode, effectiveCopies);
@@ -147,6 +166,13 @@ public sealed class WindowsPrintService : IPrintService
         int copies = 1,
         CancellationToken cancellationToken = default)
     {
+        if (string.Equals(documentKey, "ReportDocument", StringComparison.OrdinalIgnoreCase))
+        {
+            return data.TryGetValue("ReportDocument", out var document) && document is ReportDocument report
+                ? await PrintReportAsync(report, printerName, copies, cancellationToken)
+                : PrintResult.Failure("Report printing requires a canonical ReportDocument.");
+        }
+
         bool isDuplicate = data.TryGetValue("IsDuplicate", out var val) && val is bool b && b;
 
         var printData = new WeighmentPrintData(
@@ -182,15 +208,81 @@ public sealed class WindowsPrintService : IPrintService
             Remarks: GetString(data, "Remarks"),
             IsDuplicate: isDuplicate,
             DuplicateWatermarkText: isDuplicate ? "WEIGHMENT SLIP (DUPLICATE)" : null,
-            CompanyName: _companyOptions.CompanyName,
-            AddressLine1: _companyOptions.AddressLine1,
-            AddressLine2: _companyOptions.AddressLine2
+            CompanyName: CurrentCompanyOptions.CompanyName,
+            AddressLine1: CurrentCompanyOptions.AddressLine1,
+            AddressLine2: CurrentCompanyOptions.AddressLine2
         );
 
         string targetPrinter = printerName ?? await GetDefaultPrinterAsync(cancellationToken) ?? string.Empty;
         var profile = PrinterProfile.DefaultGdi(targetPrinter);
 
         return await PrintSlipAsync(printData, documentKey, profile, copies, cancellationToken);
+    }
+
+    private async Task<PrintResult> PrintReportAsync(
+        ReportDocument document,
+        string? printerName,
+        int copies,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (Interlocked.Exchange(ref _reportPrintInProgress, 1) == 1)
+        {
+            return PrintResult.Failure("A report print job is already being submitted. Please wait for it to finish.");
+        }
+
+        try
+        {
+            var options = CurrentPrinterOptions;
+            if (!options.Enabled)
+            {
+                _logger.LogWarning("Report printing refused because printing is disabled in configuration.");
+                return PrintResult.Failure("Printing is disabled.");
+            }
+
+            var targetPrinter = !string.IsNullOrWhiteSpace(printerName)
+                ? printerName
+                : await GetDefaultPrinterAsync(cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(targetPrinter))
+            {
+                _logger.LogWarning("Report printing refused because no target printer is configured or available.");
+                return PrintResult.Failure("No printer specified and no default printer could be found.");
+            }
+
+            if (!IsInstalledPrinter(targetPrinter))
+            {
+                return PrintResult.Failure($"Printer '{targetPrinter}' is not installed.");
+            }
+
+            var profile = ResolveReportProfile(targetPrinter);
+            int effectiveCopies = copies > 0 ? copies : Math.Max(1, options.CopyCount);
+            string renderedText = ReportPrintTextRenderer.Render(document, options.PaperSize, options.SideWisePrinting, _dateTimeFormatter);
+            string title = $"{document.Title} - {document.StartDateLocal:yyyyMMdd}-{document.EndDateLocal:yyyyMMdd}";
+
+            _logger.LogInformation(
+                "Submitting report print job '{Title}' to '{PrinterName}' via {OutputMode} ({Copies} copies, PaperSize={PaperSize}, SideWise={SideWise})",
+                title,
+                profile.PrinterName,
+                profile.OutputMode,
+                effectiveCopies,
+                options.PaperSize,
+                options.SideWisePrinting);
+
+            return profile.OutputMode == PrinterOutputMode.RawSpool
+                ? await _rawSpoolOutput.OutputTextAsync(title, renderedText, profile, effectiveCopies, cancellationToken)
+                : await _gdiOutput.OutputTextAsync(title, renderedText, profile, effectiveCopies, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to print canonical report document.");
+            return PrintResult.Failure($"Report printing failed: {ex.Message}");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _reportPrintInProgress, 0);
+        }
     }
 
     private static PrinterProfile ResolveDefaultProfile(string templateName, string printerName)
@@ -204,6 +296,23 @@ public sealed class WindowsPrintService : IPrintService
         {
             return PrinterProfile.DotMatrix(printerName);
         }
+        return PrinterProfile.DefaultGdi(printerName);
+    }
+
+    private PrinterProfile ResolveReportProfile(string printerName)
+    {
+        var options = CurrentPrinterOptions;
+        if (options.PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase))
+        {
+            return PrinterProfile.DotMatrix(printerName);
+        }
+
+        if (options.PrinterType.Contains("Label", StringComparison.OrdinalIgnoreCase) ||
+            options.PrinterType.Contains("Sticker", StringComparison.OrdinalIgnoreCase))
+        {
+            return PrinterProfile.Thermal80mm(printerName);
+        }
+
         return PrinterProfile.DefaultGdi(printerName);
     }
 
@@ -223,7 +332,8 @@ public sealed class WindowsPrintService : IPrintService
     /// <inheritdoc />
     public Task<HealthResult> CheckAsync(CancellationToken cancellationToken = default)
     {
-        if (!_options.Enabled)
+        var options = CurrentPrinterOptions;
+        if (!options.Enabled)
         {
             return Task.FromResult(HealthResult.Disabled("Printing disabled in configuration"));
         }
@@ -231,7 +341,7 @@ public sealed class WindowsPrintService : IPrintService
         try
         {
             var settings = new PrinterSettings();
-            if (string.IsNullOrWhiteSpace(_options.DefaultPrinterName) && !settings.IsDefaultPrinter)
+            if (string.IsNullOrWhiteSpace(options.DefaultPrinterName) && !settings.IsDefaultPrinter)
             {
                 return Task.FromResult(HealthResult.Unreachable("No default printer configured or available."));
             }
@@ -243,4 +353,11 @@ public sealed class WindowsPrintService : IPrintService
             return Task.FromResult(HealthResult.Unreachable($"Printer check failed: {ex.Message}"));
         }
     }
+
+    private PrinterOptions CurrentPrinterOptions => _optionsMonitor?.CurrentValue ?? _options;
+
+    private CompanyOptions CurrentCompanyOptions => _companyOptionsMonitor?.CurrentValue ?? _companyOptions;
+
+    private static bool IsInstalledPrinter(string printerName)
+        => PrinterSettings.InstalledPrinters.Cast<string>().Contains(printerName, StringComparer.OrdinalIgnoreCase);
 }

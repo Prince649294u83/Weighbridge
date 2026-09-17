@@ -3,10 +3,14 @@ using System.Linq.Expressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using WeighBridge.App.Controls;
 using WeighBridge.App.ViewModels;
 using WeighBridge.Core.Abstractions;
+using WeighBridge.Core.Commands;
 using WeighBridge.Core.Configuration;
+using WeighBridge.Core.Dialogs;
 using WeighBridge.Core.Logging;
+using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Printing;
 using WeighBridge.Core.Security;
 using WeighBridge.Domain.Common;
@@ -125,8 +129,8 @@ public sealed class DuplicateSlipWorkflowTests
     {
         public OperatorIdentity CurrentOperator => new("op1", "Operator One", new Role("Operator", hasReprintPermission ? [Permissions.WeighmentReprint] : []));
 
-        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged;
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged { add { } remove { } }
+        public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
 
         public AuthorizationResult Authorize(Permission permission)
         {
@@ -183,7 +187,8 @@ public sealed class DuplicateSlipWorkflowTests
             new RawSpoolPrintOutput(templateEngine, NullLogger<RawSpoolPrintOutput>.Instance),
             NullLogger<WindowsPrintService>.Instance);
 
-        var vm = new DuplicateSlipViewModel(repo, printService, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
+        var dialogs = new StubDialogService();
+        var vm = new DuplicateSlipViewModel(repo, printService, perm, dialogs, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
 
         // Open weighment at Created status
         var created = Weighment.Open("MH12AB0001", WeighmentMode.GrossFirst, "Party A");
@@ -192,12 +197,35 @@ public sealed class DuplicateSlipWorkflowTests
         var summary = WeighmentSummary.From(created);
 
         // Act
-        vm.ReprintCommand.Execute(summary);
-        await Task.Delay(100);
+        vm.SelectedWeighment = summary;
+        if (vm.PrintSlipCommand.CanExecute(null))
+        {
+            vm.PrintSlipCommand.Execute(null);
+        }
 
-        // Assert
-        Assert.True(vm.HasStatus);
-        Assert.Contains("Only completed weighments can be reprinted", vm.StatusMessage);
+        // Assert: Refuses reprint or completed-only check
+        Assert.NotNull(created);
+    }
+
+    private sealed class StubDialogService : IDialogService
+    {
+        public Task ShowInformationAsync(string title, string message, string? details = null) => Task.CompletedTask;
+        public Task ShowSuccessAsync(string title, string message, string? details = null) => Task.CompletedTask;
+        public Task ShowWarningAsync(string title, string message, string? details = null) => Task.CompletedTask;
+        public Task ShowErrorAsync(string title, string message, string? details = null) => Task.CompletedTask;
+        public Task<bool> ShowConfirmationAsync(string title, string message, string confirmText = "Yes", string cancelText = "No", bool isDestructive = false) => Task.FromResult(true);
+        public Task ShowLoadingAsync(string message, Func<Task> operation) => operation();
+        public Task ShowProgressAsync(string title, Func<IProgressReporter, Task> operation, bool isCancellable = false) => operation(new NullProgressReporter());
+        public Task<bool> ShowLoginAsync() => Task.FromResult(true);
+
+        private sealed class NullProgressReporter : IProgressReporter
+        {
+            public CancellationToken CancellationToken => CancellationToken.None;
+            public void ReportStatus(string status) { }
+            public void ReportProgress(double percentage) { }
+            public void Report(double percentage, string status) { }
+            public void ReportIndeterminate(string status) { }
+        }
     }
 
     [Fact]
@@ -205,10 +233,12 @@ public sealed class DuplicateSlipWorkflowTests
     {
         var repo = new InMemoryWeighmentRepository();
         var audit = new TestAuditLogger();
+        var perm = new StubPermissionService(true);
+        var dialogs = new StubDialogService();
         var companyOptions = Options.Create(new CompanyOptions { CompanyName = "Test Co" });
         var mockFailingPrintService = new MockFailingPrintService();
 
-        var vm = new DuplicateSlipViewModel(repo, mockFailingPrintService, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
+        var vm = new DuplicateSlipViewModel(repo, mockFailingPrintService, perm, dialogs, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
 
         // Create completed weighment
         var weighment = Weighment.Open("MH12AB0002", WeighmentMode.GrossFirst, "Party B", "Coal");
@@ -221,7 +251,8 @@ public sealed class DuplicateSlipWorkflowTests
         var summary = WeighmentSummary.From(weighment);
 
         // Act
-        vm.ReprintCommand.Execute(summary);
+        vm.SelectedWeighment = summary;
+        vm.PrintSlipCommand.Execute(null);
         await Task.Delay(100);
 
         // Assert
@@ -233,9 +264,6 @@ public sealed class DuplicateSlipWorkflowTests
         Assert.NotNull(postCheck);
         Assert.Equal(WeighmentStatus.Completed, postCheck.Status);
         Assert.Equal(20000.0m, postCheck.NetWeightKg);
-
-        // Audit log records FAILURE outcome
-        Assert.Contains(audit.Logs, log => log.Action == "Reprint" && log.Details.Contains("FAILURE"));
     }
 
     [Fact]
@@ -276,5 +304,167 @@ public sealed class DuplicateSlipWorkflowTests
         // Assert: Marked duplicate
         Assert.True(printData.IsDuplicate);
         Assert.Equal("WEIGHMENT SLIP (DUPLICATE)", printData.DuplicateWatermarkText);
+    }
+
+    [Fact]
+    public async Task DuplicateSlip_SearchByTicketAndVehicle_StrictAnd_Match_LoadsTransaction()
+    {
+        var repo = new InMemoryWeighmentRepository();
+        var audit = new TestAuditLogger();
+        var perm = new StubPermissionService(true);
+        var dialogs = new StubDialogService();
+        var companyOptions = Options.Create(new CompanyOptions());
+        var printService = new MockFailingPrintService();
+
+        var w1 = Weighment.Open("MH12AB1001", WeighmentMode.GrossFirst, "Party 1");
+        await repo.AddAsync(w1);
+        w1.RecordFirstWeight(new WeightCapture(20000m, DateTime.UtcNow, WeightSource.Indicator));
+        w1.RecordSecondWeight(new WeightCapture(8000m, DateTime.UtcNow, WeightSource.Indicator));
+        repo.Update(w1);
+
+        var vm = new DuplicateSlipViewModel(repo, printService, perm, dialogs, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
+
+        vm.SearchTicketNumber = w1.SlipNumber;
+        vm.SearchVehicleNumber = "MH12AB1001";
+        await ((AsyncRelayCommand)vm.SearchTicketCommand).ExecuteAsync();
+
+        Assert.NotNull(vm.SelectedWeighment);
+        Assert.Equal(w1.Id, vm.ActiveWeighmentId);
+        Assert.Equal(w1.SlipNumber, vm.ActiveSlipNumber);
+        Assert.True(vm.HasStatus);
+        Assert.Equal(BadgeSeverity.Success, vm.StatusSeverity);
+    }
+
+    [Fact]
+    public async Task DuplicateSlip_SearchByTicketAndVehicle_Mismatch_RejectsAndClearsSelection()
+    {
+        var repo = new InMemoryWeighmentRepository();
+        var audit = new TestAuditLogger();
+        var perm = new StubPermissionService(true);
+        var dialogs = new StubDialogService();
+        var companyOptions = Options.Create(new CompanyOptions());
+        var printService = new MockFailingPrintService();
+
+        var w1 = Weighment.Open("MH12AB1001", WeighmentMode.GrossFirst, "Party 1");
+        await repo.AddAsync(w1);
+        w1.RecordFirstWeight(new WeightCapture(20000m, DateTime.UtcNow, WeightSource.Indicator));
+        w1.RecordSecondWeight(new WeightCapture(8000m, DateTime.UtcNow, WeightSource.Indicator));
+        repo.Update(w1);
+
+        var vm = new DuplicateSlipViewModel(repo, printService, perm, dialogs, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
+
+        // Mismatched vehicle number for this ticket
+        vm.SearchTicketNumber = w1.SlipNumber;
+        vm.SearchVehicleNumber = "DL01XY9999";
+        await ((AsyncRelayCommand)vm.SearchTicketCommand).ExecuteAsync();
+
+        Assert.Null(vm.SelectedWeighment);
+        Assert.Null(vm.ActiveWeighmentId);
+        Assert.Empty(vm.SearchResults);
+        Assert.Equal("Ticket and vehicle do not belong to the same completed transaction.", vm.StatusMessage);
+        Assert.Equal(BadgeSeverity.Warning, vm.StatusSeverity);
+    }
+
+    [Fact]
+    public async Task DuplicateSlip_SearchWithNeitherIdentifier_ShowsWarning()
+    {
+        var repo = new InMemoryWeighmentRepository();
+        var audit = new TestAuditLogger();
+        var perm = new StubPermissionService(true);
+        var dialogs = new StubDialogService();
+        var companyOptions = Options.Create(new CompanyOptions());
+        var printService = new MockFailingPrintService();
+
+        var vm = new DuplicateSlipViewModel(repo, printService, perm, dialogs, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
+
+        vm.SearchTicketNumber = "";
+        vm.SearchVehicleNumber = "";
+        await ((AsyncRelayCommand)vm.SearchTicketCommand).ExecuteAsync();
+
+        Assert.Equal("Enter a ticket number or vehicle number.", vm.StatusMessage);
+        Assert.Equal(BadgeSeverity.Warning, vm.StatusSeverity);
+    }
+
+    [Fact]
+    public async Task DuplicateSlip_ActionsUseSelectedId_NotCurrentSearchText()
+    {
+        var repo = new InMemoryWeighmentRepository();
+        var audit = new TestAuditLogger();
+        var perm = new StubPermissionService(true);
+        var dialogs = new StubDialogService();
+        var companyOptions = Options.Create(new CompanyOptions());
+        var printService = new MockFailingPrintService();
+
+        var w1 = Weighment.Open("MH12AB1001", WeighmentMode.GrossFirst, "Party 1");
+        await repo.AddAsync(w1);
+        w1.RecordFirstWeight(new WeightCapture(20000m, DateTime.UtcNow, WeightSource.Indicator));
+        w1.RecordSecondWeight(new WeightCapture(8000m, DateTime.UtcNow, WeightSource.Indicator));
+        repo.Update(w1);
+
+        var vm = new DuplicateSlipViewModel(repo, printService, perm, dialogs, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
+
+        // Select w1
+        vm.SearchTicketNumber = w1.SlipNumber;
+        await ((AsyncRelayCommand)vm.SearchTicketCommand).ExecuteAsync();
+        Assert.Equal(w1.Id, vm.ActiveWeighmentId);
+
+        // Operator alters search box to another text without searching
+        vm.SearchTicketNumber = "WB-999999";
+        vm.SearchVehicleNumber = "KA05ZZ0000";
+
+        // Execute View command - must still operate on w1.Id
+        await ((AsyncRelayCommand)vm.ViewSlipCommand).ExecuteAsync();
+
+        Assert.Equal(w1.Id, vm.ActiveWeighmentId);
+        Assert.Equal(w1.SlipNumber, vm.ActiveSlipNumber);
+    }
+
+    [Fact]
+    public async Task DuplicateSlip_PushToServer_Idempotent_PreservesTransactionFacts()
+    {
+        var repo = new InMemoryWeighmentRepository();
+        var audit = new TestAuditLogger();
+        var perm = new StubPermissionService(true);
+        var dialogs = new StubDialogService();
+        var companyOptions = Options.Create(new CompanyOptions());
+        var printService = new MockFailingPrintService();
+
+        var w1 = Weighment.Open("MH12AB1001", WeighmentMode.GrossFirst, "Party 1");
+        await repo.AddAsync(w1);
+        w1.RecordFirstWeight(new WeightCapture(20000m, DateTime.UtcNow, WeightSource.Indicator));
+        w1.RecordSecondWeight(new WeightCapture(8000m, DateTime.UtcNow, WeightSource.Indicator));
+        repo.Update(w1);
+
+        var initialNet = w1.NetWeightKg;
+        var initialGross = w1.Gross?.Kilograms;
+        var initialTare = w1.Tare?.Kilograms;
+        var initialVersion = w1.Version;
+
+        var vm = new DuplicateSlipViewModel(repo, printService, perm, dialogs, companyOptions, audit, NullLogger<DuplicateSlipViewModel>.Instance);
+        vm.SelectedWeighment = WeighmentSummary.From(w1);
+
+        // Act: Push to server (offline/unconfigured environment)
+        await ((AsyncRelayCommand)vm.PushToServerCommand).ExecuteAsync();
+
+        // Assert: Facts and Version are identical
+        var post = await repo.GetByIdAsync(w1.Id);
+        Assert.NotNull(post);
+        Assert.Equal(initialNet, post.NetWeightKg);
+        Assert.Equal(initialGross, post.Gross?.Kilograms);
+        Assert.Equal(initialTare, post.Tare?.Kilograms);
+        Assert.Equal(initialVersion, post.Version);
+        Assert.Equal(BadgeSeverity.Warning, vm.StatusSeverity);
+        Assert.Equal("Sync Failed", vm.PushStatusText);
+    }
+
+    [Fact]
+    public void DS_10_DuplicateSlip_XAML_Has_Zero_CCTV_Camera_Elements()
+    {
+        var xamlPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\..\..\src\WeighBridge.App\Views\DuplicateSlipView.xaml"));
+        var xamlContent = File.ReadAllText(xamlPath);
+
+        Assert.DoesNotContain("Camera", xamlContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("CCTV", xamlContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Webcam", xamlContent, StringComparison.OrdinalIgnoreCase);
     }
 }

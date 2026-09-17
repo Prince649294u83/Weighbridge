@@ -21,6 +21,7 @@
          an error. Nothing here calls a WinRT or Windows 10-only API, so the Win32/WPF
          surface that moniker provides is exactly what is needed. -->
     <UseWindowsForms>false</UseWindowsForms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>

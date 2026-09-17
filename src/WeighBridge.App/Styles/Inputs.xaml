@@ -215,6 +215,7 @@
               </ToggleButton.Template>
             </ToggleButton>
 
+            <!-- Non-editable display: shown when IsEditable=False -->
             <ContentPresenter x:Name="ContentSite"
                               Margin="{TemplateBinding Padding}"
                               HorizontalAlignment="Left"
@@ -223,6 +224,22 @@
                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                               IsHitTestVisible="False"
                               TextElement.Foreground="{TemplateBinding Foreground}" />
+
+            <!-- Editable text entry: shown when IsEditable=True -->
+            <TextBox x:Name="PART_EditableTextBox"
+                     Margin="{TemplateBinding Padding}"
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Center"
+                     Focusable="True"
+                     Visibility="Hidden"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Foreground="{TemplateBinding Foreground}"
+                     FontFamily="{TemplateBinding FontFamily}"
+                     FontSize="{TemplateBinding FontSize}"
+                     CaretBrush="{DynamicResource Brush.Text.Primary}"
+                     SelectionBrush="{DynamicResource Brush.Accent.Default}"
+                     IsReadOnly="{TemplateBinding IsReadOnly}" />
 
             <Popup x:Name="PART_Popup"
                    AllowsTransparency="True"
@@ -245,6 +262,10 @@
             </Popup>
           </Grid>
           <ControlTemplate.Triggers>
+            <Trigger Property="IsEditable" Value="True">
+              <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+              <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden" />
+            </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
               <Setter Property="Opacity" Value="0.7" />

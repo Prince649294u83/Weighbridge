@@ -98,8 +98,8 @@ public sealed class ReportingServiceHardeningTests
     {
         public OperatorIdentity CurrentOperator => new("op1", "Operator", new Role("Admin", allowExport ? [Permissions.ReportsExport] : []));
 
-        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged;
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged { add { } remove { } }
+        public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
 
         public AuthorizationResult Authorize(Permission permission)
         {

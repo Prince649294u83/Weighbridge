@@ -56,6 +56,9 @@
     <sys:String x:Key="Icon.Database">&#xE81E;</sys:String>
     <sys:String x:Key="Icon.Scale">&#xE9D9;</sys:String>
     <sys:String x:Key="Icon.Printer">&#xE749;</sys:String>
+    <sys:String x:Key="Icon.Print">&#xE749;</sys:String>
+    <sys:String x:Key="Icon.Document">&#xE8A5;</sys:String>
+    <sys:String x:Key="Icon.Email">&#xE715;</sys:String>
     <sys:String x:Key="Icon.Server">&#xE968;</sys:String>
     <sys:String x:Key="Icon.Application">&#xECAA;</sys:String>
     <sys:String x:Key="Icon.EmptyState">&#xE7C3;</sys:String>

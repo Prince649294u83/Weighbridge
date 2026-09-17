@@ -215,10 +215,10 @@ public sealed class WeightIndicatorServiceLifecycleTests
         transport.FailOnOpen = false;
 
         // Await worker loop recovery (with timeout)
-        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         while (service.State != ConnectionState.Connected && !timeoutCts.Token.IsCancellationRequested)
         {
-            await Task.Delay(50, timeoutCts.Token);
+            try { await Task.Delay(50, timeoutCts.Token); } catch (OperationCanceledException) { }
         }
 
         Assert.Equal(ConnectionState.Connected, service.State);
@@ -361,7 +361,11 @@ public sealed class WeightIndicatorServiceLifecycleTests
         transport.EnqueueBytes(frameBytes);
 
         // Allow worker to process
-        await Task.Delay(100);
+        var readTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        while (readings.Count == 0 && !readTimeout.Token.IsCancellationRequested)
+        {
+            try { await Task.Delay(25, readTimeout.Token); } catch (OperationCanceledException) { }
+        }
 
         Assert.NotEmpty(readings);
         Assert.Equal(145.0m, readings[0].Value);

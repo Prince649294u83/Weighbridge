@@ -172,6 +172,18 @@ public sealed class WeighmentConfiguration : IEntityTypeConfiguration<Weighment>
             .HasForeignKey(weighment => weighment.VehicleTypeId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        builder.Property(weighment => weighment.ReservationId);
+
+        builder.HasIndex(weighment => weighment.ReservationId)
+            .IsUnique()
+            .HasDatabaseName("IX_Weighments_ReservationId")
+            .HasFilter("[ReservationId] IS NOT NULL");
+
+        builder.HasOne<TicketReservation>()
+            .WithMany()
+            .HasForeignKey(weighment => weighment.ReservationId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.HasMany(weighment => weighment.Images)
             .WithOne()
             .HasForeignKey(img => img.WeighmentId)

@@ -33,6 +33,7 @@
     <SolidColorBrush x:Key="Brush.Text.OnAccent" Color="{StaticResource Neutral.0}" />
     <SolidColorBrush x:Key="Brush.Text.Accent" Color="{StaticResource Primary.40}" />
     <SolidColorBrush x:Key="Brush.Text.Placeholder" Color="{StaticResource Neutral.50}" />
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="{StaticResource Neutral.50}" />
 
     <!--  ===== Borders =====  -->
     <SolidColorBrush x:Key="Brush.Border.Default" Color="{StaticResource Neutral.70}" />
@@ -47,6 +48,8 @@
     <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="{StaticResource Primary.70}" />
     <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="{StaticResource Primary.100}" />
     <SolidColorBrush x:Key="Brush.Accent.Disabled" Color="{StaticResource Primary.90}" />
+    <SolidColorBrush x:Key="Brush.Primary.Default" Color="{StaticResource Primary.60}" />
+    <SolidColorBrush x:Key="Brush.Primary.Dark" Color="{StaticResource Primary.70}" />
 
     <!--  ===== Semantic states =====  -->
     <SolidColorBrush x:Key="Brush.Success.Default" Color="{StaticResource Success.60}" />
@@ -73,6 +76,10 @@
 
     <SolidColorBrush x:Key="Brush.Neutral.Default" Color="{StaticResource Neutral.50}" />
     <SolidColorBrush x:Key="Brush.Neutral.Subtle" Color="{StaticResource Neutral.80}" />
+
+    <!--  ===== Document / Paper: intentionally light for printable document readability =====  -->
+    <SolidColorBrush x:Key="Brush.Paper.Background" Color="#FAFAFA" />
+    <SolidColorBrush x:Key="Brush.Paper.Text" Color="#1A1A1A" />
 
     <!--  ===== Window control buttons =====  -->
     <SolidColorBrush x:Key="Brush.WindowButton.Hover" Color="{StaticResource Neutral.80}" />

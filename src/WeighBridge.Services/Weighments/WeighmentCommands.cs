@@ -60,6 +60,283 @@ public sealed class CreateWeighmentCommand(IWeighmentService weighments, NewWeig
 }
 
 /// <summary>
+/// Allocates an authoritative persistent ticket reservation in SQLite.
+/// </summary>
+public sealed class ReserveTicketCommand(
+    IWeighmentService weighments,
+    string? tentativeVehicleNumber = null,
+    string? terminalId = null) : IApplicationCommand<TicketReservation>, IRequiresPermission
+{
+    private readonly IWeighmentService _weighments = weighments
+        ?? throw new ArgumentNullException(nameof(weighments));
+
+    /// <inheritdoc />
+    public string Name => "Reserve ticket";
+
+    /// <inheritdoc />
+    public Permission? RequiredPermission => Permissions.WeighmentCreate;
+
+    /// <inheritdoc />
+    public async Task<CommandResult<TicketReservation>> ExecuteAsync(CommandContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        context.ReportStatus("Allocating ticket number…");
+
+        var reservation = await _weighments
+            .ReserveTicketAsync(tentativeVehicleNumber, terminalId, context.CancellationToken)
+            .ConfigureAwait(false);
+
+        context.Audit("SlipNumber", reservation.SlipNumber)
+            .Audit("ReservationId", reservation.Id.ToString())
+            .Audit("Status", reservation.Status.ToString());
+
+        return CommandResult<TicketReservation>.Success(
+            reservation,
+            $"Ticket {reservation.SlipNumber} reserved.");
+    }
+
+    /// <inheritdoc />
+    async Task<CommandResult> IApplicationCommand.ExecuteAsync(CommandContext context)
+        => await ExecuteAsync(context).ConfigureAwait(false);
+}
+
+/// <summary>
+/// Cancels an unconsumed ticket reservation with an audited reason.
+/// </summary>
+public sealed class CancelReservationCommand(
+    IWeighmentService weighments,
+    long reservationId,
+    string reason) : IApplicationCommand<TicketReservation>, IValidatable, IRequiresPermission
+{
+    private readonly IWeighmentService _weighments = weighments
+        ?? throw new ArgumentNullException(nameof(weighments));
+
+    /// <inheritdoc />
+    public string Name => "Cancel ticket reservation";
+
+    /// <inheritdoc />
+    public Permission? RequiredPermission => Permissions.WeighmentCreate;
+
+    /// <inheritdoc />
+    public Task<ValidationResult> ValidateAsync(CancellationToken cancellationToken = default)
+    {
+        if (reservationId <= 0)
+        {
+            return Task.FromResult(ValidationResult.Failure("ReservationId", "A valid reservation ID is required."));
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Task.FromResult(ValidationResult.Failure("Reason", "A cancellation reason is required."));
+        }
+
+        return Task.FromResult(ValidationResult.Success);
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResult<TicketReservation>> ExecuteAsync(CommandContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        context.ReportStatus("Cancelling ticket reservation…");
+
+        var reservation = await _weighments
+            .CancelReservationAsync(reservationId, reason, context.CancellationToken)
+            .ConfigureAwait(false);
+
+        context.Audit("SlipNumber", reservation.SlipNumber)
+            .Audit("ReservationId", reservation.Id.ToString())
+            .Audit("Reason", reason);
+
+        return CommandResult<TicketReservation>.Success(
+            reservation,
+            $"Ticket {reservation.SlipNumber} cancelled.");
+    }
+
+    /// <inheritdoc />
+    async Task<CommandResult> IApplicationCommand.ExecuteAsync(CommandContext context)
+        => await ExecuteAsync(context).ConfigureAwait(false);
+}
+
+/// <summary>
+/// Atomically creates a weighment and records the first weight using a pre-allocated ticket reservation.
+/// </summary>
+public sealed class RecordFirstWeightWithReservationCommand(
+    IWeighmentService weighments,
+    long reservationId,
+    NewWeighment request,
+    decimal kilograms,
+    WeightSource source) : IApplicationCommand<Weighment>, IValidatable, IRequiresPermission
+{
+    private static readonly NewWeighmentValidator Rules = new();
+
+    private readonly IWeighmentService _weighments = weighments
+        ?? throw new ArgumentNullException(nameof(weighments));
+
+    private readonly NewWeighment _request = request
+        ?? throw new ArgumentNullException(nameof(request));
+
+    /// <inheritdoc />
+    public string Name => "Record first weight";
+
+    /// <inheritdoc />
+    public Permission? RequiredPermission => Permissions.WeighmentCreate;
+
+    /// <inheritdoc />
+    public async Task<ValidationResult> ValidateAsync(CancellationToken cancellationToken = default)
+    {
+        if (reservationId <= 0)
+        {
+            return ValidationResult.Failure("ReservationId", "A valid ticket reservation is required.");
+        }
+
+        if (WeighmentRules.CheckWeight(kilograms) is { } weightProblem)
+        {
+            return weightProblem;
+        }
+
+        var requestValidation = await Rules.ValidateAsync(_request, cancellationToken).ConfigureAwait(false);
+        if (!requestValidation.IsValid)
+        {
+            return requestValidation;
+        }
+
+        var reservation = await _weighments.GetReservationAsync(reservationId, cancellationToken).ConfigureAwait(false);
+        if (reservation is null)
+        {
+            return ValidationResult.Failure("ReservationId", $"Ticket reservation {reservationId} was not found.");
+        }
+
+        if (reservation.Status != TicketReservationStatus.Reserved)
+        {
+            return ValidationResult.Failure(
+                "Status",
+                $"Ticket reservation {reservation.SlipNumber} is in '{reservation.Status}' status and cannot take a weight.");
+        }
+
+        return ValidationResult.Success;
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResult<Weighment>> ExecuteAsync(CommandContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        context.ReportStatus("Recording first weight…");
+
+        var weighment = await _weighments
+            .CreateWithReservationAndRecordFirstWeightAsync(reservationId, _request, kilograms, source, context.CancellationToken)
+            .ConfigureAwait(false);
+
+        context.Audit("SlipNumber", weighment.SlipNumber)
+            .Audit("VehicleNumber", weighment.VehicleNumber)
+            .Audit("Kilograms", kilograms)
+            .Audit("WeightSource", source.ToString());
+
+        return CommandResult<Weighment>.Success(
+            weighment,
+            $"{kilograms:0.##} kg recorded on {weighment.SlipNumber}. {weighment.NextAction} when the vehicle returns.");
+    }
+
+    /// <inheritdoc />
+    async Task<CommandResult> IApplicationCommand.ExecuteAsync(CommandContext context)
+        => await ExecuteAsync(context).ConfigureAwait(false);
+}
+
+/// <summary>
+/// Atomically creates and completes a single-entry weighment using a pre-allocated ticket reservation.
+/// </summary>
+public sealed class RecordSingleEntryWeightWithReservationCommand(
+    IWeighmentService weighments,
+    long reservationId,
+    NewWeighment request,
+    decimal kilograms,
+    WeightSource source,
+    decimal tareWeightKg) : IApplicationCommand<Weighment>, IValidatable, IRequiresPermission
+{
+    private static readonly NewWeighmentValidator Rules = new();
+
+    private readonly IWeighmentService _weighments = weighments
+        ?? throw new ArgumentNullException(nameof(weighments));
+
+    private readonly NewWeighment _request = request
+        ?? throw new ArgumentNullException(nameof(request));
+
+    /// <inheritdoc />
+    public string Name => "Record single-entry weight";
+
+    /// <inheritdoc />
+    public Permission? RequiredPermission => Permissions.WeighmentCreate;
+
+    /// <inheritdoc />
+    public async Task<ValidationResult> ValidateAsync(CancellationToken cancellationToken = default)
+    {
+        if (reservationId <= 0)
+        {
+            return ValidationResult.Failure("ReservationId", "A valid ticket reservation is required.");
+        }
+
+        if (WeighmentRules.CheckWeight(kilograms) is { } weightProblem)
+        {
+            return weightProblem;
+        }
+
+        if (WeighmentRules.CheckWeight(tareWeightKg) is { } tareProblem)
+        {
+            return tareProblem;
+        }
+
+        var requestValidation = await Rules.ValidateAsync(_request, cancellationToken).ConfigureAwait(false);
+        if (!requestValidation.IsValid)
+        {
+            return requestValidation;
+        }
+
+        var reservation = await _weighments.GetReservationAsync(reservationId, cancellationToken).ConfigureAwait(false);
+        if (reservation is null)
+        {
+            return ValidationResult.Failure("ReservationId", $"Ticket reservation {reservationId} was not found.");
+        }
+
+        if (reservation.Status != TicketReservationStatus.Reserved)
+        {
+            return ValidationResult.Failure(
+                "Status",
+                $"Ticket reservation {reservation.SlipNumber} is in '{reservation.Status}' status and cannot take a weight.");
+        }
+
+        return ValidationResult.Success;
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandResult<Weighment>> ExecuteAsync(CommandContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        context.ReportStatus("Recording single-entry weight…");
+
+        var weighment = await _weighments
+            .CreateWithReservationAndRecordSingleEntryWeightAsync(reservationId, _request, kilograms, source, tareWeightKg, context.CancellationToken)
+            .ConfigureAwait(false);
+
+        context.Audit("SlipNumber", weighment.SlipNumber)
+            .Audit("VehicleNumber", weighment.VehicleNumber)
+            .Audit("Kilograms", kilograms)
+            .Audit("TareWeightKg", tareWeightKg)
+            .Audit("NetWeightKg", weighment.NetWeightKg?.ToString() ?? "0");
+
+        return CommandResult<Weighment>.Success(
+            weighment,
+            $"Single-entry weighment {weighment.SlipNumber} completed. Net {weighment.NetWeightKg:0.##} kg.");
+    }
+
+    /// <inheritdoc />
+    async Task<CommandResult> IApplicationCommand.ExecuteAsync(CommandContext context)
+        => await ExecuteAsync(context).ConfigureAwait(false);
+}
+
+/// <summary>
 /// Records the first weight of an open weighment.
 /// </summary>
 /// <remarks>
@@ -259,6 +536,72 @@ public sealed class RecordSecondWeightCommand : IApplicationCommand<Weighment>, 
     }
 
     /// <inheritdoc />
+    async Task<CommandResult> IApplicationCommand.ExecuteAsync(CommandContext context)
+        => await ExecuteAsync(context).ConfigureAwait(false);
+}
+
+/// <summary>
+/// Records the only live weight for a single-entry transaction and completes it using the approved tare value.
+/// </summary>
+public sealed class RecordSingleEntryWeightCommand(
+    IWeighmentService weighments,
+    RecordSingleEntryWeightRequest request) : IApplicationCommand<Weighment>, IValidatable, IRequiresPermission
+{
+    private readonly IWeighmentService _weighments = weighments
+        ?? throw new ArgumentNullException(nameof(weighments));
+    private readonly RecordSingleEntryWeightRequest _request = request
+        ?? throw new ArgumentNullException(nameof(request));
+
+    public string Name => "Record single-entry weight";
+
+    public Permission? RequiredPermission => Permissions.WeighmentCreate;
+
+    public async Task<ValidationResult> ValidateAsync(CancellationToken cancellationToken = default)
+    {
+        if (WeighmentRules.CheckWeight(_request.Kilograms) is { } weightProblem)
+        {
+            return weightProblem;
+        }
+
+        if (WeighmentRules.CheckWeight(_request.TareWeightKg) is { } tareProblem)
+        {
+            return ValidationResult.Failure(nameof(_request.TareWeightKg), tareProblem.Blocking.First().Message);
+        }
+
+        var weighment = await _weighments.GetAsync(_request.WeighmentId, cancellationToken).ConfigureAwait(false);
+        if (weighment is null)
+        {
+            return WeighmentRules.NotFound(_request.WeighmentId);
+        }
+
+        return weighment.Status == WeighmentStatus.Created
+            ? ValidationResult.Success
+            : ValidationResult.Failure(
+                nameof(Weighment.Status),
+                $"Weighment {weighment.SlipNumber} is {weighment.Status} and cannot be completed as a single-entry weighment.");
+    }
+
+    public async Task<CommandResult<Weighment>> ExecuteAsync(CommandContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        context.ReportStatus("Recording single-entry weight...");
+
+        var weighment = await _weighments
+            .RecordSingleEntryWeightAsync(_request, context.CancellationToken)
+            .ConfigureAwait(false);
+
+        context.Audit("SlipNumber", weighment.SlipNumber)
+            .Audit("Kilograms", _request.Kilograms)
+            .Audit("TareWeightKg", _request.TareWeightKg)
+            .Audit("WeightSource", _request.Source.ToString())
+            .Audit("NetKilograms", weighment.NetWeightKg);
+
+        return CommandResult<Weighment>.Success(
+            weighment,
+            $"Single-entry weighment {weighment.SlipNumber} completed. Net {weighment.NetWeightKg:0.##} kg.");
+    }
+
     async Task<CommandResult> IApplicationCommand.ExecuteAsync(CommandContext context)
         => await ExecuteAsync(context).ConfigureAwait(false);
 }

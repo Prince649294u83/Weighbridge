@@ -45,8 +45,8 @@ public sealed class SessionInactivityTests
     private sealed class StubPermissionService : IPermissionService
     {
         public OperatorIdentity CurrentOperator { get; set; } = new("operator1", "Operator One", Roles.Operator);
-        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged;
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged { add { } remove { } }
+        public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
         public AuthorizationResult Authorize(Permission permission) => AuthorizationResult.Allowed;
         public AuthorizationResult Authorize(object candidate) => AuthorizationResult.Allowed;
         public bool HasPermission(Permission permission) => true;

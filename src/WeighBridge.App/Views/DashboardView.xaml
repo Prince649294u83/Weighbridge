@@ -127,7 +127,7 @@
                         HorizontalContentAlignment="Left"
                         Style="{StaticResource Button.Secondary}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock FontFamily="Segoe Fluent Icons" Text="{StaticResource Icon.Scale}" Margin="0,0,15,0" />
+                        <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{StaticResource Icon.Scale}" Margin="0,0,15,0" />
                         <TextBlock Text="Vehicle Entry" />
                     </StackPanel>
                 </Button>
@@ -137,7 +137,7 @@
                         HorizontalContentAlignment="Left"
                         Style="{StaticResource Button.Secondary}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock FontFamily="Segoe Fluent Icons" Text="{StaticResource Icon.Reports}" Margin="0,0,15,0" />
+                        <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{StaticResource Icon.Reports}" Margin="0,0,15,0" />
                         <TextBlock Text="Reports" />
                     </StackPanel>
                 </Button>

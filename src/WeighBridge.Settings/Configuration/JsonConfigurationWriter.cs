@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WeighBridge.Core.Application;
 using WeighBridge.Core.Configuration;
@@ -24,7 +25,8 @@ namespace WeighBridge.Settings.Configuration;
 /// </remarks>
 public sealed class JsonConfigurationWriter(
     IApplicationPaths paths,
-    ILogger<JsonConfigurationWriter> logger) : IConfigurationWriter
+    ILogger<JsonConfigurationWriter> logger,
+    IConfiguration? configuration = null) : IConfigurationWriter
 {
     private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
 
@@ -36,6 +38,7 @@ public sealed class JsonConfigurationWriter(
 
     private readonly IApplicationPaths _paths = paths ?? throw new ArgumentNullException(nameof(paths));
     private readonly ILogger<JsonConfigurationWriter> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly IConfiguration? _configuration = configuration;
 
     // Concurrent saves would each read, edit and write the whole document, so the second
     // write would silently drop the first one's changes.
@@ -96,6 +99,8 @@ public sealed class JsonConfigurationWriter(
 
             // Cleanup temp and backup files on success
             TryDeleteFile(tempPath);
+
+            (_configuration as IConfigurationRoot)?.Reload();
 
             _logger.LogInformation(
                 "Saved {Count} configuration value(s) to {Path}: {Keys}",
@@ -214,6 +219,7 @@ public sealed class JsonConfigurationWriter(
             long l => JsonValue.Create(l)!,
             double d => JsonValue.Create(d)!,
             decimal m => JsonValue.Create(m)!,
+            IEnumerable<string> strings => new JsonArray(strings.Select(item => JsonValue.Create(item)).ToArray<JsonNode?>()),
             Enum e => JsonValue.Create(e.ToString())!,
             _ => JsonValue.Create(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "")!,
         };

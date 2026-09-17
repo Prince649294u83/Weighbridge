@@ -15,7 +15,7 @@ public class WeighmentServiceTests
     [Fact]
     public async Task FindPendingSecondEntryAsync_Returns_Only_AwaitingSecondWeight()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions { UnitBagsWeightColumn = true }));
         var open = await harness.Service.CreateAsync(new NewWeighment { VehicleNumber = "MH12AB1234" });
         await harness.Service.RecordFirstWeightAsync(open.Id, 15000m, WeightSource.Indicator);
 
@@ -29,7 +29,11 @@ public class WeighmentServiceTests
     [Fact]
     public async Task FindPendingSecondEntryAsync_Excludes_Created()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions
+        {
+            SecondEntryCharges = true,
+            UnitBagsWeightColumn = true
+        }));
         var open = await harness.Service.CreateAsync(new NewWeighment { VehicleNumber = "MH12AB1234" });
 
         var bySlip = await harness.Service.FindPendingSecondEntryAsync(open.SlipNumber);
@@ -42,7 +46,7 @@ public class WeighmentServiceTests
     [Fact]
     public async Task FindPendingSecondEntryAsync_Excludes_Completed()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions { SecondEntryCharges = true }));
         var open = await harness.Service.CreateAsync(new NewWeighment { VehicleNumber = "MH12AB1234" });
         await harness.Service.RecordFirstWeightAsync(open.Id, 15000m, WeightSource.Indicator);
         await harness.Service.RecordSecondWeightAsync(open.Id, 5000m, WeightSource.Indicator);
@@ -57,7 +61,7 @@ public class WeighmentServiceTests
     [Fact]
     public async Task FindPendingSecondEntryAsync_Excludes_Cancelled()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions { UnitBagsWeightColumn = true }));
         var open = await harness.Service.CreateAsync(new NewWeighment { VehicleNumber = "MH12AB1234" });
         await harness.Service.CancelAsync(open.Id, "Mistyped entry");
 
@@ -154,7 +158,7 @@ public class WeighmentServiceTests
     [Fact]
     public async Task FindPendingSecondEntryAsync_Returns_Exact_Immutable_Historical_Snapshot()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions { UnitBagsWeightColumn = true }));
         var open = await harness.Service.CreateAsync(new NewWeighment
         {
             VehicleNumber = "MH12AB1234",
@@ -191,7 +195,11 @@ public class WeighmentServiceTests
     [Fact]
     public async Task UpdateSecondEntryDetails_Updates_Only_Allowed_F2_Fields()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions
+        {
+            SecondEntryCharges = true,
+            UnitBagsWeightColumn = true
+        }));
         var open = await harness.Service.CreateAsync(new NewWeighment
         {
             VehicleNumber = "MH12AB1234",
@@ -318,7 +326,7 @@ public class WeighmentServiceTests
     [Fact]
     public async Task UpdateSecondEntryDetails_Rejects_Unauthorized_Role()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions { SecondEntryCharges = true }));
         var open = await harness.Service.CreateAsync(new NewWeighment { VehicleNumber = "MH12AB1234" });
         await harness.Service.RecordFirstWeightAsync(open.Id, 20000m, WeightSource.Indicator);
 
@@ -510,7 +518,7 @@ public class WeighmentServiceTests
     [Fact]
     public async Task RecordSecondWeight_BagDeductions_Exceeding_Net_Throws()
     {
-        using var harness = new WeighmentHarness();
+        using var harness = new WeighmentHarness(Options.Create(new WeighmentOptions { UnitBagsWeightColumn = true }));
         var open = await harness.Service.CreateAsync(new NewWeighment
         {
             VehicleNumber = "MH12BAG001",
@@ -628,6 +636,43 @@ public class WeighmentServiceTests
         Assert.Equal(100m, finalReload.SecondCharges);
         Assert.Equal("GP-B", finalReload.GatePassNumber);
         Assert.Equal("Saved by Context B", finalReload.Remarks);
+    }
+
+    [Fact]
+    public async Task RecordSecondWeight_WithStaleExpectedVersion_IsRejectedBeforeCompletion()
+    {
+        using var harness = new WeighmentHarness();
+        var open = await harness.Service.CreateAsync(new NewWeighment { VehicleNumber = "MH12STALE2" });
+        var pending = await harness.Service.RecordFirstWeightAsync(open.Id, 25000m, WeightSource.Indicator);
+        var operatorLoadedVersion = pending.Version;
+
+        var updated = await harness.Service.UpdateSecondEntryDetailsAsync(new UpdateSecondEntryDetailsRequest(
+            WeighmentId: open.Id,
+            SecondCharges: 100m,
+            NumberOfBags: null,
+            BagWeightKg: null,
+            GatePassNumber: "GP-FRESH",
+            Remarks: "Fresh F2 edit",
+            ExpectedVersion: operatorLoadedVersion));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            harness.Service.RecordSecondWeightAsync(new RecordSecondWeightRequest(
+                WeighmentId: open.Id,
+                Kilograms: 10000m,
+                Source: WeightSource.Indicator,
+                Remarks: "Stale completion",
+                ExpectedVersion: operatorLoadedVersion)));
+
+        Assert.Contains("modified by another operator or process", ex.Message);
+
+        var reloaded = await harness.Service.GetAsync(open.Id);
+        Assert.NotNull(reloaded);
+        Assert.Equal(updated.Version, reloaded.Version);
+        Assert.Equal(WeighmentStatus.AwaitingSecondWeight, reloaded.Status);
+        Assert.Null(reloaded.SecondWeight);
+        Assert.Null(reloaded.NetWeightKg);
+        Assert.Equal("GP-FRESH", reloaded.GatePassNumber);
+        Assert.Equal("Fresh F2 edit", reloaded.Remarks);
     }
 
     [Fact]

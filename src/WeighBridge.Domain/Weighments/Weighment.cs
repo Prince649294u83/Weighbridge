@@ -157,10 +157,78 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
         };
     }
 
+    /// <summary>
+    /// Opens a new weighment bound to a pre-allocated <see cref="TicketReservation"/>.
+    /// </summary>
+    /// <remarks>
+    /// Enforces the exact same domain validation rules as <see cref="Open"/>, but sets the authoritative
+    /// <see cref="SlipNumber"/> and <see cref="ReservationId"/> immediately upon creation.
+    /// </remarks>
+    public static Weighment OpenWithReservedSlip(
+        string slipNumber,
+        long reservationId,
+        string vehicleNumber,
+        WeighmentMode mode,
+        string? partyName = null,
+        string? materialName = null,
+        string? driverName = null,
+        string? transporterName = null,
+        string? remarks = null,
+        long? vehicleId = null,
+        long? partyId = null,
+        long? materialId = null,
+        long? vehicleTypeId = null,
+        string? vehicleTypeName = null,
+        decimal charges = 0m,
+        int? numberOfBags = null,
+        decimal? bagWeightKg = null,
+        string? gatePassNumber = null,
+        string? customField1 = null,
+        string? customField2 = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slipNumber);
+        if (reservationId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(reservationId), reservationId, "Reservation ID must be positive.");
+        }
+
+        if (!SlipNumbers.TryParse(slipNumber, out _))
+        {
+            throw new ArgumentException($"'{slipNumber}' is not a valid slip number format.", nameof(slipNumber));
+        }
+
+        var weighment = Open(
+            vehicleNumber,
+            mode,
+            partyName,
+            materialName,
+            driverName,
+            transporterName,
+            remarks,
+            vehicleId,
+            partyId,
+            materialId,
+            vehicleTypeId,
+            vehicleTypeName,
+            charges,
+            numberOfBags,
+            bagWeightKg,
+            gatePassNumber,
+            customField1,
+            customField2);
+
+        weighment.SlipNumber = SlipNumbers.Normalise(slipNumber)!;
+        weighment.ReservationId = reservationId;
+        return weighment;
+    }
+
     /// <summary>Human-readable slip number, for example <c>WB-000042</c>. Unique.</summary>
     /// <remarks>Empty only between the insert that allocates the identity and the update
     /// that derives this from it, inside one transaction.</remarks>
     public string SlipNumber { get; private set; } = string.Empty;
+
+    /// <summary>Optional foreign key to the <see cref="TicketReservation"/> this weighment consumed.</summary>
+    public long? ReservationId { get; private set; }
 
     /// <summary>Registration number of the vehicle, upper-cased and stripped of spaces.</summary>
     public string VehicleNumber { get; private set; } = string.Empty;
@@ -412,6 +480,62 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
         }
 
         SecondWeight = capture;
+        NetWeightKg = net;
+        Status = WeighmentStatus.Completed;
+        CompletedAtUtc = DateTime.UtcNow;
+        Version = Guid.NewGuid();
+    }
+
+    /// <summary>
+    /// Completes a newly opened weighment in one operator action using the live capture and a supplied tare.
+    /// </summary>
+    public void RecordSingleEntryWeight(
+        WeightCapture capture,
+        decimal tareWeightKg,
+        NetWeightPolicy policy = NetWeightPolicy.RejectZero)
+    {
+        ArgumentNullException.ThrowIfNull(capture);
+        GuardWeight(capture.Kilograms);
+        GuardWeight(tareWeightKg);
+
+        if (Status != WeighmentStatus.Created)
+        {
+            throw new InvalidOperationException(
+                $"{Describe()} is {Status} and cannot be completed as a single-entry weighment.");
+        }
+
+        var gross = Mode == WeighmentMode.GrossFirst ? capture.Kilograms : tareWeightKg;
+        var tare = Mode == WeighmentMode.GrossFirst ? tareWeightKg : capture.Kilograms;
+
+        if (gross < tare)
+        {
+            throw new InvalidOperationException(
+                $"The gross weight ({gross:0.##} kg) must be greater than the tare weight ({tare:0.##} kg). " +
+                "Check whether the vehicle arrived loaded or empty.");
+        }
+
+        if (gross == tare && policy != NetWeightPolicy.AllowZero)
+        {
+            throw new InvalidOperationException(
+                $"The gross weight ({gross:0.##} kg) must be greater than the tare weight ({tare:0.##} kg). " +
+                "The gross weight and tare weight are equal, resulting in zero net weight. Zero net weight is disallowed by policy.");
+        }
+
+        var net = gross - tare;
+        var actualWeight = net - TotalBagWeightKg;
+        if (actualWeight < 0m)
+        {
+            throw new InvalidOperationException(
+                $"The total bag weight ({TotalBagWeightKg:0.##} kg) exceeds the net weight ({net:0.##} kg), " +
+                $"resulting in a negative actual material weight ({actualWeight:0.##} kg).");
+        }
+
+        FirstWeight = Mode == WeighmentMode.GrossFirst
+            ? capture
+            : new WeightCapture(tareWeightKg, capture.CapturedAtUtc, WeightSource.MasterTare);
+        SecondWeight = Mode == WeighmentMode.GrossFirst
+            ? new WeightCapture(tareWeightKg, capture.CapturedAtUtc, WeightSource.MasterTare)
+            : capture;
         NetWeightKg = net;
         Status = WeighmentStatus.Completed;
         CompletedAtUtc = DateTime.UtcNow;

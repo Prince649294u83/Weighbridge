@@ -98,10 +98,22 @@ internal static class DefaultConfiguration
                         ["DecimalPlaces"] = 1,
                         ["DigitsToRemoveFromEnd"] = 0,
                         ["ReversePayload"] = false,
-                        ["DummyZero"] = false,
+                        ["DummyZero"] = 0,
                         ["ScaleFactor"] = 1.0,
                         ["TargetUnit"] = "kg",
+                        ["EndingString"] = "NUL (0x00)",
+                        ["HexValue"] = false,
+                        ["EssaeMode"] = false,
+                        ["RtsCts"] = false,
+                        ["BufferData"] = 50,
+                        ["StableWaitTime"] = 0,
                     },
+                },
+                ["PortSettings"] = new JsonObject
+                {
+                    ["ReceivePort1"] = new JsonObject { ["Enabled"] = false, ["PortName"] = "COM4", ["BaudRate"] = 9600 },
+                    ["ReceivePort2"] = new JsonObject { ["Enabled"] = false, ["PortName"] = "COM5", ["BaudRate"] = 9600 },
+                    ["SendDataPort"] = new JsonObject { ["Enabled"] = false, ["PortName"] = "COM6", ["BaudRate"] = 9600 },
                 },
             },
 
@@ -136,6 +148,61 @@ internal static class DefaultConfiguration
                 ["PaperSize"] = "A4",
                 ["ShowPrintDialog"] = false,
                 ["PreviewBeforePrint"] = true,
+            },
+
+            ["Company"] = new JsonObject
+            {
+                ["CompanyName"] = string.Empty,
+                ["AddressLine1"] = string.Empty,
+                ["AddressLine2"] = string.Empty,
+                ["Phone"] = string.Empty,
+                ["Email"] = string.Empty,
+                ["TaxId"] = string.Empty,
+            },
+
+            ["Email"] = new JsonObject
+            {
+                ["Enabled"] = false,
+                ["Frequency"] = "Email only Final Entry",
+                ["PdfEnabled"] = true,
+                ["SenderName"] = string.Empty,
+                ["SenderEmail"] = string.Empty,
+                ["Password"] = string.Empty,
+                ["SmtpServer"] = string.Empty,
+                ["SmtpPort"] = 587,
+                ["UseSsl"] = true,
+                ["Recipients"] = new JsonArray(),
+            },
+
+            ["Sms"] = new JsonObject
+            {
+                ["Enabled"] = false,
+                ["Provider"] = "GsmModem",
+                ["DefaultRecipient"] = string.Empty,
+                ["MessageFrequency"] = "SMS Both Entry",
+                ["WhatsAppToken"] = string.Empty,
+                ["GsmPortName"] = "COM4",
+                ["GsmBaudRate"] = 9600,
+            },
+
+            ["Weighment"] = new JsonObject
+            {
+                ["UnitBagsWeightColumn"] = false,
+                ["ManualTareEntry"] = true,
+                ["AutoTareWeight"] = true,
+                ["SecondEntryCharges"] = false,
+                ["GstOnCharges"] = false,
+                ["OnlySingleEntry"] = false,
+                ["PriceComputing"] = false,
+                ["DisconnectTimeSeconds"] = 300,
+                ["AllowZeroNetWeight"] = false,
+                ["AutoApplicationShortcut"] = true,
+                ["AutoUpdateTareWeight"] = false,
+                ["WeightHold"] = false,
+                ["TimeFormat"] = "12 Hour",
+                ["PrintQrCode"] = false,
+                ["ChargesMandatory"] = false,
+                ["MinimumCharges"] = 0,
             },
 
             ["Server"] = new JsonObject

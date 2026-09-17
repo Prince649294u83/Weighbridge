@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -36,6 +36,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IApplicationInfoService _applicationInfo;
     private readonly IDatabaseInitializer _databaseInitializer;
     private readonly IAuthenticationService _authentication;
+    private readonly IDateTimeFormatter _dateTimeFormatter;
     private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<MainWindowViewModel> _logger;
 
@@ -58,6 +59,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         IDatabaseInitializer databaseInitializer,
         IPermissionService permissions,
         IAuthenticationService authentication,
+        IDateTimeFormatter dateTimeFormatter,
         IOptions<ApplicationOptions> applicationOptions,
         ILogger<MainWindowViewModel> logger)
     {
@@ -69,6 +71,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _applicationInfo = applicationInfo;
         _databaseInitializer = databaseInitializer;
         _authentication = authentication;
+        _dateTimeFormatter = dateTimeFormatter;
         _applicationOptions = applicationOptions.Value;
         _logger = logger;
 
@@ -109,6 +112,12 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         SignOutCommand = new AsyncRelayCommand(SignOutAsync, onError: OnCommandFailed);
 
         _navigationService.Navigated += OnNavigated;
+        _dateTimeFormatter.FormatChanged += OnFormatChanged;
+    }
+
+    private void OnFormatChanged(object? sender, EventArgs e)
+    {
+        OnPropertiesChanged(nameof(CurrentDate), nameof(CurrentTime));
     }
 
     /// <summary>Destinations shown in the left navigation panel, in display order.</summary>
@@ -165,7 +174,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     public string CurrentDate => _now.ToString("ddd, dd MMM yyyy");
 
-    public string CurrentTime => _now.ToString("HH:mm:ss");
+    public string CurrentTime => _dateTimeFormatter.FormatTime(_now);
 
     public ViewModelBase? CurrentViewModel
     {
@@ -245,6 +254,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
         _navigationService.Navigated -= OnNavigated;
+        _dateTimeFormatter.FormatChanged -= OnFormatChanged;
     }
 
     /// <summary>

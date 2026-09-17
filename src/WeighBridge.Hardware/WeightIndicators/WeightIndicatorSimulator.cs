@@ -226,6 +226,32 @@ public sealed class WeightIndicatorSimulator : IWeightIndicatorService, IWeightI
 
         lock (_lock)
         {
+            // Allow out-of-process weight setting for desktop automation testing when explicitly activated
+            if (string.Equals(Environment.GetEnvironmentVariable("WEIGHBRIDGE_AUTOMATION_ACTIVE"), "1", StringComparison.OrdinalIgnoreCase))
+            {
+                string simControlFile = Path.Combine(Path.GetTempPath(), "weighbridge_sim_weight.txt");
+                if (File.Exists(simControlFile))
+                {
+                try
+                {
+                    string content = File.ReadAllText(simControlFile).Trim();
+                    if (!string.IsNullOrWhiteSpace(content))
+                    {
+                        string[] parts = content.Split(',');
+                        if (decimal.TryParse(parts[0], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedWeight))
+                        {
+                            _targetWeightKg = parsedWeight;
+                            if (parts.Length > 1 && bool.TryParse(parts[1], out var parsedStable))
+                            {
+                                _isStable = parsedStable;
+                            }
+                        }
+                    }
+                    }
+                    catch { }
+                }
+            }
+
             _tickCount++;
             decimal jitter = 0m;
             if (_jitterEnabled)

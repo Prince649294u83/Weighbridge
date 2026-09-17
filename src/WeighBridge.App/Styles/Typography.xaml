@@ -34,6 +34,9 @@
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
 
+  <Style x:Key="Text.H2" TargetType="TextBlock" BasedOn="{StaticResource Text.Title}" />
+  <Style x:Key="Text.H3" TargetType="TextBlock" BasedOn="{StaticResource Text.Subtitle}" />
+
   <Style x:Key="Text.Heading" TargetType="TextBlock" BasedOn="{StaticResource Text.Base}">
     <Setter Property="FontSize" Value="{StaticResource Font.Size.BodyLarge}" />
     <Setter Property="FontWeight" Value="SemiBold" />

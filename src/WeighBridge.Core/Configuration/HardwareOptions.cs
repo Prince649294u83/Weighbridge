@@ -10,6 +10,25 @@ public sealed class HardwareOptions
 
     /// <summary>Serial weight indicator settings.</summary>
     public WeightIndicatorOptions WeightIndicator { get; set; } = new();
+
+    /// <summary>Auxiliary serial port settings.</summary>
+    public AuxiliaryPortSettings PortSettings { get; set; } = new();
+}
+
+/// <summary>Auxiliary receive and send serial port settings.</summary>
+public sealed class AuxiliaryPortSettings
+{
+    public SerialPortEndpointOptions ReceivePort1 { get; set; } = new() { PortName = "COM4", BaudRate = 9600 };
+    public SerialPortEndpointOptions ReceivePort2 { get; set; } = new() { PortName = "COM5", BaudRate = 9600 };
+    public SerialPortEndpointOptions SendDataPort { get; set; } = new() { PortName = "COM6", BaudRate = 9600 };
+}
+
+/// <summary>A single serial port endpoint setting.</summary>
+public sealed class SerialPortEndpointOptions
+{
+    public bool Enabled { get; set; }
+    public string PortName { get; set; } = "COM1";
+    public int BaudRate { get; set; } = 9600;
 }
 
 /// <summary>Serial port and protocol settings for the weight indicator.</summary>

@@ -35,7 +35,33 @@ public static class CoreServiceCollectionExtensions
             .Bind(configuration.GetSection(DatabaseOptions.SectionName));
 
         services.AddOptions<HardwareOptions>()
-            .Bind(configuration.GetSection(HardwareOptions.SectionName));
+            .Configure(options =>
+            {
+                var section = configuration.GetSection(HardwareOptions.SectionName);
+
+                // Normalise DummyZero before binding: older config files may store it
+                // as a JSON boolean ("false"/"true") instead of integer 0/1. The
+                // Microsoft.Extensions.Configuration binder throws FormatException
+                // when converting "False" to Int32, crashing startup.
+                var dummyZeroRaw = section["WeightIndicator:Decoding:DummyZero"];
+                bool dummyZeroWasBool = dummyZeroRaw != null
+                    && bool.TryParse(dummyZeroRaw, out _);
+
+                if (dummyZeroWasBool)
+                {
+                    // Temporarily null it out so Bind doesn't choke on it
+                    section["WeightIndicator:Decoding:DummyZero"] = null;
+                }
+
+                section.Bind(options);
+
+                // Restore the correct integer value
+                if (dummyZeroWasBool)
+                {
+                    options.WeightIndicator.Decoding.DummyZero =
+                        string.Equals(dummyZeroRaw, "true", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                }
+            });
 
         services.AddOptions<CameraOptions>()
             .Bind(configuration.GetSection(CameraOptions.SectionName));
@@ -54,6 +80,15 @@ public static class CoreServiceCollectionExtensions
 
         services.AddOptions<WeighmentOptions>()
             .Bind(configuration.GetSection(WeighmentOptions.SectionName));
+
+        services.AddOptions<CompanyOptions>()
+            .Bind(configuration.GetSection(CompanyOptions.SectionName));
+
+        services.AddOptions<EmailOptions>()
+            .Bind(configuration.GetSection(EmailOptions.SectionName));
+
+        services.AddOptions<SmsOptions>()
+            .Bind(configuration.GetSection(SmsOptions.SectionName));
 
         // Bound even though appsettings.json carries no Notifications section yet: an
         // absent section leaves the defaults in place, and adding the section later needs

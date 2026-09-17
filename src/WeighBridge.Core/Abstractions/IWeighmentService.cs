@@ -80,7 +80,8 @@ public sealed record UpdateSecondEntryDetailsRequest(
     string? GatePassNumber,
     string? Remarks,
     string? CustomField3 = null,
-    string? CustomField4 = null);
+    string? CustomField4 = null,
+    Guid? ExpectedVersion = null);
 
 /// <summary>
 /// Carries second weight capture and optional second-entry details to complete a weighment.
@@ -95,7 +96,18 @@ public sealed record RecordSecondWeightRequest(
     string? GatePassNumber = null,
     string? Remarks = null,
     string? CustomField3 = null,
-    string? CustomField4 = null);
+    string? CustomField4 = null,
+    Guid? ExpectedVersion = null);
+
+/// <summary>
+/// Captures a one-step weighment where the second weight is supplied by an approved tare source.
+/// </summary>
+public sealed record RecordSingleEntryWeightRequest(
+    long WeighmentId,
+    decimal Kilograms,
+    WeightSource Source,
+    decimal TareWeightKg,
+    Guid? ExpectedVersion = null);
 
 /// <summary>
 /// Everything the application does to a weighment.
@@ -173,6 +185,13 @@ public interface IWeighmentService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Records the only live weight for a single-entry weighment and completes it using an approved tare value.
+    /// </summary>
+    Task<Weighment> RecordSingleEntryWeightAsync(
+        RecordSingleEntryWeightRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Looks up a single open transaction waiting for second weight by human-entered search text
     /// (canonical slip number or vehicle registration).
     /// </summary>
@@ -234,4 +253,50 @@ public interface IWeighmentService
 
     /// <summary>Returns all images attached to a weighment.</summary>
     Task<IReadOnlyList<WeighmentImage>> GetImagesAsync(long weighmentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Allocates an authoritative persistent ticket reservation in SQLite.
+    /// </summary>
+    Task<TicketReservation> ReserveTicketAsync(
+        string? tentativeVehicleNumber = null,
+        string? terminalId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Returns one ticket reservation by identity, or <c>null</c>.</summary>
+    Task<TicketReservation?> GetReservationAsync(long reservationId, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns one ticket reservation by slip number, or <c>null</c>.</summary>
+    Task<TicketReservation?> GetReservationBySlipNumberAsync(string slipNumber, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the active unconsumed ticket reservation for the terminal or user, if one already exists.
+    /// </summary>
+    Task<TicketReservation?> GetActiveReservationAsync(string? terminalId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Cancels an unconsumed ticket reservation with an audited reason.</summary>
+    Task<TicketReservation> CancelReservationAsync(
+        long reservationId,
+        string reason,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically creates a new weighment from a reservation and records the first weight in one transaction.
+    /// </summary>
+    Task<Weighment> CreateWithReservationAndRecordFirstWeightAsync(
+        long reservationId,
+        NewWeighment request,
+        decimal kilograms,
+        WeightSource source,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically creates a single-entry weighment from a reservation and completes it in one transaction.
+    /// </summary>
+    Task<Weighment> CreateWithReservationAndRecordSingleEntryWeightAsync(
+        long reservationId,
+        NewWeighment request,
+        decimal kilograms,
+        WeightSource source,
+        decimal tareWeightKg,
+        CancellationToken cancellationToken = default);
 }

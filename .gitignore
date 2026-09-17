@@ -25,3 +25,16 @@ packages/
 *.db-shm
 *.db-wal
 TestResults/
+publish/
+test_pub/
+test-artifacts/
+scratch/
+
+## Python / Virtual Environments
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+## Local agent and MCP configs
+.agents/

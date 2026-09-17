@@ -108,4 +108,18 @@ public sealed class HardwareRegistrationTests
 
         Assert.IsType(expected, provider.GetRequiredService<ICameraService>());
     }
+
+    [Theory]
+    [InlineData("false", 0)]
+    [InlineData("False", 0)]
+    [InlineData("true", 1)]
+    [InlineData("True", 1)]
+    [InlineData("0", 0)]
+    [InlineData("1", 1)]
+    public void HardwareOptions_DummyZero_HandlesBooleanConfiguration(string dummyZeroValue, int expected)
+    {
+        using var provider = BuildProvider(("Hardware:WeightIndicator:Decoding:DummyZero", dummyZeroValue));
+        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<WeighBridge.Core.Configuration.HardwareOptions>>().Value;
+        Assert.Equal(expected, options.WeightIndicator.Decoding.DummyZero);
+    }
 }

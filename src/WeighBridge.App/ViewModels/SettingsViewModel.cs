@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows.Input;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
@@ -16,73 +18,159 @@ using WeighBridge.Core.Theming;
 namespace WeighBridge.App.ViewModels;
 
 /// <summary>
-/// The Settings screen: operator preferences, and the hardware, printing, camera and
-/// reporting configuration.
+/// The Settings screen: operator preferences, weight indicator & semantic profile,
+/// printing, input workflow rules, port multiplexing, and auxiliary system options.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Every hardware field here is editable and persisted. The screen previously bound the
-/// same values as read-only text, which told an operator whose indicator had moved to a
-/// different COM port to go and hand-edit a JSON file under <c>%LOCALAPPDATA%</c>.
-/// </para>
-/// <para>
-/// Writes go through <see cref="IConfigurationWriter"/>, never straight to the file:
-/// the view model does not know that configuration is JSON, and the secret keys in the
-/// same document are protected on the way through.
-/// </para>
-/// </remarks>
 public sealed class SettingsViewModel : ViewModelBase
 {
-    /// <summary>Rates offered in the drop-down. The scanner probes the same set.</summary>
-    private static readonly int[] BaudRateChoices = [2400, 4800, 9600, 19200, 38400, 57600, 115200];
-
+    private static readonly int[] BaudRateChoices = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200];
     private static readonly string[] DriverTypeChoices = ["Serial", "Simulator", "Disabled"];
     private static readonly string[] ParityChoices = ["None", "Odd", "Even", "Mark", "Space"];
     private static readonly string[] StopBitsChoices = ["One", "OnePointFive", "Two"];
+    private static readonly string[] PrinterTypeChoices = ["Dot Matrix Printer", "Graphics Printer", "Label / Sticker Printer"];
+    private static readonly string[] PaperSizeChoices = ["A4", "Half A4 / A5"];
+    private static readonly string[] TimeFormatChoices = ["12 Hour", "24 Hour"];
+    private static readonly string[] EmailFrequencyChoices = ["Email only Final Entry", "Email Both Entry"];
+    private static readonly string[] SmsServiceChoices = ["Modem", "WhatsApp Web", "WhatsApp API", "Disable"];
+    private static readonly string[] SmsFrequencyChoices = ["SMS only Final Entry", "SMS Both Entry", "SMS only First Entry"];
+    private static readonly Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly ISettingsService _settingsService;
     private readonly IThemeService _themeService;
     private readonly IDialogService _dialogService;
     private readonly IConfigurationWriter _configurationWriter;
+    private readonly IConfiguration? _configuration;
     private readonly IIndicatorPortScanner _portScanner;
     private readonly IWeightIndicatorService _indicator;
     private readonly IPermissionService _permissions;
     private readonly ILogger<SettingsViewModel> _logger;
+    private readonly IEmailService? _emailService;
+    private readonly ILegacyDataImporter? _legacyImporter;
 
-    private readonly AsyncRelayCommand _saveHardware;
-    private readonly AsyncRelayCommand _detectPort;
+    private readonly AsyncRelayCommand _saveConfiguration;
+    private readonly AsyncRelayCommand _testConnection;
+    private readonly AsyncRelayCommand _testEmail;
+    private readonly AsyncRelayCommand _importLegacyData;
+    private bool _isTestingEmail;
+    private bool _isImportingLegacyData;
+    private string _legacyImportFilePath = string.Empty;
+    private string? _legacyImportStatus;
+
+    private string? _connectionTestStatus;
+    private bool _isTestingConnection;
 
     private AppTheme _selectedTheme;
     private bool _isNavigationCollapsed;
 
-    // Edit buffers. Bound to the screen so a half-finished edit cannot reach the live
-    // options object, and so Discard has something to revert to.
+    // Weight Indicator
     private bool _indicatorEnabled;
     private string _driverType = "Serial";
     private string _portName = "COM1";
-    private int _baudRate = 9600;
+    private int _baudRate = 2400;
     private int _dataBits = 8;
     private string _parity = "None";
     private string _stopBits = "One";
-    private int _stabilitySampleCount;
-    private decimal _stabilityToleranceKg;
-    private int _stabilityDurationMs;
-    private bool _autoReconnect;
-    private int _reconnectIntervalMs;
+    private int _stabilitySampleCount = 5;
+    private decimal _stabilityToleranceKg = 5.0m;
+    private int _stabilityDurationMs = 1000;
+    private bool _autoReconnect = true;
+    private int _reconnectIntervalMs = 1500;
     private bool _dtrEnable = true;
     private bool _rtsEnable = true;
     private string _handshake = "None";
 
-    private bool _cameraEnabled;
-    private bool _captureOnWeighment;
-    private bool _printingEnabled;
-    private string _defaultPrinterName = string.Empty;
-    private int _copyCount = 1;
-    private string _reportOutputDirectory = string.Empty;
-    private int _maxRowsPerReport;
+    // Privileged Semantic Decoding Profile
+    private string _frameStartChar = "[";
+    private string _frameEndChar = "NUL";
+    private int _weightDigits = 7;
+    private int _decimalPlaces = 1;
+    private bool _reversePayload = false;
+    private int _trailingDigitsRemoved = 0;
+    private decimal _scaleFactor = 1.0m;
+    private string _targetUnit = "kg";
 
-    private string? _detectionStatus;
-    private bool _isDetecting;
+    // Printing Settings
+    private bool _printingEnabled = true;
+    private string _printerType = "Dot Matrix Printer";
+    private bool _sideWisePrinting = false;
+    private string _defaultPrinterName = string.Empty;
+    private int _copyCount = 2;
+    private string _paperSize = "A4";
+
+    // Input Settings
+    private bool _unitBagsWeightColumn = false;
+    private bool _manualTareEntry = true;
+    private bool _autoTareWeight = true;
+    private bool _secondEntryCharges = false;
+    private bool _gstOnCharges = false;
+    private bool _onlySingleEntry = false;
+
+    // Other Settings
+    private bool _priceComputing = false;
+    private int _disconnectTimeSeconds = 300;
+    private bool _allowZeroNetWeight = false;
+    private bool _autoApplicationShortcut = true;
+    private bool _autoUpdateTareWeight = false;
+    private bool _weightHold = false;
+    private string _timeFormat = "12 Hour";
+    private bool _printQrCode = false;
+    private bool _chargesMandatory = false;
+    private decimal _minimumCharges = 0m;
+
+    // Auxiliary Ports
+    private bool _receivePort1Enabled = false;
+    private string _receivePort1Name = "COM4";
+    private int _receivePort1Baud = 9600;
+
+    private bool _receivePort2Enabled = false;
+    private string _receivePort2Name = "COM5";
+    private int _receivePort2Baud = 9600;
+
+    private bool _sendDataPortEnabled = false;
+    private string _sendDataPortName = "COM6";
+    private int _sendDataPortBaud = 9600;
+
+    // Email Settings
+    private bool _emailEnabled = false;
+    private string _emailFrequency = "Email only Final Entry";
+    private bool _emailPdf = true;
+    private string _emailSenderName = string.Empty;
+    private string _emailSenderId = string.Empty;
+    private string _emailPassword = string.Empty;
+    private string _emailSmtpServer = string.Empty;
+    private int _emailSmtpPort = 587;
+    private bool _emailUseSsl = true;
+    private string _newRecipientEmail = string.Empty;
+    private string? _selectedRecipientEmail;
+
+    // SMS & WhatsApp
+    private string _smsService = "Disable";
+    private string _smsFrequency = "SMS Both Entry";
+    private string _smsNumbers = string.Empty;
+    private string _whatsappToken = string.Empty;
+
+    // WB Name Feeding (Company)
+    private string _weighbridgeName = string.Empty;
+    private string _weighbridgeAddress1 = string.Empty;
+    private string _weighbridgeAddress2 = string.Empty;
+    private string _companyPhone = string.Empty;
+    private string _companyEmail = string.Empty;
+    private string _companyTaxId = string.Empty;
+
+    // Weight Indicator Extended
+    private string _indicatorEndingString = "NUL (0x00)";
+    private bool _indicatorHexValue = false;
+    private bool _indicatorEssaeMode = false;
+    private bool _indicatorRtsCts = false;
+    private int _indicatorBufferData = 50;
+    private int _indicatorDummyZero = 0;
+    private int _indicatorStableWaitTime = 0;
+
+    // Reporting
+    private string _reportOutputDirectory = string.Empty;
+    private int _maxRowsPerReport = 1000;
+
+    private int _selectedTabIndex = 0;
 
     public SettingsViewModel(
         ISettingsService settingsService,
@@ -94,105 +182,137 @@ public sealed class SettingsViewModel : ViewModelBase
         IPermissionService permissions,
         IOptions<HardwareOptions> hardwareOptions,
         IOptions<PrinterOptions> printerOptions,
-        IOptions<CameraOptions> cameraOptions,
         IOptions<ReportingOptions> reportingOptions,
         IOptions<DatabaseOptions> databaseOptions,
-        ILogger<SettingsViewModel> logger)
+        IOptions<WeighmentOptions>? weighmentOptions,
+        ILogger<SettingsViewModel> logger,
+        IOptions<CompanyOptions>? companyOptions = null,
+        IOptions<SmsOptions>? smsOptions = null,
+        IConfiguration? configuration = null,
+        IEmailService? emailService = null,
+        ILegacyDataImporter? legacyImporter = null)
     {
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _configurationWriter = configurationWriter ?? throw new ArgumentNullException(nameof(configurationWriter));
+        _configuration = configuration;
         _portScanner = portScanner ?? throw new ArgumentNullException(nameof(portScanner));
         _indicator = indicator ?? throw new ArgumentNullException(nameof(indicator));
         _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _emailService = emailService;
+        _legacyImporter = legacyImporter;
 
         Hardware = hardwareOptions?.Value ?? new HardwareOptions();
         Printer = printerOptions?.Value ?? new PrinterOptions();
-        Camera = cameraOptions?.Value ?? new CameraOptions();
         Reporting = reportingOptions?.Value ?? new ReportingOptions();
         Database = databaseOptions?.Value ?? new DatabaseOptions();
+        Weighment = weighmentOptions?.Value ?? new WeighmentOptions();
+        Company = companyOptions?.Value ?? new CompanyOptions();
+        Sms = smsOptions?.Value ?? new SmsOptions();
 
-        Title = "Settings";
-        Description = "Operator preferences, and the weight indicator, printing, camera and reporting configuration.";
+        Title = "User Settings";
+        Description = "Configure email, printing, input workflow, indicator, SMS, serial ports, and company details.";
 
         _selectedTheme = _settingsService.Preferences.Theme;
         _isNavigationCollapsed = _settingsService.Preferences.IsNavigationCollapsed;
+
+        RecipientEmails = new ObservableCollection<string>();
+        AddRecipientCommand = new RelayCommand(AddRecipient);
+        DeleteRecipientCommand = new RelayCommand<string?>(DeleteRecipient, email => !string.IsNullOrWhiteSpace(email));
 
         LoadFromOptions();
 
         SavePreferencesCommand = new AsyncRelayCommand(SavePreferencesAsync);
         ResetPreferencesCommand = new AsyncRelayCommand(ResetPreferencesAsync);
 
-        _saveHardware = new AsyncRelayCommand(SaveConfigurationAsync, () => CanEditConfiguration && !IsDetecting);
-        _detectPort = new AsyncRelayCommand(DetectIndicatorAsync, () => CanEditConfiguration && !IsDetecting);
+        _saveConfiguration = new AsyncRelayCommand(SaveConfigurationAsync, () => CanEditConfiguration && !IsTestingConnection);
+        _testConnection = new AsyncRelayCommand(TestConnectionAsync, () => CanEditConfiguration && !IsTestingConnection);
+        _testEmail = new AsyncRelayCommand(TestEmailAsync, () => CanEditConfiguration && !IsTestingEmail);
+        _importLegacyData = new AsyncRelayCommand(ImportLegacyDataAsync, () => CanEditConfiguration && !IsImportingLegacyData);
 
-        SaveConfigurationCommand = _saveHardware;
-        DetectIndicatorCommand = _detectPort;
+        SaveConfigurationCommand = _saveConfiguration;
+        TestConnectionCommand = _testConnection;
+        TestEmailCommand = _testEmail;
+        ImportLegacyDataCommand = _importLegacyData;
         RefreshPortsCommand = new RelayCommand(() => RefreshPorts());
         DiscardConfigurationCommand = new RelayCommand(LoadFromOptions);
 
         RefreshPorts();
     }
 
-    /// <summary>The options objects, still bound for the values this screen does not edit.</summary>
     public HardwareOptions Hardware { get; }
     public PrinterOptions Printer { get; }
-    public CameraOptions Camera { get; }
     public ReportingOptions Reporting { get; }
     public DatabaseOptions Database { get; }
+    public WeighmentOptions Weighment { get; }
 
     public IReadOnlyList<AppTheme> AvailableThemes { get; } = Enum.GetValues<AppTheme>();
     public IReadOnlyList<int> BaudRates => BaudRateChoices;
     public IReadOnlyList<string> DriverTypes => DriverTypeChoices;
     public IReadOnlyList<string> ParityOptions => ParityChoices;
     public IReadOnlyList<string> StopBitsOptions => StopBitsChoices;
+    public IReadOnlyList<string> PrinterTypes => PrinterTypeChoices;
+    public IReadOnlyList<string> PaperSizes => PaperSizeChoices;
+    public IReadOnlyList<string> TimeFormats => TimeFormatChoices;
+    public IReadOnlyList<string> EmailFrequencies => EmailFrequencyChoices;
+    public IReadOnlyList<string> SmsServices => SmsServiceChoices;
+    public IReadOnlyList<string> SmsFrequencies => SmsFrequencyChoices;
 
-    /// <summary>The COM ports Windows currently reports.</summary>
     public ObservableCollection<string> AvailablePorts { get; } = [];
 
-    /// <summary>What each port said during the last scan, newest scan only.</summary>
-    public ObservableCollection<PortProbeResult> DetectionResults { get; } = [];
-
-    /// <summary>
-    /// Whether the signed-in operator may change configuration.
-    /// </summary>
-    /// <remarks>
-    /// Enforced here and re-checked in <see cref="SaveConfigurationAsync"/>: a disabled
-    /// button is a courtesy, and the check that matters is the one in front of the write.
-    /// </remarks>
     public bool CanEditConfiguration => _permissions.HasPermission(Permissions.SettingsEdit);
-
-    /// <summary>
-    /// The inverse, so the read-only banner can bind to it directly.
-    /// </summary>
-    /// <remarks>
-    /// A property rather than an inverting converter: the converter this replaces existed
-    /// for exactly one binding, and WPF's own <c>BooleanToVisibilityConverter</c> cannot
-    /// invert.
-    /// </remarks>
     public bool IsConfigurationReadOnly => !CanEditConfiguration;
 
-    public bool IsDetecting
+    public bool IsTestingConnection
     {
-        get => _isDetecting;
+        get => _isTestingConnection;
         private set
         {
-            if (SetProperty(ref _isDetecting, value))
+            if (SetProperty(ref _isTestingConnection, value))
             {
-                _saveHardware.NotifyCanExecuteChanged();
-                _detectPort.NotifyCanExecuteChanged();
+                _saveConfiguration.NotifyCanExecuteChanged();
+                _testConnection.NotifyCanExecuteChanged();
             }
         }
     }
 
-    /// <summary>The outcome of the last scan, in one line, for the screen.</summary>
-    public string? DetectionStatus
+    public bool IsTestingEmail
     {
-        get => _detectionStatus;
-        private set => SetProperty(ref _detectionStatus, value);
+        get => _isTestingEmail;
+        private set
+        {
+            if (SetProperty(ref _isTestingEmail, value))
+            {
+                _testEmail.NotifyCanExecuteChanged();
+            }
+        }
     }
+
+    public string? ConnectionTestStatus
+    {
+        get => _connectionTestStatus;
+        private set => SetProperty(ref _connectionTestStatus, value);
+    }
+
+    #region Preferences Properties
+
+    public AppTheme SelectedTheme
+    {
+        get => _selectedTheme;
+        set => SetProperty(ref _selectedTheme, value);
+    }
+
+    public bool IsNavigationCollapsed
+    {
+        get => _isNavigationCollapsed;
+        set => SetProperty(ref _isNavigationCollapsed, value);
+    }
+
+    #endregion
+
+    #region Weight Indicator Properties
 
     public bool IndicatorEnabled
     {
@@ -212,7 +332,6 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>True when the serial fields matter — the simulator has no port.</summary>
     public bool IsSerialDriver => DriverType.Equals("Serial", StringComparison.OrdinalIgnoreCase);
 
     public string PortName
@@ -293,17 +412,61 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _handshake, value);
     }
 
-    public bool CameraEnabled
+    #endregion
+
+    #region Privileged Semantic Decoding Profile
+
+    public string FrameStartChar
     {
-        get => _cameraEnabled;
-        set => SetProperty(ref _cameraEnabled, value);
+        get => _frameStartChar;
+        set => SetProperty(ref _frameStartChar, value);
     }
 
-    public bool CaptureOnWeighment
+    public string FrameEndChar
     {
-        get => _captureOnWeighment;
-        set => SetProperty(ref _captureOnWeighment, value);
+        get => _frameEndChar;
+        set => SetProperty(ref _frameEndChar, value);
     }
+
+    public int WeightDigits
+    {
+        get => _weightDigits;
+        set => SetProperty(ref _weightDigits, value);
+    }
+
+    public int DecimalPlaces
+    {
+        get => _decimalPlaces;
+        set => SetProperty(ref _decimalPlaces, value);
+    }
+
+    public bool ReversePayload
+    {
+        get => _reversePayload;
+        set => SetProperty(ref _reversePayload, value);
+    }
+
+    public int TrailingDigitsRemoved
+    {
+        get => _trailingDigitsRemoved;
+        set => SetProperty(ref _trailingDigitsRemoved, value);
+    }
+
+    public decimal ScaleFactor
+    {
+        get => _scaleFactor;
+        set => SetProperty(ref _scaleFactor, value);
+    }
+
+    public string TargetUnit
+    {
+        get => _targetUnit;
+        set => SetProperty(ref _targetUnit, value);
+    }
+
+    #endregion
+
+    #region Printing Settings Properties
 
     public bool PrintingEnabled
     {
@@ -311,10 +474,22 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _printingEnabled, value);
     }
 
+    public string PrinterType
+    {
+        get => _printerType;
+        set => SetProperty(ref _printerType, value);
+    }
+
+    public bool SideWisePrinting
+    {
+        get => _sideWisePrinting;
+        set => SetProperty(ref _sideWisePrinting, value);
+    }
+
     public string DefaultPrinterName
     {
         get => _defaultPrinterName;
-        set => SetProperty(ref _defaultPrinterName, value ?? string.Empty);
+        set => SetProperty(ref _defaultPrinterName, value);
     }
 
     public int CopyCount
@@ -322,6 +497,494 @@ public sealed class SettingsViewModel : ViewModelBase
         get => _copyCount;
         set => SetProperty(ref _copyCount, value);
     }
+
+    public string PaperSize
+    {
+        get => _paperSize;
+        set => SetProperty(ref _paperSize, value);
+    }
+
+    #endregion
+
+    #region Input Settings Properties
+
+    public bool UnitBagsWeightColumn
+    {
+        get => _unitBagsWeightColumn;
+        set => SetProperty(ref _unitBagsWeightColumn, value);
+    }
+
+    public bool ManualTareEntry
+    {
+        get => _manualTareEntry;
+        set => SetProperty(ref _manualTareEntry, value);
+    }
+
+    public bool AutoTareWeight
+    {
+        get => _autoTareWeight;
+        set => SetProperty(ref _autoTareWeight, value);
+    }
+
+    public bool SecondEntryCharges
+    {
+        get => _secondEntryCharges;
+        set => SetProperty(ref _secondEntryCharges, value);
+    }
+
+    public bool GstOnCharges
+    {
+        get => _gstOnCharges;
+        set => SetProperty(ref _gstOnCharges, value);
+    }
+
+    public bool OnlySingleEntry
+    {
+        get => _onlySingleEntry;
+        set => SetProperty(ref _onlySingleEntry, value);
+    }
+
+    #endregion
+
+    #region Other Settings Properties
+
+    public bool PriceComputing
+    {
+        get => _priceComputing;
+        set => SetProperty(ref _priceComputing, value);
+    }
+
+    public int EmailSmtpPort
+    {
+        get => _emailSmtpPort;
+        set => SetProperty(ref _emailSmtpPort, value);
+    }
+
+    public bool EmailUseSsl
+    {
+        get => _emailUseSsl;
+        set => SetProperty(ref _emailUseSsl, value);
+    }
+
+    public string CompanyPhone
+    {
+        get => _companyPhone;
+        set => SetProperty(ref _companyPhone, value);
+    }
+
+    public string CompanyEmail
+    {
+        get => _companyEmail;
+        set => SetProperty(ref _companyEmail, value);
+    }
+
+    public string CompanyTaxId
+    {
+        get => _companyTaxId;
+        set => SetProperty(ref _companyTaxId, value);
+    }
+
+    public int DisconnectTimeSeconds
+    {
+        get => _disconnectTimeSeconds;
+        set => SetProperty(ref _disconnectTimeSeconds, value);
+    }
+
+    public bool AllowZeroNetWeight
+    {
+        get => _allowZeroNetWeight;
+        set => SetProperty(ref _allowZeroNetWeight, value);
+    }
+
+    public bool AutoApplicationShortcut
+    {
+        get => _autoApplicationShortcut;
+        set => SetProperty(ref _autoApplicationShortcut, value);
+    }
+
+    public bool AutoUpdateTareWeight
+    {
+        get => _autoUpdateTareWeight;
+        set => SetProperty(ref _autoUpdateTareWeight, value);
+    }
+
+    public bool WeightHold
+    {
+        get => _weightHold;
+        set => SetProperty(ref _weightHold, value);
+    }
+
+    public string TimeFormat
+    {
+        get => _timeFormat;
+        set
+        {
+            if (SetProperty(ref _timeFormat, value))
+            {
+                OnPropertyChanged(nameof(Is12HourFormat));
+                OnPropertyChanged(nameof(Is24HourFormat));
+            }
+        }
+    }
+
+    public bool Is12HourFormat
+    {
+        get => string.Equals(TimeFormat, "12 Hour", StringComparison.OrdinalIgnoreCase);
+        set { if (value) TimeFormat = "12 Hour"; }
+    }
+
+    public bool Is24HourFormat
+    {
+        get => string.Equals(TimeFormat, "24 Hour", StringComparison.OrdinalIgnoreCase);
+        set { if (value) TimeFormat = "24 Hour"; }
+    }
+
+    public bool PrintQrCode
+    {
+        get => _printQrCode;
+        set => SetProperty(ref _printQrCode, value);
+    }
+
+    public bool ChargesMandatory
+    {
+        get => _chargesMandatory;
+        set => SetProperty(ref _chargesMandatory, value);
+    }
+
+    public decimal MinimumCharges
+    {
+        get => _minimumCharges;
+        set => SetProperty(ref _minimumCharges, value);
+    }
+
+    #endregion
+
+    #region Port Settings Properties
+
+    public bool ReceivePort1Enabled
+    {
+        get => _receivePort1Enabled;
+        set => SetProperty(ref _receivePort1Enabled, value);
+    }
+
+    public string ReceivePort1Name
+    {
+        get => _receivePort1Name;
+        set => SetProperty(ref _receivePort1Name, value);
+    }
+
+    public int ReceivePort1Baud
+    {
+        get => _receivePort1Baud;
+        set => SetProperty(ref _receivePort1Baud, value);
+    }
+
+    public bool ReceivePort2Enabled
+    {
+        get => _receivePort2Enabled;
+        set => SetProperty(ref _receivePort2Enabled, value);
+    }
+
+    public string ReceivePort2Name
+    {
+        get => _receivePort2Name;
+        set => SetProperty(ref _receivePort2Name, value);
+    }
+
+    public int ReceivePort2Baud
+    {
+        get => _receivePort2Baud;
+        set => SetProperty(ref _receivePort2Baud, value);
+    }
+
+    public bool SendDataPortEnabled
+    {
+        get => _sendDataPortEnabled;
+        set => SetProperty(ref _sendDataPortEnabled, value);
+    }
+
+    public string SendDataPortName
+    {
+        get => _sendDataPortName;
+        set => SetProperty(ref _sendDataPortName, value);
+    }
+
+    public int SendDataPortBaud
+    {
+        get => _sendDataPortBaud;
+        set => SetProperty(ref _sendDataPortBaud, value);
+    }
+
+    #endregion
+
+    #region Email Properties
+
+    public bool EmailEnabled
+    {
+        get => _emailEnabled;
+        set => SetProperty(ref _emailEnabled, value);
+    }
+
+    public string EmailFrequency
+    {
+        get => _emailFrequency;
+        set => SetProperty(ref _emailFrequency, value, () =>
+        {
+            OnPropertyChanged(nameof(IsEmailFinalEntry));
+            OnPropertyChanged(nameof(IsEmailBothEntry));
+        });
+    }
+
+    public bool IsEmailFinalEntry
+    {
+        get => string.Equals(EmailFrequency, "Email only Final Entry", StringComparison.OrdinalIgnoreCase);
+        set { if (value) EmailFrequency = "Email only Final Entry"; }
+    }
+
+    public bool IsEmailBothEntry
+    {
+        get => string.Equals(EmailFrequency, "Email Both Entry", StringComparison.OrdinalIgnoreCase);
+        set { if (value) EmailFrequency = "Email Both Entry"; }
+    }
+
+    public bool EmailPdf
+    {
+        get => _emailPdf;
+        set => SetProperty(ref _emailPdf, value);
+    }
+
+    public string EmailSenderName
+    {
+        get => _emailSenderName;
+        set => SetProperty(ref _emailSenderName, value);
+    }
+
+    public string EmailSenderId
+    {
+        get => _emailSenderId;
+        set => SetProperty(ref _emailSenderId, value);
+    }
+
+    public string EmailPassword
+    {
+        get => _emailPassword;
+        set => SetProperty(ref _emailPassword, value);
+    }
+
+    public string EmailSmtpServer
+    {
+        get => _emailSmtpServer;
+        set => SetProperty(ref _emailSmtpServer, value);
+    }
+
+    public string NewRecipientEmail
+    {
+        get => _newRecipientEmail;
+        set => SetProperty(ref _newRecipientEmail, value);
+    }
+
+    public ObservableCollection<string> RecipientEmails { get; }
+
+    public string? SelectedRecipientEmail
+    {
+        get => _selectedRecipientEmail;
+        set
+        {
+            if (SetProperty(ref _selectedRecipientEmail, value))
+            {
+                (DeleteRecipientCommand as RelayCommand<string?>)?.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public ICommand AddRecipientCommand { get; }
+    public ICommand DeleteRecipientCommand { get; }
+
+    private void AddRecipient()
+    {
+        var email = NewRecipientEmail.Trim();
+        if (!EmailPattern.IsMatch(email))
+        {
+            return;
+        }
+
+        if (!RecipientEmails.Contains(email, StringComparer.OrdinalIgnoreCase))
+        {
+            RecipientEmails.Add(email);
+            NewRecipientEmail = string.Empty;
+        }
+    }
+
+    private void DeleteRecipient(string? email)
+    {
+        if (email != null && RecipientEmails.Contains(email))
+        {
+            RecipientEmails.Remove(email);
+            if (string.Equals(SelectedRecipientEmail, email, StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedRecipientEmail = null;
+            }
+        }
+    }
+
+    #endregion
+
+    #region SMS & WhatsApp Properties
+
+    public string SmsService
+    {
+        get => _smsService;
+        set => SetProperty(ref _smsService, NormalizeSmsService(value), () =>
+        {
+            OnPropertyChanged(nameof(IsSmsModem));
+            OnPropertyChanged(nameof(IsSmsWhatsAppWeb));
+            OnPropertyChanged(nameof(IsSmsWhatsAppApi));
+            OnPropertyChanged(nameof(IsSmsDisabled));
+        });
+    }
+
+    public string SmsFrequency
+    {
+        get => _smsFrequency;
+        set => SetProperty(ref _smsFrequency, value, () =>
+        {
+            OnPropertyChanged(nameof(IsSmsFinalEntry));
+            OnPropertyChanged(nameof(IsSmsBothEntry));
+        });
+    }
+
+    public bool IsSmsModem
+    {
+        get => string.Equals(SmsService, "Modem", StringComparison.OrdinalIgnoreCase);
+        set { if (value) SmsService = "Modem"; }
+    }
+
+    public bool IsSmsWhatsAppWeb
+    {
+        get => string.Equals(SmsService, "WhatsApp Web", StringComparison.OrdinalIgnoreCase);
+        set { if (value) SmsService = "WhatsApp Web"; }
+    }
+
+    public bool IsSmsWhatsAppApi
+    {
+        get => string.Equals(SmsService, "WhatsApp API", StringComparison.OrdinalIgnoreCase);
+        set { if (value) SmsService = "WhatsApp API"; }
+    }
+
+    public bool IsSmsDisabled
+    {
+        get => string.Equals(SmsService, "Disable", StringComparison.OrdinalIgnoreCase);
+        set { if (value) SmsService = "Disable"; }
+    }
+
+    public bool IsSmsFinalEntry
+    {
+        get => string.Equals(SmsFrequency, "SMS only Final Entry", StringComparison.OrdinalIgnoreCase);
+        set { if (value) SmsFrequency = "SMS only Final Entry"; }
+    }
+
+    public bool IsSmsBothEntry
+    {
+        get => string.Equals(SmsFrequency, "SMS Both Entry", StringComparison.OrdinalIgnoreCase);
+        set { if (value) SmsFrequency = "SMS Both Entry"; }
+    }
+
+    public string SmsNumbers
+    {
+        get => _smsNumbers;
+        set => SetProperty(ref _smsNumbers, value);
+    }
+
+    public string WhatsAppToken
+    {
+        get => _whatsappToken;
+        set => SetProperty(ref _whatsappToken, value);
+    }
+
+    #endregion
+
+    #region WB Name Feeding (Company) Properties
+
+    public CompanyOptions Company { get; }
+    public SmsOptions Sms { get; }
+
+    public string WeighbridgeName
+    {
+        get => _weighbridgeName;
+        set => SetProperty(ref _weighbridgeName, value);
+    }
+
+    public string WeighbridgeAddress1
+    {
+        get => _weighbridgeAddress1;
+        set => SetProperty(ref _weighbridgeAddress1, value);
+    }
+
+    public string WeighbridgeAddress2
+    {
+        get => _weighbridgeAddress2;
+        set => SetProperty(ref _weighbridgeAddress2, value);
+    }
+
+    #endregion
+
+    #region Weight Indicator Extended Properties
+
+    public string IndicatorEndingString
+    {
+        get => _indicatorEndingString;
+        set => SetProperty(ref _indicatorEndingString, value);
+    }
+
+    public bool IndicatorHexValue
+    {
+        get => _indicatorHexValue;
+        set => SetProperty(ref _indicatorHexValue, value);
+    }
+
+    public bool IndicatorEssaeMode
+    {
+        get => _indicatorEssaeMode;
+        set => SetProperty(ref _indicatorEssaeMode, value);
+    }
+
+    public bool IndicatorRtsCts
+    {
+        get => _indicatorRtsCts;
+        set => SetProperty(ref _indicatorRtsCts, value);
+    }
+
+    public int IndicatorBufferData
+    {
+        get => _indicatorBufferData;
+        set => SetProperty(ref _indicatorBufferData, value);
+    }
+
+    public int IndicatorDummyZero
+    {
+        get => _indicatorDummyZero;
+        set => SetProperty(ref _indicatorDummyZero, value);
+    }
+
+    public int IndicatorStableWaitTime
+    {
+        get => _indicatorStableWaitTime;
+        set => SetProperty(ref _indicatorStableWaitTime, value);
+    }
+
+    #endregion
+
+    #region Tab Control
+
+    public int SelectedTabIndex
+    {
+        get => _selectedTabIndex;
+        set => SetProperty(ref _selectedTabIndex, value);
+    }
+
+    #endregion
+
+    #region Reporting Properties
 
     public string ReportOutputDirectory
     {
@@ -335,239 +998,226 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _maxRowsPerReport, value);
     }
 
-    public AppTheme SelectedTheme
-    {
-        get => _selectedTheme;
-        set
-        {
-            if (SetProperty(ref _selectedTheme, value))
-            {
-                _themeService.ApplyTheme(value);
-            }
-        }
-    }
+    #endregion
 
-    public bool IsNavigationCollapsed
-    {
-        get => _isNavigationCollapsed;
-        set
-        {
-            if (SetProperty(ref _isNavigationCollapsed, value))
-            {
-                _settingsService.Preferences.IsNavigationCollapsed = value;
-            }
-        }
-    }
+    #region Commands
 
     public ICommand SavePreferencesCommand { get; }
     public ICommand ResetPreferencesCommand { get; }
     public ICommand SaveConfigurationCommand { get; }
-    public ICommand DetectIndicatorCommand { get; }
+    public ICommand TestConnectionCommand { get; }
+    public ICommand TestEmailCommand { get; }
+    public ICommand ImportLegacyDataCommand { get; }
     public ICommand RefreshPortsCommand { get; }
     public ICommand DiscardConfigurationCommand { get; }
 
-    /// <summary>
-    /// Re-reads the permission-derived state and the port list each time the screen opens.
-    /// </summary>
-    /// <remarks>
-    /// The view model is built once, which may be before anyone has signed in, so the
-    /// permission checks it made in its constructor can be stale. A USB-to-serial adapter
-    /// can also have been plugged in since, so the port list is read again here rather
-    /// than only once.
-    /// </remarks>
-    public override Task OnNavigatedToAsync(NavigationContext context)
+    public string LegacyImportFilePath
     {
-        OnPropertyChanged(nameof(CanEditConfiguration));
-        OnPropertyChanged(nameof(IsConfigurationReadOnly));
-        _saveHardware.NotifyCanExecuteChanged();
-        _detectPort.NotifyCanExecuteChanged();
-
-        LoadFromOptions();
-        RefreshPorts();
-
-        return base.OnNavigatedToAsync(context);
+        get => _legacyImportFilePath;
+        set => SetProperty(ref _legacyImportFilePath, value);
     }
 
-    /// <summary>
-    /// Copies the live options into the edit buffers, discarding any pending edit.
-    /// </summary>
-    private void LoadFromOptions()
+    public string? LegacyImportStatus
     {
-        var indicator = Hardware.WeightIndicator;
-
-        IndicatorEnabled = indicator.Enabled;
-        DriverType = indicator.DriverType;
-        PortName = indicator.PortName;
-        BaudRate = indicator.BaudRate;
-        DataBits = indicator.DataBits;
-        Parity = indicator.Parity;
-        StopBits = indicator.StopBits;
-        StabilitySampleCount = indicator.StabilitySampleCount;
-        StabilityToleranceKg = indicator.StabilityToleranceKg;
-        StabilityDurationMs = indicator.StabilityDurationMs;
-        DtrEnable = indicator.DtrEnable;
-        RtsEnable = indicator.RtsEnable;
-        Handshake = indicator.Handshake;
-        AutoReconnect = indicator.AutoReconnect;
-        ReconnectIntervalMs = indicator.ReconnectIntervalMs;
-
-        CameraEnabled = Camera.Enabled;
-        CaptureOnWeighment = Camera.CaptureOnWeighment;
-
-        PrintingEnabled = Printer.Enabled;
-        DefaultPrinterName = Printer.DefaultPrinterName;
-        CopyCount = Printer.CopyCount;
-
-        ReportOutputDirectory = Reporting.OutputDirectory;
-        MaxRowsPerReport = Reporting.MaxRowsPerReport;
-
-        OnPropertyChanged(nameof(IsSerialDriver));
+        get => _legacyImportStatus;
+        private set => SetProperty(ref _legacyImportStatus, value);
     }
 
-    /// <summary>Re-reads the port list, keeping the current selection if it is still there.</summary>
-    private void RefreshPorts(string? explicitPortToSelect = null)
+    public bool IsImportingLegacyData
+    {
+        get => _isImportingLegacyData;
+        private set
+        {
+            if (SetProperty(ref _isImportingLegacyData, value))
+            {
+                _importLegacyData.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    #endregion
+
+    public void RefreshPorts(string? explicitPortToSelect = null)
     {
         var targetPort = explicitPortToSelect ?? PortName;
-        var ports = _portScanner.GetAvailablePorts();
+        AvailablePorts.Clear();
 
-        var newPortList = new List<string>(ports);
-        if (!string.IsNullOrWhiteSpace(targetPort) &&
-            !newPortList.Contains(targetPort, StringComparer.OrdinalIgnoreCase))
+        try
         {
-            newPortList.Add(targetPort);
-        }
-
-        if (!AvailablePorts.SequenceEqual(newPortList, StringComparer.OrdinalIgnoreCase))
-        {
-            AvailablePorts.Clear();
-            foreach (var port in newPortList)
+            var ports = _portScanner.GetAvailablePorts();
+            foreach (var port in ports)
             {
                 AvailablePorts.Add(port);
             }
         }
-
-        if (!string.IsNullOrWhiteSpace(targetPort))
+        catch (Exception ex)
         {
-            PortName = targetPort;
+            _logger.LogWarning(ex, "Failed to enumerate available serial ports");
         }
 
-        DetectionStatus = ports.Count == 0
-            ? "Windows reports no serial ports on this machine. Check the cable and the USB-to-serial driver."
-            : $"{ports.Count} serial port(s) available: {string.Join(", ", ports)}.";
+        if (!string.IsNullOrWhiteSpace(targetPort) && !AvailablePorts.Contains(targetPort))
+        {
+            AvailablePorts.Add(targetPort);
+        }
+
+        PortName = targetPort;
     }
 
-    /// <summary>
-    /// Tests the indicator connection on the selected port and baud rate using the live framing and parser pipeline.
-    /// </summary>
-    /// <remarks>
-    /// The running driver holds the configured port, so it is disconnected for the duration
-    /// of the test and reconnected afterwards.
-    /// </remarks>
-    private async Task DetectIndicatorAsync()
+    private void LoadFromOptions()
     {
-        IsDetecting = true;
-        DetectionResults.Clear();
-        DetectionStatus = $"Testing indicator connection on {PortName} at {BaudRate} baud…";
+        var indicator = Hardware.WeightIndicator;
+        _indicatorEnabled = indicator.Enabled;
+        _driverType = indicator.DriverType;
+        _portName = indicator.PortName;
+        _baudRate = indicator.BaudRate;
+        _dataBits = indicator.DataBits;
+        _parity = indicator.Parity;
+        _stopBits = ReadConfiguration("Hardware:WeightIndicator:StopBits", indicator.StopBits);
+        _stabilitySampleCount = indicator.StabilitySampleCount;
+        _stabilityToleranceKg = indicator.StabilityToleranceKg;
+        _stabilityDurationMs = indicator.StabilityDurationMs;
+        _autoReconnect = indicator.AutoReconnect;
+        _reconnectIntervalMs = indicator.ReconnectIntervalMs;
+        _dtrEnable = indicator.DtrEnable;
+        _rtsEnable = indicator.RtsEnable;
+        _handshake = indicator.Handshake;
 
-        var wasConnected = _indicator.State == Domain.Enums.ConnectionState.Connected;
+        var decoding = indicator.Decoding;
+        _weightDigits = decoding?.WeightDigits ?? 7;
+        _decimalPlaces = decoding?.DecimalPlaces ?? 1;
+        _reversePayload = decoding?.ReversePayload ?? false;
+        _trailingDigitsRemoved = decoding?.DigitsToRemoveFromEnd ?? 0;
+        _scaleFactor = decoding?.ScaleFactor ?? 1.0m;
+        _targetUnit = indicator.Unit ?? "kg";
 
+        // Extended indicator settings
+        _indicatorEndingString = ReadConfiguration("Hardware:WeightIndicator:Decoding:EndingString", _indicatorEndingString);
+        _indicatorHexValue = ReadConfiguration("Hardware:WeightIndicator:Decoding:HexValue", false);
+        _indicatorEssaeMode = ReadConfiguration("Hardware:WeightIndicator:Decoding:EssaeMode", false);
+        _indicatorRtsCts = ReadConfiguration("Hardware:WeightIndicator:Decoding:RtsCts", false);
+        _indicatorBufferData = ReadConfiguration("Hardware:WeightIndicator:Decoding:BufferData", 50);
+        _indicatorDummyZero = ReadConfiguration("Hardware:WeightIndicator:Decoding:DummyZero", 0);
+        _indicatorStableWaitTime = ReadConfiguration("Hardware:WeightIndicator:Decoding:StableWaitTime", 0);
+
+        _printingEnabled = Printer.Enabled;
+        _printerType = Printer.PrinterType ?? "Dot Matrix Printer";
+        _sideWisePrinting = Printer.SideWisePrinting;
+        _defaultPrinterName = Printer.DefaultPrinterName;
+        _copyCount = Printer.CopyCount;
+        _paperSize = Printer.PaperSize ?? "A4";
+
+        _unitBagsWeightColumn = Weighment.UnitBagsWeightColumn;
+        _manualTareEntry = Weighment.ManualTareEntry;
+        _autoTareWeight = Weighment.AutoTareWeight;
+        _secondEntryCharges = Weighment.SecondEntryCharges;
+        _gstOnCharges = Weighment.GstOnCharges;
+        _onlySingleEntry = Weighment.OnlySingleEntry;
+        _priceComputing = Weighment.PriceComputing;
+        _disconnectTimeSeconds = Weighment.DisconnectTimeSeconds;
+        _allowZeroNetWeight = Weighment.AllowZeroNetWeight;
+        _autoApplicationShortcut = Weighment.AutoApplicationShortcut;
+        _autoUpdateTareWeight = Weighment.AutoUpdateTareWeight;
+        _weightHold = Weighment.WeightHold;
+        _timeFormat = Weighment.TimeFormat ?? "12 Hour";
+        _printQrCode = Weighment.PrintQrCode;
+        _chargesMandatory = Weighment.ChargesMandatory;
+        _minimumCharges = Weighment.MinimumCharges;
+
+        var ports = Hardware.PortSettings;
+        _receivePort1Enabled = ports.ReceivePort1.Enabled;
+        _receivePort1Name = ports.ReceivePort1.PortName;
+        _receivePort1Baud = ports.ReceivePort1.BaudRate;
+
+        _receivePort2Enabled = ports.ReceivePort2.Enabled;
+        _receivePort2Name = ports.ReceivePort2.PortName;
+        _receivePort2Baud = ports.ReceivePort2.BaudRate;
+
+        _sendDataPortEnabled = ports.SendDataPort.Enabled;
+        _sendDataPortName = ports.SendDataPort.PortName;
+        _sendDataPortBaud = ports.SendDataPort.BaudRate;
+
+        _weighbridgeName = Company.CompanyName;
+        _weighbridgeAddress1 = Company.AddressLine1;
+        _weighbridgeAddress2 = Company.AddressLine2;
+        _companyPhone = ReadConfiguration("Company:Phone", string.Empty);
+        _companyEmail = ReadConfiguration("Company:Email", string.Empty);
+        _companyTaxId = ReadConfiguration("Company:TaxId", string.Empty);
+
+        var smsEnabled = ReadConfiguration("Sms:Enabled", Sms.Enabled);
+        var smsProvider = ReadConfiguration("Sms:Provider", Sms.Provider.ToString());
+        _smsService = smsEnabled
+            ? (string.Equals(smsProvider, SmsProviderType.GsmModem.ToString(), StringComparison.OrdinalIgnoreCase) ? "Modem" : "WhatsApp API")
+            : "Disable";
+        _smsFrequency = ReadConfiguration("Sms:MessageFrequency", _smsFrequency);
+        _smsNumbers = Sms.DefaultRecipient ?? string.Empty;
+        _whatsappToken = ReadConfiguration("Sms:WhatsAppToken", string.Empty);
+
+        _emailEnabled = ReadConfiguration("Email:Enabled", false);
+        _emailFrequency = ReadConfiguration("Email:Frequency", "Email only Final Entry");
+        _emailPdf = ReadConfiguration("Email:PdfEnabled", true);
+        _emailSenderName = ReadConfiguration("Email:SenderName", string.Empty);
+        _emailSenderId = ReadConfiguration("Email:SenderEmail", string.Empty);
+        _emailPassword = string.Empty;
+        _emailSmtpServer = ReadConfiguration("Email:SmtpServer", string.Empty);
+        _emailSmtpPort = ReadConfiguration("Email:SmtpPort", 587);
+        _emailUseSsl = ReadConfiguration("Email:UseSsl", true);
+        RecipientEmails.Clear();
+        foreach (var recipient in ReadConfigurationList("Email:Recipients"))
+        {
+            RecipientEmails.Add(recipient);
+        }
+        _selectedRecipientEmail = null;
+
+        _reportOutputDirectory = Reporting.OutputDirectory;
+        _maxRowsPerReport = Reporting.MaxRowsPerReport;
+
+        OnPropertyChanged(string.Empty);
+    }
+
+    private async Task SavePreferencesAsync()
+    {
         try
         {
-            if (wasConnected)
-            {
-                await _indicator.DisconnectAsync().ConfigureAwait(true);
-            }
-
-            RefreshPorts();
-
-            var targetPorts = !string.IsNullOrWhiteSpace(PortName) ? new[] { PortName } : null;
-            var targetBauds = BaudRate > 0 ? new[] { BaudRate } : new[] { 2400 };
-
-            var results = await _portScanner
-                .ScanAsync(portNames: targetPorts, baudRates: targetBauds)
-                .ConfigureAwait(true);
-
-            foreach (var result in results)
-            {
-                DetectionResults.Add(result);
-            }
-
-            var found = results.FirstOrDefault(result => result.SpeaksProtocol);
-
-            if (found is null)
-            {
-                DetectionStatus = results.Count == 0
-                    ? "No serial ports available to test."
-                    : $"No valid indicator frames detected on {PortName} at {BaudRate} baud after {results.Count} attempt(s). " +
-                      "Verify that the indicator is powered on, wired with DTR/RTS asserted, and sending continuous weight frames.";
-
-                _logger.LogWarning("Indicator connection test found nothing across {Attempts} attempt(s)", results.Count);
-                return;
-            }
-
-            var detectedPort = found.PortName;
-            BaudRate = found.BaudRate;
-            DriverType = "Serial";
-            IndicatorEnabled = true;
-            OnPropertyChanged(nameof(IsSerialDriver));
-            RefreshPorts(explicitPortToSelect: detectedPort);
-            PortName = detectedPort;
-
-            DetectionStatus =
-                $"Connection successful on {found.PortName} at {found.BaudRate} baud! Live reading: " +
-                $"{found.SampleWeightKg?.ToString("0.##", CultureInfo.CurrentCulture)} kg " +
-                $"(frame '{found.RawSample}'). Click Save to apply.";
-
-            _logger.LogInformation(
-                "Indicator connection verified on {PortName} at {BaudRate} baud", found.PortName, found.BaudRate);
+            _settingsService.Preferences.Theme = SelectedTheme;
+            _settingsService.Preferences.IsNavigationCollapsed = IsNavigationCollapsed;
+            await _settingsService.SaveAsync().ConfigureAwait(true);
+            _themeService.ApplyTheme(SelectedTheme);
+            await _dialogService.ShowInformationAsync("Saved", "Your preferences have been saved.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Indicator detection failed");
-            DetectionStatus = $"The test could not be completed: {ex.Message}";
-        }
-        finally
-        {
-            IsDetecting = false;
-
-            if (wasConnected)
-            {
-                try
-                {
-                    await _indicator.ConnectAsync().ConfigureAwait(true);
-                }
-                catch (Exception ex)
-                {
-                    // Reported, not thrown: the test's own result is the useful outcome here,
-                    // and the indicator's status bar tile already shows it is disconnected.
-                    _logger.LogWarning(ex, "Could not reconnect the indicator after the test");
-                }
-            }
+            _logger.LogError(ex, "Failed to save preferences");
+            await _dialogService.ShowErrorAsync("Error", "Could not save preferences: " + ex.Message);
         }
     }
 
-    /// <summary>
-    /// Validates the edits, writes them to configuration, and reconnects the indicator.
-    /// </summary>
+    private async Task ResetPreferencesAsync()
+    {
+        await _settingsService.ResetAsync().ConfigureAwait(true);
+        SelectedTheme = _settingsService.Preferences.Theme;
+        IsNavigationCollapsed = _settingsService.Preferences.IsNavigationCollapsed;
+        _themeService.ApplyTheme(SelectedTheme);
+        await _dialogService.ShowInformationAsync("Reset", "Preferences reset to defaults.");
+    }
+
     private async Task SaveConfigurationAsync()
     {
         if (!CanEditConfiguration)
         {
-            await _dialogService.ShowErrorAsync(
-                "Not permitted",
-                "Your role does not permit changing the application configuration.").ConfigureAwait(true);
+            await _dialogService.ShowWarningAsync("Permission Denied", "Your role does not permit editing system configuration.");
             return;
         }
 
-        if (Validate() is { } problem)
+        var validationError = Validate();
+        if (validationError != null)
         {
-            await _dialogService.ShowErrorAsync("Check the settings", problem).ConfigureAwait(true);
+            await _dialogService.ShowWarningAsync("Invalid Configuration", validationError);
             return;
         }
 
         try
         {
-            await _configurationWriter.SaveAsync(new Dictionary<string, object?>
+            var values = new Dictionary<string, object?>
             {
                 ["Hardware:WeightIndicator:Enabled"] = IndicatorEnabled,
                 ["Hardware:WeightIndicator:DriverType"] = DriverType,
@@ -579,174 +1229,307 @@ public sealed class SettingsViewModel : ViewModelBase
                 ["Hardware:WeightIndicator:StabilitySampleCount"] = StabilitySampleCount,
                 ["Hardware:WeightIndicator:StabilityToleranceKg"] = StabilityToleranceKg,
                 ["Hardware:WeightIndicator:StabilityDurationMs"] = StabilityDurationMs,
+                ["Hardware:WeightIndicator:AutoReconnect"] = AutoReconnect,
+                ["Hardware:WeightIndicator:ReconnectIntervalMs"] = ReconnectIntervalMs,
                 ["Hardware:WeightIndicator:DtrEnable"] = DtrEnable,
                 ["Hardware:WeightIndicator:RtsEnable"] = RtsEnable,
                 ["Hardware:WeightIndicator:Handshake"] = Handshake,
-                ["Hardware:WeightIndicator:AutoReconnect"] = AutoReconnect,
-                ["Hardware:WeightIndicator:ReconnectIntervalMs"] = ReconnectIntervalMs,
-                ["Camera:Enabled"] = CameraEnabled,
-                ["Camera:CaptureOnWeighment"] = CaptureOnWeighment,
+                ["Hardware:WeightIndicator:Unit"] = TargetUnit,
+                ["Hardware:WeightIndicator:Decoding:WeightDigits"] = WeightDigits,
+                ["Hardware:WeightIndicator:Decoding:DecimalPlaces"] = DecimalPlaces,
+                ["Hardware:WeightIndicator:Decoding:ReversePayload"] = ReversePayload,
+                ["Hardware:WeightIndicator:Decoding:DigitsToRemoveFromEnd"] = TrailingDigitsRemoved,
+                ["Hardware:WeightIndicator:Decoding:ScaleFactor"] = ScaleFactor,
+                ["Hardware:WeightIndicator:Decoding:EndingString"] = IndicatorEndingString,
+                ["Hardware:WeightIndicator:Decoding:HexValue"] = IndicatorHexValue,
+                ["Hardware:WeightIndicator:Decoding:EssaeMode"] = IndicatorEssaeMode,
+                ["Hardware:WeightIndicator:Decoding:RtsCts"] = IndicatorRtsCts,
+                ["Hardware:WeightIndicator:Decoding:BufferData"] = IndicatorBufferData,
+                ["Hardware:WeightIndicator:Decoding:DummyZero"] = IndicatorDummyZero,
+                ["Hardware:WeightIndicator:Decoding:StableWaitTime"] = IndicatorStableWaitTime,
+                ["Hardware:PortSettings:ReceivePort1:Enabled"] = ReceivePort1Enabled,
+                ["Hardware:PortSettings:ReceivePort1:PortName"] = ReceivePort1Name,
+                ["Hardware:PortSettings:ReceivePort1:BaudRate"] = ReceivePort1Baud,
+                ["Hardware:PortSettings:ReceivePort2:Enabled"] = ReceivePort2Enabled,
+                ["Hardware:PortSettings:ReceivePort2:PortName"] = ReceivePort2Name,
+                ["Hardware:PortSettings:ReceivePort2:BaudRate"] = ReceivePort2Baud,
+                ["Hardware:PortSettings:SendDataPort:Enabled"] = SendDataPortEnabled,
+                ["Hardware:PortSettings:SendDataPort:PortName"] = SendDataPortName,
+                ["Hardware:PortSettings:SendDataPort:BaudRate"] = SendDataPortBaud,
                 ["Printer:Enabled"] = PrintingEnabled,
+                ["Printer:PrinterType"] = PrinterType,
+                ["Printer:SideWisePrinting"] = SideWisePrinting,
                 ["Printer:DefaultPrinterName"] = DefaultPrinterName,
                 ["Printer:CopyCount"] = CopyCount,
+                ["Printer:PaperSize"] = PaperSize,
+                ["Weighment:UnitBagsWeightColumn"] = UnitBagsWeightColumn,
+                ["Weighment:ManualTareEntry"] = ManualTareEntry,
+                ["Weighment:AutoTareWeight"] = AutoTareWeight,
+                ["Weighment:SecondEntryCharges"] = SecondEntryCharges,
+                ["Weighment:GstOnCharges"] = GstOnCharges,
+                ["Weighment:OnlySingleEntry"] = OnlySingleEntry,
+                ["Weighment:PriceComputing"] = PriceComputing,
+                ["Weighment:DisconnectTimeSeconds"] = DisconnectTimeSeconds,
+                ["Weighment:AllowZeroNetWeight"] = AllowZeroNetWeight,
+                ["Weighment:AutoApplicationShortcut"] = AutoApplicationShortcut,
+                ["Weighment:AutoUpdateTareWeight"] = AutoUpdateTareWeight,
+                ["Weighment:WeightHold"] = WeightHold,
+                ["Weighment:TimeFormat"] = TimeFormat,
+                ["Weighment:PrintQrCode"] = PrintQrCode,
+                ["Weighment:ChargesMandatory"] = ChargesMandatory,
+                ["Weighment:MinimumCharges"] = MinimumCharges,
+                ["Company:CompanyName"] = WeighbridgeName,
+                ["Company:AddressLine1"] = WeighbridgeAddress1,
+                ["Company:AddressLine2"] = WeighbridgeAddress2,
+                ["Company:Phone"] = CompanyPhone,
+                ["Company:Email"] = CompanyEmail,
+                ["Company:TaxId"] = CompanyTaxId,
+                ["Sms:Enabled"] = !SmsService.Equals("Disable", StringComparison.OrdinalIgnoreCase),
+                ["Sms:Provider"] = SmsService.Equals("Modem", StringComparison.OrdinalIgnoreCase)
+                    ? SmsProviderType.GsmModem
+                    : SmsProviderType.HttpGateway,
+                ["Sms:MessageFrequency"] = SmsFrequency,
+                ["Sms:DefaultRecipient"] = SmsNumbers,
+                ["Sms:WhatsAppToken"] = WhatsAppToken,
+                ["Email:Enabled"] = EmailEnabled,
+                ["Email:Frequency"] = EmailFrequency,
+                ["Email:PdfEnabled"] = EmailPdf,
+                ["Email:SenderName"] = EmailSenderName,
+                ["Email:SenderEmail"] = EmailSenderId,
+                ["Email:SmtpServer"] = EmailSmtpServer,
+                ["Email:SmtpPort"] = EmailSmtpPort,
+                ["Email:UseSsl"] = EmailUseSsl,
+                ["Email:Recipients"] = RecipientEmails.ToArray(),
                 ["Reporting:OutputDirectory"] = ReportOutputDirectory,
                 ["Reporting:MaxRowsPerReport"] = MaxRowsPerReport,
-            }).ConfigureAwait(true);
+            };
 
-            // The options objects are the ones every other screen already holds, so they are
-            // updated in place. Without this the Settings screen would show the new port
-            // while the status bar and Vehicle Entry still showed the old one.
+            if (!string.IsNullOrWhiteSpace(EmailPassword))
+            {
+                values["Email:Password"] = EmailPassword;
+            }
+
             ApplyToOptions();
 
-            _logger.LogInformation(
-                "Configuration saved by {Operator}: indicator {DriverType} on {PortName} at {BaudRate} baud",
-                _permissions.CurrentOperator.UserName,
-                DriverType,
-                PortName,
-                BaudRate);
+            await _configurationWriter.SaveAsync(values).ConfigureAwait(true);
 
-            // Which implementation serves IWeightIndicatorService was decided when the
-            // container was built, so a change from Simulator to Serial (or the reverse)
-            // genuinely needs a restart. Reconnecting covers a port or baud change, which
-            // is the case this screen exists for; the message is honest about the rest.
+            _logger.LogInformation("Configuration saved by {Operator}", _permissions.CurrentOperator.UserName);
+
             var reconnected = await TryReconnectIndicatorAsync().ConfigureAwait(true);
 
             await _dialogService.ShowInformationAsync(
-                "Settings saved",
+                "Settings Saved",
                 reconnected
-                    ? $"Saved. The indicator was reconnected on {PortName} at {BaudRate} baud."
-                    : "Saved. Restart the application for the driver change to take effect.")
-                .ConfigureAwait(true);
+                    ? $"Settings saved successfully. Indicator reconnected on {PortName} at {BaudRate} baud."
+                    : "Settings saved successfully.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to save configuration");
-            await _dialogService.ShowErrorAsync("Error", "Could not save the settings: " + ex.Message)
-                .ConfigureAwait(true);
+            await _dialogService.ShowErrorAsync("Save Error", "Could not save settings: " + ex.Message);
         }
     }
 
-    /// <summary>
-    /// Rejects values the subsystems cannot use, before anything reaches the file.
-    /// </summary>
-    /// <returns>The problem to show the operator, or <c>null</c> when the edits are usable.</returns>
     private string? Validate()
     {
         if (IsSerialDriver && string.IsNullOrWhiteSpace(PortName))
-        {
-            return "A serial indicator needs a port name, for example COM3. Use Detect to find it.";
-        }
+            return "Serial weight indicator requires a valid COM port.";
 
         if (BaudRate <= 0)
-        {
-            return "The baud rate must be a positive number.";
-        }
+            return "Baud rate must be positive.";
 
         if (DataBits is < 5 or > 8)
-        {
             return "Data bits must be between 5 and 8.";
-        }
-
-        if (!ParityChoices.Contains(Parity, StringComparer.OrdinalIgnoreCase))
-        {
-            return $"Parity must be one of: {string.Join(", ", ParityChoices)}.";
-        }
-
-        if (!StopBitsChoices.Contains(StopBits, StringComparer.OrdinalIgnoreCase))
-        {
-            return $"Stop bits must be one of: {string.Join(", ", StopBitsChoices)}.";
-        }
-
-        if (StabilitySampleCount < 1)
-        {
-            return "At least one sample is needed before a weight can be called stable.";
-        }
-
-        if (StabilityToleranceKg < 0)
-        {
-            return "The stability tolerance cannot be negative.";
-        }
-
-        if (StabilityDurationMs < 0)
-        {
-            return "The stability duration cannot be negative.";
-        }
-
-        if (ReconnectIntervalMs < 100)
-        {
-            return "The reconnect interval must be at least 100 ms, or the retry loop will spin.";
-        }
 
         if (CopyCount is < 1 or > 10)
+            return "Print copy count must be between 1 and 10.";
+
+        if (!DriverTypeChoices.Contains(DriverType))
+            return "Driver type must be Serial, Simulator, or Disabled.";
+
+        if (!ParityChoices.Contains(Parity))
+            return "Parity must be one of the supported serial parity values.";
+
+        if (!StopBitsChoices.Contains(StopBits))
+            return "Stop bits must be One, OnePointFive, or Two.";
+
+        if (!PrinterTypeChoices.Contains(PrinterType))
+            return "Printer type is not supported.";
+
+        if (!PaperSizeChoices.Contains(PaperSize))
+            return "Paper size is not supported.";
+
+        if (WeightDigits <= 0)
+            return "Number of weight digits must be greater than zero.";
+
+        if (DecimalPlaces < 0)
+            return "Decimal places must be zero or greater.";
+
+        if (TrailingDigitsRemoved < 0)
+            return "Digits to remove from end must be zero or greater.";
+
+        if (DisconnectTimeSeconds <= 0)
+            return "Disconnect time must be greater than zero seconds.";
+
+        if (MinimumCharges < 0)
+            return "Minimum charges cannot be negative.";
+
+        if (IndicatorBufferData < 0)
+            return "Buffer data cannot be negative.";
+
+        if (IndicatorDummyZero < 0)
+            return "Dummy zero cannot be negative.";
+
+        if (IndicatorStableWaitTime < 0)
+            return "Stable wait time cannot be negative.";
+
+        if (!EmailFrequencyChoices.Contains(EmailFrequency))
+            return "Email frequency is not supported.";
+
+        if (EmailEnabled)
         {
-            return "Copies per slip must be between 1 and 10.";
+            if (string.IsNullOrWhiteSpace(EmailSenderId) || !EmailPattern.IsMatch(EmailSenderId.Trim()))
+                return "A valid sender email address is required when email is enabled.";
+
+            if (string.IsNullOrWhiteSpace(EmailSmtpServer))
+                return "SMTP server is required when email is enabled.";
         }
 
-        if (MaxRowsPerReport < 1)
-        {
-            return "A report must be allowed at least one row.";
-        }
+        if (RecipientEmails.Any(email => !EmailPattern.IsMatch(email)))
+            return "Recipient list contains an invalid email address.";
 
-        if (string.IsNullOrWhiteSpace(ReportOutputDirectory))
-        {
-            return "Reports need an output folder.";
-        }
+        if (!SmsServiceChoices.Contains(SmsService))
+            return "SMS service is not supported.";
 
-        try
-        {
-            // Catches an unusable path here rather than at the end of a long export.
-            Path.GetFullPath(ReportOutputDirectory);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return $"'{ReportOutputDirectory}' is not a usable folder path.";
-        }
+        if (!SmsFrequencyChoices.Contains(SmsFrequency))
+            return "SMS frequency is not supported.";
+
+        if (ReceivePort1Baud <= 0 || ReceivePort2Baud <= 0 || SendDataPortBaud <= 0)
+            return "Configured serial port baud rates must be positive.";
 
         return null;
     }
 
-    /// <summary>Copies the saved edits into the live options objects.</summary>
+    private T ReadConfiguration<T>(string key, T fallback)
+    {
+        if (_configuration is null)
+        {
+            return fallback;
+        }
+
+        return _configuration.GetValue<T?>(key) ?? fallback;
+    }
+
+    private static string NormalizeSmsService(string? value)
+    {
+        if (string.Equals(value, "Enable", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Modem";
+        }
+
+        return string.IsNullOrWhiteSpace(value) ? "Disable" : value.Trim();
+    }
+
+    private IReadOnlyList<string> ReadConfigurationList(string key)
+    {
+        if (_configuration is null)
+        {
+            return [];
+        }
+
+        return _configuration.GetSection(key)
+            .GetChildren()
+            .Select(child => child.Value?.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private void ApplyToOptions()
     {
-        var indicator = Hardware.WeightIndicator;
+        var ind = Hardware.WeightIndicator;
+        ind.Enabled = IndicatorEnabled;
+        ind.DriverType = DriverType;
+        ind.PortName = PortName;
+        ind.BaudRate = BaudRate;
+        ind.DataBits = DataBits;
+        ind.Parity = Parity;
+        ind.StopBits = StopBits;
+        ind.StabilitySampleCount = StabilitySampleCount;
+        ind.StabilityToleranceKg = StabilityToleranceKg;
+        ind.StabilityDurationMs = StabilityDurationMs;
+        ind.DtrEnable = DtrEnable;
+        ind.RtsEnable = RtsEnable;
+        ind.Handshake = Handshake;
+        ind.AutoReconnect = AutoReconnect;
+        ind.ReconnectIntervalMs = ReconnectIntervalMs;
+        ind.Unit = TargetUnit;
 
-        indicator.Enabled = IndicatorEnabled;
-        indicator.DriverType = DriverType;
-        indicator.PortName = PortName;
-        indicator.BaudRate = BaudRate;
-        indicator.DataBits = DataBits;
-        indicator.Parity = Parity;
-        indicator.StopBits = StopBits;
-        indicator.StabilitySampleCount = StabilitySampleCount;
-        indicator.StabilityToleranceKg = StabilityToleranceKg;
-        indicator.StabilityDurationMs = StabilityDurationMs;
-        indicator.DtrEnable = DtrEnable;
-        indicator.RtsEnable = RtsEnable;
-        indicator.Handshake = Handshake;
-        indicator.AutoReconnect = AutoReconnect;
-        indicator.ReconnectIntervalMs = ReconnectIntervalMs;
-
-        Camera.Enabled = CameraEnabled;
-        Camera.CaptureOnWeighment = CaptureOnWeighment;
+        ind.Decoding.WeightDigits = WeightDigits;
+        ind.Decoding.DecimalPlaces = DecimalPlaces;
+        ind.Decoding.ReversePayload = ReversePayload;
+        ind.Decoding.DigitsToRemoveFromEnd = TrailingDigitsRemoved;
+        ind.Decoding.ScaleFactor = ScaleFactor;
+        ind.Decoding.EndingString = IndicatorEndingString;
+        ind.Decoding.HexValue = IndicatorHexValue;
+        ind.Decoding.EssaeMode = IndicatorEssaeMode;
+        ind.Decoding.RtsCts = IndicatorRtsCts;
+        ind.Decoding.BufferData = IndicatorBufferData;
+        ind.Decoding.DummyZero = IndicatorDummyZero;
+        ind.Decoding.StableWaitTime = IndicatorStableWaitTime;
 
         Printer.Enabled = PrintingEnabled;
+        Printer.PrinterType = PrinterType;
+        Printer.SideWisePrinting = SideWisePrinting;
         Printer.DefaultPrinterName = DefaultPrinterName;
         Printer.CopyCount = CopyCount;
+        Printer.PaperSize = PaperSize;
+
+        Weighment.UnitBagsWeightColumn = UnitBagsWeightColumn;
+        Weighment.ManualTareEntry = ManualTareEntry;
+        Weighment.AutoTareWeight = AutoTareWeight;
+        Weighment.SecondEntryCharges = SecondEntryCharges;
+        Weighment.GstOnCharges = GstOnCharges;
+        Weighment.OnlySingleEntry = OnlySingleEntry;
+        Weighment.PriceComputing = PriceComputing;
+        Weighment.DisconnectTimeSeconds = DisconnectTimeSeconds;
+        Weighment.AllowZeroNetWeight = AllowZeroNetWeight;
+        Weighment.AutoApplicationShortcut = AutoApplicationShortcut;
+        Weighment.AutoUpdateTareWeight = AutoUpdateTareWeight;
+        Weighment.WeightHold = WeightHold;
+        Weighment.TimeFormat = TimeFormat;
+        Weighment.PrintQrCode = PrintQrCode;
+        Weighment.ChargesMandatory = ChargesMandatory;
+        Weighment.MinimumCharges = MinimumCharges;
+
+        Company.CompanyName = WeighbridgeName;
+        Company.AddressLine1 = WeighbridgeAddress1;
+        Company.AddressLine2 = WeighbridgeAddress2;
+        Company.Phone = CompanyPhone;
+        Company.Email = CompanyEmail;
+        Company.TaxId = CompanyTaxId;
+
+        var ports = Hardware.PortSettings;
+        ports.ReceivePort1.Enabled = ReceivePort1Enabled;
+        ports.ReceivePort1.PortName = ReceivePort1Name;
+        ports.ReceivePort1.BaudRate = ReceivePort1Baud;
+
+        ports.ReceivePort2.Enabled = ReceivePort2Enabled;
+        ports.ReceivePort2.PortName = ReceivePort2Name;
+        ports.ReceivePort2.BaudRate = ReceivePort2Baud;
+
+        ports.SendDataPort.Enabled = SendDataPortEnabled;
+        ports.SendDataPort.PortName = SendDataPortName;
+        ports.SendDataPort.BaudRate = SendDataPortBaud;
 
         Reporting.OutputDirectory = ReportOutputDirectory;
         Reporting.MaxRowsPerReport = MaxRowsPerReport;
     }
 
-    /// <summary>
-    /// Cycles the indicator so a new port or baud rate takes effect without a restart.
-    /// </summary>
     private async Task<bool> TryReconnectIndicatorAsync()
     {
-        if (!IndicatorEnabled || !IsSerialDriver)
-        {
-            return false;
-        }
-
+        if (!IndicatorEnabled || !IsSerialDriver) return false;
         try
         {
             await _indicator.DisconnectAsync().ConfigureAwait(true);
@@ -754,49 +1537,155 @@ public sealed class SettingsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not reconnect the indicator after saving settings");
+            _logger.LogWarning(ex, "Live reconnect after settings change was not successful");
             return false;
         }
     }
 
-    private async Task SavePreferencesAsync()
+    private async Task TestConnectionAsync()
     {
+        if (IsTestingConnection) return;
         try
         {
-            _settingsService.Preferences.Theme = SelectedTheme;
-            _settingsService.Preferences.IsNavigationCollapsed = IsNavigationCollapsed;
-            await _settingsService.SaveAsync().ConfigureAwait(true);
-            await _dialogService.ShowInformationAsync("Preferences Saved", "Your preferences have been saved.").ConfigureAwait(true);
+            IsTestingConnection = true;
+            ConnectionTestStatus = $"Testing connection on {PortName} at {BaudRate} baud...";
+
+            if (string.IsNullOrWhiteSpace(PortName))
+            {
+                ConnectionTestStatus = "Please select or enter a valid COM port name.";
+                return;
+            }
+
+            ApplyToOptions();
+
+            // Test strictly against the configured single port using the coordinated production indicator service
+            await _indicator.DisconnectAsync().ConfigureAwait(true);
+            var connected = await _indicator.ConnectAsync().ConfigureAwait(true);
+            if (connected)
+            {
+                var reading = _indicator.CurrentReading;
+                ConnectionTestStatus = $"Connection successful on {PortName} ({BaudRate} baud). Live reading: {reading.Value:F1} {reading.Unit}";
+            }
+            else
+            {
+                ConnectionTestStatus = $"Unable to connect to {PortName}. Check physical cable and port permissions.";
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save user preferences.");
-            await _dialogService.ShowErrorAsync("Error", "Could not save preferences: " + ex.Message).ConfigureAwait(true);
+            _logger.LogError(ex, "Connection test failed for {PortName}", PortName);
+            ConnectionTestStatus = "Connection test error: " + ex.Message;
+        }
+        finally
+        {
+            IsTestingConnection = false;
         }
     }
 
-    private async Task ResetPreferencesAsync()
+    private async Task TestEmailAsync()
     {
-        var confirmed = await _dialogService.ShowConfirmationAsync(
-            "Reset Preferences",
-            "Are you sure you want to reset your preferences to default values?").ConfigureAwait(true);
-
-        if (!confirmed)
+        if (IsTestingEmail) return;
+        if (string.IsNullOrWhiteSpace(EmailSmtpServer))
         {
+            await _dialogService.ShowWarningAsync("Email Test", "Please enter an SMTP Server address before testing.");
             return;
         }
 
         try
         {
-            await _settingsService.ResetAsync().ConfigureAwait(true);
-            SelectedTheme = _settingsService.Preferences.Theme;
-            IsNavigationCollapsed = _settingsService.Preferences.IsNavigationCollapsed;
-            await _dialogService.ShowInformationAsync("Preferences Reset", "Preferences have been reset to defaults.").ConfigureAwait(true);
+            IsTestingEmail = true;
+            bool success = false;
+            if (_emailService != null)
+            {
+                success = await _emailService.TestConnectionAsync().ConfigureAwait(true);
+            }
+            else
+            {
+                using var tcp = new System.Net.Sockets.TcpClient();
+                var port = EmailSmtpPort > 0 ? EmailSmtpPort : 25;
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await tcp.ConnectAsync(EmailSmtpServer, port, cts.Token).ConfigureAwait(true);
+                success = tcp.Connected;
+            }
+
+            if (success)
+            {
+                await _dialogService.ShowInformationAsync("Email Test Successful", $"Successfully reached SMTP server {EmailSmtpServer}:{EmailSmtpPort}.");
+            }
+            else
+            {
+                await _dialogService.ShowErrorAsync("Email Test Failed", $"Unable to connect to SMTP server {EmailSmtpServer}:{EmailSmtpPort}. Please check host and port.");
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to reset preferences.");
-            await _dialogService.ShowErrorAsync("Error", "Could not reset preferences: " + ex.Message).ConfigureAwait(true);
+            _logger.LogError(ex, "SMTP test failed for {Server}:{Port}", EmailSmtpServer, EmailSmtpPort);
+            await _dialogService.ShowErrorAsync("Email Test Error", $"Connection failed: {ex.Message}");
+        }
+        finally
+        {
+            IsTestingEmail = false;
+        }
+    }
+
+    private async Task ImportLegacyDataAsync()
+    {
+        if (IsImportingLegacyData) return;
+
+        if (string.IsNullOrWhiteSpace(LegacyImportFilePath))
+        {
+            await _dialogService.ShowWarningAsync("Legacy Import", "Please specify the full path to the .mdb, .accdb, or .csv database file.");
+            return;
+        }
+
+        if (!File.Exists(LegacyImportFilePath))
+        {
+            await _dialogService.ShowErrorAsync("File Not Found", $"The file could not be found:\n{LegacyImportFilePath}");
+            return;
+        }
+
+        if (_legacyImporter == null)
+        {
+            await _dialogService.ShowErrorAsync("Service Unavailable", "Legacy data importer service is not registered.");
+            return;
+        }
+
+        try
+        {
+            IsImportingLegacyData = true;
+            LegacyImportStatus = "Importing legacy data in background...";
+
+            var progress = new Progress<double>(p =>
+            {
+                LegacyImportStatus = $"Importing... {(int)(p * 100)}%";
+            });
+
+            var result = await _legacyImporter.ImportAsync(LegacyImportFilePath, progress).ConfigureAwait(true);
+
+            var summary = $"Import completed successfully!\n\n" +
+                          $"• Parties: {result.PartiesImported}\n" +
+                          $"• Materials: {result.MaterialsImported}\n" +
+                          $"• Vehicles: {result.VehiclesImported}\n" +
+                          $"• Weighments: {result.WeighmentsImported}\n";
+
+            if (result.HasErrors)
+            {
+                summary += $"\nWarnings/Errors encountered: {result.ErrorsEncountered}\n" +
+                           string.Join("\n", result.ErrorMessages.Take(5));
+            }
+
+            LegacyImportStatus = $"Finished: {result.WeighmentsImported} weighments, {result.PartiesImported} parties, {result.MaterialsImported} materials, {result.VehiclesImported} vehicles imported.";
+            await _dialogService.ShowInformationAsync("Legacy Migration Complete", summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to import legacy database from {Path}", LegacyImportFilePath);
+            LegacyImportStatus = "Import failed: " + ex.Message;
+            await _dialogService.ShowErrorAsync("Import Failed", ex.Message);
+        }
+        finally
+        {
+            IsImportingLegacyData = false;
         }
     }
 }

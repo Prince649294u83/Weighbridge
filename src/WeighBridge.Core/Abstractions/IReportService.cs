@@ -24,12 +24,8 @@ public sealed record ReportResult(bool Succeeded, string Message, string? Output
 }
 
 /// <summary>
-/// Generates and exports reports.
+/// Generates, previews, and exports canonical report documents.
 /// </summary>
-/// <remarks>
-/// Module 0.1 registers a placeholder. The Reporting module supplies the real
-/// renderers behind this interface.
-/// </remarks>
 public interface IReportService
 {
     /// <summary>Keys of the reports this build knows how to render.</summary>
@@ -38,10 +34,24 @@ public interface IReportService
     /// <summary>Formats this build can export to.</summary>
     IReadOnlyList<ReportFormat> SupportedFormats { get; }
 
+    /// <summary>
+    /// Builds a canonical in-memory ReportDocument from the given filter parameters.
+    /// </summary>
+    Task<WeighBridge.Core.Reporting.ReportDocument> BuildDocumentAsync(
+        WeighBridge.Core.Reporting.ReportFilterParameters filters,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Renders <paramref name="reportKey"/> and writes it to disk.</summary>
     Task<ReportResult> GenerateAsync(
         string reportKey,
         IReadOnlyDictionary<string, object?> parameters,
+        ReportFormat format,
+        string? outputPath = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Exports a canonical <paramref name="document"/> to the requested format.</summary>
+    Task<ReportResult> ExportAsync(
+        WeighBridge.Core.Reporting.ReportDocument document,
         ReportFormat format,
         string? outputPath = null,
         CancellationToken cancellationToken = default);

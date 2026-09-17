@@ -31,10 +31,13 @@ public sealed class SettingsViewModelSourceContractTests
     }
 
     [Fact]
-    public void DetectIndicatorAsync_Passes_Detected_Port_To_RefreshPorts_And_Assigns_PortName()
+    public void TestConnectionAsync_CoordinatesWithSingletonIndicator_WithoutPortProbing()
     {
-        Assert.Contains("RefreshPorts(explicitPortToSelect: detectedPort);", ViewModelSource);
-        Assert.Contains("PortName = detectedPort;", ViewModelSource);
+        Assert.Contains("TestConnectionAsync()", ViewModelSource);
+        Assert.Contains("ApplyToOptions();", ViewModelSource);
+        Assert.Contains("await _indicator.DisconnectAsync()", ViewModelSource);
+        Assert.Contains("await _indicator.ConnectAsync()", ViewModelSource);
+        Assert.DoesNotContain("ScanAsync()", ViewModelSource);
     }
 
     [Fact]
@@ -48,5 +51,27 @@ public sealed class SettingsViewModelSourceContractTests
     public void SaveConfigurationAsync_Persists_PortName_To_Hardware_Options()
     {
         Assert.Contains("[\"Hardware:WeightIndicator:PortName\"] = PortName", ViewModelSource);
+        Assert.Contains("[\"Hardware:WeightIndicator:BaudRate\"] = BaudRate", ViewModelSource);
+        Assert.Contains("ApplyToOptions();", ViewModelSource);
+    }
+
+    [Fact]
+    public void SettingsView_Exposes_Driver_Port_And_Baud_In_Test_Section()
+    {
+        Assert.Contains("COM Port Test &amp; Verification", ViewSource);
+        Assert.Contains("ItemsSource=\"{Binding DriverTypes}\" SelectedItem=\"{Binding DriverType}\"", ViewSource);
+        Assert.Contains("Text=\"{Binding PortName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}\"", ViewSource);
+        Assert.Contains("ItemsSource=\"{Binding BaudRates}\" SelectedItem=\"{Binding BaudRate}\"", ViewSource);
+    }
+
+    [Fact]
+    public void SettingsViewModel_Enforces_Exact_Client_Printer_And_Paper_Options()
+    {
+        Assert.Contains("Dot Matrix Printer", ViewModelSource);
+        Assert.Contains("Graphics Printer", ViewModelSource);
+        Assert.Contains("Label / Sticker Printer", ViewModelSource);
+        Assert.Contains("Half A4 / A5", ViewModelSource);
+        Assert.DoesNotContain("\"Continuous\"", ViewModelSource);
+        Assert.DoesNotContain("\"POS\"", ViewModelSource);
     }
 }

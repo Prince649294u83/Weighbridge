@@ -48,6 +48,10 @@ if ($running) {
 }
 
 Say "building Release from $project"
+if (Test-Path $installDir) {
+    Get-ChildItem $installDir -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 dotnet publish $project `
     -c Release `
     -r win-x64 `
@@ -58,14 +62,26 @@ if ($LASTEXITCODE -ne 0) { Say 'the build failed - nothing was replaced'; exit 1
 
 if (-not (Test-Path $exe)) { Say "the build reported success but $exe is missing"; exit 1 }
 
-# Refreshed every run so the icon and target follow a moved install directory.
+# Refreshed every run across all desktop locations
 $shell = New-Object -ComObject WScript.Shell
-$link = $shell.CreateShortcut($shortcut)
-$link.TargetPath = $exe
-$link.WorkingDirectory = $installDir
-$link.IconLocation = $exe
-$link.Description = 'WeighBridge Modern'
-$link.Save()
+$desktopDirs = @(
+    [Environment]::GetFolderPath('Desktop'),
+    [Environment]::GetFolderPath('CommonDesktopDirectory'),
+    "C:\Users\dell\Desktop",
+    "C:\Users\dell\OneDrive\Desktop"
+) | Select-Object -Unique
+
+foreach ($dir in $desktopDirs) {
+    if (Test-Path $dir) {
+        $shortcutPath = Join-Path $dir 'WeighBridge Modern.lnk'
+        $link = $shell.CreateShortcut($shortcutPath)
+        $link.TargetPath = $exe
+        $link.WorkingDirectory = $installDir
+        $link.IconLocation = $exe
+        $link.Description = 'WeighBridge Modern Application'
+        $link.Save()
+    }
+}
 
 $size = [math]::Round(((Get-ChildItem $installDir -Recurse -File | Measure-Object Length -Sum).Sum / 1MB), 1)
 $built = (Get-Item $exe).LastWriteTime

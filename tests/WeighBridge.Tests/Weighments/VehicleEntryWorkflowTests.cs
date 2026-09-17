@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Commands;
+using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Security;
 using WeighBridge.Domain.Enums;
 using WeighBridge.Domain.Masters;
@@ -23,7 +25,11 @@ public sealed class VehicleEntryWorkflowTests : IDisposable
     private const string ViewModelPath =
         @"..\..\..\..\..\src\WeighBridge.App\ViewModels\VehicleEntryViewModel.cs";
 
-    private readonly WeighmentHarness _harness = new();
+    private readonly WeighmentHarness _harness = new(Options.Create(new WeighmentOptions
+    {
+        SecondEntryCharges = true,
+        UnitBagsWeightColumn = true
+    }));
 
     public VehicleEntryWorkflowTests() => _harness.SignInAs(Roles.Administrator);
 
@@ -368,11 +374,49 @@ public sealed class VehicleEntryWorkflowTests : IDisposable
     }
 
     [Fact]
-    public void VehicleEntry_XAML_Has_Distinct_Historical_Locked_Section_And_Editable_Section()
+    public void VehicleEntry_XAML_Contains_Locked_Client_Fields_And_Outputs()
     {
-        Assert.Contains("Historical F1 Snapshot (Locked)", XamlSource);
-        Assert.Contains("Second Entry Details (Editable)", XamlSource);
-        Assert.Contains("Total Bag Deduction", XamlSource);
+        Assert.Contains("Entry(F1/F2)", XamlSource);
+        Assert.Contains("Ticket No", XamlSource);
+        Assert.Contains("Vehicle No", XamlSource);
+        Assert.Contains("Vehicle Type", XamlSource);
+        Assert.Contains("Party Name", XamlSource);
+        Assert.Contains("Material", XamlSource);
+        Assert.Contains("Charges", XamlSource);
+        Assert.Contains("Gross(G) / Tare(T)", XamlSource);
+        Assert.Contains("Gross Weight", XamlSource);
+        Assert.Contains("Tare Weight", XamlSource);
+        Assert.Contains("Net Weight", XamlSource);
+        Assert.Contains("Pending Transactions", XamlSource);
+        Assert.Contains("LiveWeightDisplay", XamlSource);
+    }
+
+    [Fact]
+    public void VE_09_Domain_And_Persistence_Retains_All_Legacy_Fields_Despite_UI_Simplification()
+    {
+        // VE-09 Invariant: UI Simplification != Domain Simplification
+        // Ensure Weighment domain model and EF persistence preserve DriverName, TransporterName,
+        // Remarks, CustomField1-4, NumberOfBags, BagWeightKg, GatePassNumber, etc.
+        var weighmentType = typeof(Weighment);
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.DriverName)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.TransporterName)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.Remarks)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.CustomField1)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.CustomField2)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.CustomField3)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.CustomField4)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.NumberOfBags)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.BagWeightKg)));
+        Assert.NotNull(weighmentType.GetProperty(nameof(Weighment.GatePassNumber)));
+
+        // Ensure ViewModel retains these properties for legacy/output support
+        Assert.Contains("public string? DriverName", ViewModelSource);
+        Assert.Contains("public string? TransporterName", ViewModelSource);
+        Assert.Contains("public string? Remarks", ViewModelSource);
+        Assert.Contains("public string? CustomField1", ViewModelSource);
+        Assert.Contains("public string? CustomField2", ViewModelSource);
+        Assert.Contains("public string? CustomField3", ViewModelSource);
+        Assert.Contains("public string? CustomField4", ViewModelSource);
     }
 
     [Fact]

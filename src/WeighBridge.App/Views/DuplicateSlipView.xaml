@@ -8,36 +8,18 @@
              xmlns:viewModels="clr-namespace:WeighBridge.App.ViewModels"
              d:DataContext="{d:DesignInstance Type=viewModels:DuplicateSlipViewModel}"
              d:DesignHeight="700"
-             d:DesignWidth="1000"
+             d:DesignWidth="1100"
              mc:Ignorable="d">
 
   <UserControl.Resources>
     <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
     <converters:InverseBooleanToVisibilityConverter x:Key="Converter.InverseBooleanToVisibility" />
 
-    <Style x:Key="StatusLine.Accent" TargetType="Border">
-      <Setter Property="Background" Value="{DynamicResource Brush.Neutral.Default}" />
-      <Setter Property="CornerRadius" Value="2" />
-      <Style.Triggers>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Information">
-          <Setter Property="Background" Value="{DynamicResource Brush.Info.Default}" />
-        </DataTrigger>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Success">
-          <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
-        </DataTrigger>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Warning">
-          <Setter Property="Background" Value="{DynamicResource Brush.Warning.Default}" />
-        </DataTrigger>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Danger">
-          <Setter Property="Background" Value="{DynamicResource Brush.Danger.Default}" />
-        </DataTrigger>
-      </Style.Triggers>
-    </Style>
-
     <Style x:Key="Field.Label"
            BasedOn="{StaticResource Text.Label}"
            TargetType="TextBlock">
-      <Setter Property="Margin" Value="0,12,0,4" />
+      <Setter Property="Margin" Value="0,6,0,2" />
+      <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
   </UserControl.Resources>
 
@@ -47,132 +29,385 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
+    <!--  Header  -->
     <controls:SectionHeader Grid.Row="0"
                             Description="{Binding Description}"
-                            Icon="{StaticResource Icon.DuplicateSlip}"
+                            Icon="{StaticResource Icon.Print}"
                             ShowSeparator="True"
                             Title="{Binding Title}" />
 
-    <Grid Grid.Row="1" Margin="0,20,0,0">
+    <!--  Main 3-Column Operational Layout (Screenshot 4 Parity)  -->
+    <Grid Grid.Row="1" Margin="0,16,0,0">
       <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="340" />
+        <ColumnDefinition Width="16" />
         <ColumnDefinition Width="380" />
-        <ColumnDefinition Width="20" />
+        <ColumnDefinition Width="16" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <!--  Search Criteria  -->
-      <ScrollViewer Grid.Column="0"
-                    Style="{StaticResource ScrollViewer.Default}"
-                    VerticalScrollBarVisibility="Auto">
-        <controls:ModernCard Header="Search"
-                             Icon="{StaticResource Icon.Search}"
-                             SubHeader="Find completed weighments">
-          <StackPanel>
-            <TextBlock Style="{StaticResource Field.Label}" Text="Search term" />
-            <TextBox AutomationProperties.Name="Search by slip, vehicle, or party"
-                     Style="{StaticResource TextBox.Default}"
-                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+      <!--  ============================================================
+            COLUMN 1: SEARCH & QUICK ACTIONS
+            ============================================================  -->
+      <Border Grid.Column="0"
+              Background="{DynamicResource Brush.Surface.Raised}"
+              BorderBrush="{DynamicResource Brush.Border.Default}"
+              BorderThickness="1"
+              CornerRadius="{StaticResource Radius.MD}"
+              Padding="14,12">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
 
-            <TextBlock Style="{StaticResource Field.Label}" Text="Start date" />
-            <DatePicker SelectedDate="{Binding StartDate}" />
-
-            <TextBlock Style="{StaticResource Field.Label}" Text="End date" />
-            <DatePicker SelectedDate="{Binding EndDate}" />
-
-            <StackPanel Margin="0,20,0,0"
-                        HorizontalAlignment="Right"
-                        Orientation="Horizontal">
-              <Button Command="{Binding ClearCommand}"
-                      Content="Clear"
-                      Style="{StaticResource Button.Text}" />
-              <Button Margin="10,0,0,0"
-                      Command="{Binding SearchCommand}"
-                      Content="Search"
-                      Style="{StaticResource Button.Primary}" />
-            </StackPanel>
+          <!--  Enter Ticket No.  -->
+          <StackPanel Grid.Row="0" Margin="0,0,0,8">
+            <TextBlock Style="{StaticResource Field.Label}" Text="Enter Ticket No." />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBox Grid.Column="0"
+                       AutomationProperties.Name="Search Ticket Input"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SearchTicketNumber, UpdateSourceTrigger=PropertyChanged}" />
+              <Button Grid.Column="1"
+                      Margin="6,0,0,0"
+                      Command="{Binding SearchTicketCommand}"
+                      Style="{StaticResource Button.Secondary}"
+                      ToolTip="Find Ticket">
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Search}" FontSize="14" />
+              </Button>
+            </Grid>
           </StackPanel>
-        </controls:ModernCard>
-      </ScrollViewer>
 
-      <!--  Search Results  -->
-      <Grid Grid.Column="2">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <!--  Status line  -->
-        <Border Grid.Row="0"
-                Margin="0,0,0,16"
-                Background="{DynamicResource Brush.Surface.Sunken}"
-                CornerRadius="{StaticResource Radius.MD}"
-                AutomationProperties.LiveSetting="Polite"
-                Visibility="{Binding HasStatus, Converter={StaticResource Converter.BooleanToVisibility}}">
-          <Grid>
+          <!--  Quick Action Buttons (2x2 Grid)  -->
+          <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="6" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="4" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="6" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource StatusLine.Accent}" />
+            <Button Grid.Row="0" Grid.Column="0"
+                    AutomationProperties.Name="View Slip"
+                    Command="{Binding ViewSlipCommand}"
+                    Style="{StaticResource Button.Primary}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Document}" Margin="0,0,6,0" FontSize="14" />
+                <TextBlock Text="View" />
+              </StackPanel>
+            </Button>
 
-            <TextBlock Grid.Column="1"
-                       Margin="14,10,14,10"
-                       Style="{StaticResource Text.Body.Wrapped}"
+            <Button Grid.Row="0" Grid.Column="2"
+                    AutomationProperties.Name="Print Slip"
+                    Command="{Binding PrintSlipCommand}"
+                    Style="{StaticResource Button.Secondary}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Print}" Margin="0,0,6,0" FontSize="14" />
+                <TextBlock Text="Print" />
+              </StackPanel>
+            </Button>
+
+            <Button Grid.Row="2" Grid.Column="0"
+                    AutomationProperties.Name="Email Slip"
+                    Command="{Binding EmailSlipCommand}"
+                    Style="{StaticResource Button.Secondary}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Email}" Margin="0,0,6,0" FontSize="14" />
+                <TextBlock Text="Email" />
+              </StackPanel>
+            </Button>
+
+            <Button Grid.Row="2" Grid.Column="2"
+                    AutomationProperties.Name="WhatsApp Slip"
+                    Command="{Binding WhatsAppSlipCommand}"
+                    Style="{StaticResource Button.Secondary}">
+              <TextBlock Text="WhatsApp" />
+            </Button>
+          </Grid>
+
+          <!--  Search Vehicle No  -->
+          <StackPanel Grid.Row="2" Margin="0,0,0,8">
+            <Separator Margin="0,0,0,8" Background="{DynamicResource Brush.Border.Subtle}" />
+            <TextBlock Style="{StaticResource Field.Label}" Text="Search Vehicle No" />
+            <TextBox AutomationProperties.Name="Search Vehicle Input"
+                     Style="{StaticResource TextBox.Default}"
+                     Text="{Binding SearchVehicleNumber, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+
+          <!--  Completed Transactions Table  -->
+          <DataGrid Grid.Row="3"
+                    AutoGenerateColumns="False"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    IsReadOnly="True"
+                    ItemsSource="{Binding SearchResults}"
+                    SelectedItem="{Binding SelectedWeighment, Mode=TwoWay}"
+                    SelectionMode="Single"
+                    Style="{StaticResource DataGrid.Default}"
+                    Margin="0,0,0,8">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Ticket"
+                                  Binding="{Binding SlipNumber}"
+                                  Width="90" />
+              <DataGridTextColumn Header="Vehicle"
+                                  Binding="{Binding VehicleNumber}"
+                                  Width="110" />
+              <DataGridTextColumn Header="Type"
+                                  Binding="{Binding VehicleTypeName}"
+                                  Width="*" />
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <!--  Bottom Row Actions  -->
+          <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="6" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+                    Command="{Binding ViewSlipCommand}"
+                    Style="{StaticResource Button.Secondary}"
+                    Content="View" />
+
+            <Button Grid.Column="2"
+                    Command="{Binding PrintSlipCommand}"
+                    Style="{StaticResource Button.Primary}"
+                    Content="Print" />
+          </Grid>
+        </Grid>
+      </Border>
+
+      <!--  ============================================================
+            COLUMN 2: HISTORICAL DETAILS (READ-ONLY SNAPSHOT)
+            ============================================================  -->
+      <Border Grid.Column="2"
+              Background="{DynamicResource Brush.Surface.Raised}"
+              BorderBrush="{DynamicResource Brush.Border.Default}"
+              BorderThickness="1"
+              CornerRadius="{StaticResource Radius.MD}"
+              Padding="16,12">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.H3}" Text="Transaction Details" Margin="0,0,0,12" />
+
+            <!--  Ticket No  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Ticket No" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.SlipNumber, Mode=OneWay}" />
+            </Grid>
+
+            <!--  Vehicle No  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Vehicle No" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.VehicleNumber, Mode=OneWay}" />
+            </Grid>
+
+            <!--  Vehicle Type  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Vehicle Type" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.VehicleTypeName, Mode=OneWay}" />
+            </Grid>
+
+            <!--  Party Name  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Party Name" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.PartyName, Mode=OneWay}" />
+            </Grid>
+
+            <!--  Material  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Material" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.MaterialName, Mode=OneWay}" />
+            </Grid>
+
+            <!--  Charges 1st  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Charges 1st" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.Charges, StringFormat='₹{0:N0}', Mode=OneWay}" />
+            </Grid>
+
+            <!--  Divider  -->
+            <Separator Margin="0,4,0,8" Background="{DynamicResource Brush.Border.Subtle}" />
+
+            <!--  Gross Weight  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Gross Weight" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       FontWeight="Bold"
+                       HorizontalContentAlignment="Right"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.GrossKg, StringFormat='{}{0:N0} kg', Mode=OneWay}" />
+            </Grid>
+
+            <!--  Tare Weight  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Tare Weight" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       FontWeight="Bold"
+                       HorizontalContentAlignment="Right"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.TareKg, StringFormat='{}{0:N0} kg', Mode=OneWay}" />
+            </Grid>
+
+            <!--  Net Weight  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="Bold" Foreground="{DynamicResource Brush.Accent.Default}" Text="Net Weight" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       FontWeight="Bold"
+                       HorizontalContentAlignment="Right"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Foreground="{DynamicResource Brush.Accent.Default}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.NetKg, StringFormat='{}{0:N0} kg', Mode=OneWay}" />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+      <!--  ============================================================
+            COLUMN 3: CHARGES 2ND, USERNAME & PUSH TO SERVER
+            ============================================================  -->
+      <Border Grid.Column="4"
+              Background="{DynamicResource Brush.Surface.Raised}"
+              BorderBrush="{DynamicResource Brush.Border.Default}"
+              BorderThickness="1"
+              CornerRadius="{StaticResource Radius.MD}"
+              Padding="16,12">
+        <StackPanel>
+          <TextBlock Style="{StaticResource Text.H3}" Text="Secondary &amp; Sync" Margin="0,0,0,12" />
+
+          <!--  Charges 2nd  -->
+          <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Charges 2nd" />
+            <TextBox Grid.Column="1"
+                     IsReadOnly="True"
+                     Background="{DynamicResource Brush.Surface.Sunken}"
+                     Style="{StaticResource TextBox.Default}"
+                     Text="{Binding SelectedWeighment.SecondCharges, StringFormat='₹{0:N0}', Mode=OneWay}" />
+          </Grid>
+
+          <!--  Username  -->
+          <Grid Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Username" />
+            <TextBox Grid.Column="1"
+                     IsReadOnly="True"
+                     Background="{DynamicResource Brush.Surface.Sunken}"
+                     Style="{StaticResource TextBox.Default}"
+                     Text="{Binding SelectedWeighment.CreatedBy, TargetNullValue='Operator', Mode=OneWay}" />
+          </Grid>
+
+          <!--  Push To Server Button  -->
+          <Button AutomationProperties.Name="Push To Server"
+                  Command="{Binding PushToServerCommand}"
+                  Style="{StaticResource Button.Secondary}"
+                  Height="44"
+                  Margin="0,0,0,16"
+                  ToolTip="Synchronize this completed transaction with the central server">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Refresh}" Margin="0,0,8,0" FontSize="16" />
+              <TextBlock FontWeight="Bold" Text="{Binding PushStatusText}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+
+          <!--  Status feedback  -->
+          <Border Padding="12"
+                  Background="{DynamicResource Brush.Surface.Sunken}"
+                  CornerRadius="{StaticResource Radius.SM}"
+                  Visibility="{Binding HasStatus, Converter={StaticResource Converter.BooleanToVisibility}}">
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap"
                        Text="{Binding StatusMessage}" />
-          </Grid>
-        </Border>
-
-        <controls:ModernCard Grid.Row="1"
-                             Header="Search Results"
-                             Icon="{StaticResource Icon.Database}"
-                             SubHeader="Select a weighment to reprint its slip">
-            <controls:ModernCard.HeaderActions>
-                <Button Command="{Binding ReprintCommand}"
-                        CommandParameter="{Binding SelectedWeighment}"
-                        Content="Reprint slip"
-                        Style="{StaticResource Button.Primary}" />
-            </controls:ModernCard.HeaderActions>
-            
-          <Grid>
-            <DataGrid AutomationProperties.Name="Completed weighments"
-                      ItemsSource="{Binding SearchResults}"
-                      SelectedItem="{Binding SelectedWeighment}"
-                      Style="{StaticResource DataGrid.Default}"
-                      IsReadOnly="True">
-              <DataGrid.Columns>
-                <DataGridTextColumn Binding="{Binding SlipNumber}"
-                                    Header="Slip"
-                                    Width="110" />
-                <DataGridTextColumn Binding="{Binding VehicleNumber}"
-                                    Header="Vehicle"
-                                    Width="140" />
-                <DataGridTextColumn Binding="{Binding PartyName}"
-                                    Header="Party"
-                                    Width="*" />
-                <DataGridTextColumn Binding="{Binding OpenedAtText}"
-                                    Header="Opened"
-                                    Width="140" />
-              </DataGrid.Columns>
-            </DataGrid>
-
-            <controls:EmptyState Icon="{StaticResource Icon.Search}"
-                                 Message="No completed weighments found matching the search criteria."
-                                 Title="No results">
-                <controls:EmptyState.Style>
-                    <Style BasedOn="{StaticResource {x:Type controls:EmptyState}}" TargetType="controls:EmptyState">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding SearchResults.Count}" Value="0">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </controls:EmptyState.Style>
-            </controls:EmptyState>
-          </Grid>
-        </controls:ModernCard>
-      </Grid>
+          </Border>
+        </StackPanel>
+      </Border>
     </Grid>
   </Grid>
 </UserControl>

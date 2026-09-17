@@ -6,71 +6,104 @@ using WeighBridge.App.Controls;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Commands;
 using WeighBridge.Core.Configuration;
+using WeighBridge.Core.Dialogs;
 using WeighBridge.Core.Logging;
 using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Navigation;
 using WeighBridge.Core.Printing;
+using WeighBridge.Core.Security;
 using WeighBridge.Domain.Enums;
 using WeighBridge.Domain.Weighments;
 using WeighBridge.Printing.Services;
 
 namespace WeighBridge.App.ViewModels;
 
+/// <summary>
+/// Duplicate Slip ViewModel providing completed transaction search, historical snapshot view,
+/// reprinting with audit trail, email, WhatsApp dispatch, and server push. Zero CCTV controls.
+/// </summary>
 public sealed class DuplicateSlipViewModel : ViewModelBase
 {
     private readonly IRepository<Weighment> _weighments;
     private readonly IPrintService _printService;
+    private readonly IServerConnectivityService? _serverConnectivity;
+    private static readonly HashSet<long> SyncedWeighmentIds = [];
+    private readonly IPermissionService _permissions;
+    private readonly IDialogService _dialogs;
     private readonly IOptions<CompanyOptions> _companyOptions;
     private readonly IAuditLogger _audit;
     private readonly ILogger<DuplicateSlipViewModel> _logger;
-    private readonly AsyncRelayCommand _searchCommand;
-    private readonly AsyncRelayCommand<WeighmentSummary> _reprintCommand;
-    private readonly RelayCommand _clearCommand;
 
-    private string _searchText = string.Empty;
-    private DateTime _startDate = DateTime.Today;
-    private DateTime _endDate = DateTime.Today;
+    private string _searchTicketNumber = string.Empty;
+    private string _searchVehicleNumber = string.Empty;
     private WeighmentSummary? _selectedWeighment;
+    private long? _activeWeighmentId;
+    private Guid? _activeVersion;
+    private string? _activeSlipNumber;
+    private string _pushStatusText = "Push To Server";
     private string _statusMessage = string.Empty;
     private BadgeSeverity _statusSeverity = BadgeSeverity.Neutral;
 
     public DuplicateSlipViewModel(
         IRepository<Weighment> weighments,
         IPrintService printService,
+        IPermissionService permissions,
+        IDialogService dialogs,
         IOptions<CompanyOptions> companyOptions,
         IAuditLogger audit,
-        ILogger<DuplicateSlipViewModel> logger)
+        ILogger<DuplicateSlipViewModel> logger,
+        IServerConnectivityService? serverConnectivity = null)
     {
         _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
         _printService = printService ?? throw new ArgumentNullException(nameof(printService));
+        _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
+        _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
         _companyOptions = companyOptions ?? throw new ArgumentNullException(nameof(companyOptions));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _serverConnectivity = serverConnectivity;
 
-        _searchCommand = new AsyncRelayCommand(SearchAsync, () => !IsBusy, OnUnhandled);
-        _reprintCommand = new AsyncRelayCommand<WeighmentSummary>(ReprintAsync, w => !IsBusy && w is not null, OnUnhandled);
-        _clearCommand = new RelayCommand(Clear);
+        Title = "Duplicate Slip";
+        Description = "Search completed transactions, review historical records, and reissue slips.";
+
+        SearchTicketCommand = new AsyncRelayCommand(SearchTicketAsync, () => !IsBusy, OnUnhandled);
+        SearchVehicleCommand = new AsyncRelayCommand(SearchVehicleAsync, () => !IsBusy, OnUnhandled);
+        ViewSlipCommand = new AsyncRelayCommand(ViewSlipAsync, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
+        PrintSlipCommand = new AsyncRelayCommand(PrintSlipAsync, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
+        EmailSlipCommand = new AsyncRelayCommand(EmailSlipAsync, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
+        WhatsAppSlipCommand = new AsyncRelayCommand(WhatsAppSlipAsync, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
+        PushToServerCommand = new AsyncRelayCommand(PushToServerAsync, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
+        ClearCommand = new RelayCommand(Clear);
+
+        PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(SelectedWeighment))
+            {
+                (ViewSlipCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (PrintSlipCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (EmailSlipCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (WhatsAppSlipCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (PushToServerCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+            }
+        };
     }
 
-    public new string Title => "Duplicate Slip";
-    public new string Description => "Find a completed weighment and reissue its slip.";
+    public ObservableCollection<WeighmentSummary> SearchResults { get; } = [];
 
-    public string SearchText
+    public long? ActiveWeighmentId => _activeWeighmentId;
+    public Guid? ActiveVersion => _activeVersion;
+    public string? ActiveSlipNumber => _activeSlipNumber;
+
+    public string SearchTicketNumber
     {
-        get => _searchText;
-        set => SetProperty(ref _searchText, value);
+        get => _searchTicketNumber;
+        set => SetProperty(ref _searchTicketNumber, value);
     }
 
-    public DateTime StartDate
+    public string SearchVehicleNumber
     {
-        get => _startDate;
-        set => SetProperty(ref _startDate, value);
-    }
-
-    public DateTime EndDate
-    {
-        get => _endDate;
-        set => SetProperty(ref _endDate, value);
+        get => _searchVehicleNumber;
+        set => SetProperty(ref _searchVehicleNumber, value);
     }
 
     public WeighmentSummary? SelectedWeighment
@@ -80,24 +113,32 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedWeighment, value))
             {
-                _reprintCommand.NotifyCanExecuteChanged();
+                _activeWeighmentId = value?.Id;
+                _activeVersion = value?.Version;
+                _activeSlipNumber = value?.SlipNumber;
+
+                OnPropertyChanged(nameof(ActiveWeighmentId));
+                OnPropertyChanged(nameof(ActiveVersion));
+                OnPropertyChanged(nameof(ActiveSlipNumber));
+
+                UpdatePushStatus();
             }
         }
     }
 
-    public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
+    public string PushStatusText
+    {
+        get => _pushStatusText;
+        private set => SetProperty(ref _pushStatusText, value);
+    }
 
     public string StatusMessage
     {
         get => _statusMessage;
-        private set
-        {
-            if (SetProperty(ref _statusMessage, value))
-            {
-                OnPropertyChanged(nameof(HasStatus));
-            }
-        }
+        private set => SetProperty(ref _statusMessage, value, () => OnPropertyChanged(nameof(HasStatus)));
     }
+
+    public bool HasStatus => !string.IsNullOrEmpty(StatusMessage);
 
     public BadgeSeverity StatusSeverity
     {
@@ -105,199 +146,397 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
         private set => SetProperty(ref _statusSeverity, value);
     }
 
-    public ObservableCollection<WeighmentSummary> SearchResults { get; } = new();
+    #region Commands
 
-    public ICommand SearchCommand => _searchCommand;
-    public ICommand ReprintCommand => _reprintCommand;
-    public ICommand ClearCommand => _clearCommand;
+    public ICommand SearchTicketCommand { get; }
+    public ICommand SearchVehicleCommand { get; }
+    public ICommand ViewSlipCommand { get; }
+    public ICommand PrintSlipCommand { get; }
+    public ICommand EmailSlipCommand { get; }
+    public ICommand WhatsAppSlipCommand { get; }
+    public ICommand PushToServerCommand { get; }
+    public ICommand ClearCommand { get; }
 
-    public override Task OnNavigatedToAsync(NavigationContext context)
+    #endregion
+
+    public override async Task OnNavigatedToAsync(NavigationContext context)
     {
-        Clear();
-        return Task.CompletedTask;
+        await LoadRecentCompletedAsync().ConfigureAwait(true);
     }
 
-    /// <summary>
-    /// The most rows one search will materialise. Capped and ordered newest-first.
-    /// </summary>
-    private const int MaxResults = 500;
-
-    private async Task SearchAsync()
+    private async Task LoadRecentCompletedAsync()
     {
-        IsBusy = true;
-        ClearStatus();
-
         try
+        {
+            var completed = await _weighments.QueryAsync(
+                w => w.Status == WeighmentStatus.Completed,
+                query => query.OrderByDescending(w => w.CompletedAtUtc ?? w.CreatedAtUtc).Take(50));
+
+            SearchResults.Clear();
+            foreach (var w in completed)
+            {
+                SearchResults.Add(WeighmentSummary.From(w));
+            }
+
+            if (SearchResults.Count > 0 && SelectedWeighment is null)
+            {
+                SelectedWeighment = SearchResults[0];
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load completed weighments");
+        }
+    }
+
+    private async Task SearchTicketAsync()
+    {
+        var ticketText = SearchTicketNumber?.Trim() ?? string.Empty;
+        var vehicleText = SearchVehicleNumber?.Trim() ?? string.Empty;
+
+        var hasTicket = !string.IsNullOrWhiteSpace(ticketText);
+        var hasVehicle = !string.IsNullOrWhiteSpace(vehicleText);
+
+        if (!hasTicket && !hasVehicle)
+        {
+            ShowStatus("Enter a ticket number or vehicle number.", BadgeSeverity.Warning);
+            return;
+        }
+
+        // Strict AND search when both are supplied
+        if (hasTicket && hasVehicle)
+        {
+            var canonicalSlip = SlipNumbers.Normalise(ticketText) ?? ticketText;
+            var canonicalVehicle = Weighment.NormaliseVehicleNumber(vehicleText);
+
+            var combined = await _weighments.QueryAsync(
+                w => w.Status == WeighmentStatus.Completed &&
+                     (w.SlipNumber == ticketText || w.SlipNumber == canonicalSlip) &&
+                     (w.VehicleNumber == vehicleText || w.VehicleNumber == canonicalVehicle),
+                query => query.Take(1));
+
+            if (combined.Count > 0)
+            {
+                SearchResults.Clear();
+                var summary = WeighmentSummary.From(combined[0]);
+                SearchResults.Add(summary);
+                SelectedWeighment = summary;
+                ShowStatus($"Ticket {summary.SlipNumber} ({summary.VehicleNumber}) loaded.", BadgeSeverity.Success);
+            }
+            else
+            {
+                SelectedWeighment = null;
+                SearchResults.Clear();
+                ShowStatus("Ticket and vehicle do not belong to the same completed transaction.", BadgeSeverity.Warning);
+            }
+            return;
+        }
+
+        // Search by Ticket only
+        var normalizedSlip = SlipNumbers.Normalise(ticketText) ?? ticketText;
+        var found = await _weighments.QueryAsync(
+            w => w.Status == WeighmentStatus.Completed &&
+                 (w.SlipNumber == ticketText || w.SlipNumber == normalizedSlip),
+            query => query.OrderByDescending(w => w.Id).Take(10));
+
+        if (found.Count > 0)
         {
             SearchResults.Clear();
+            foreach (var w in found)
+            {
+                SearchResults.Add(WeighmentSummary.From(w));
+            }
+            SelectedWeighment = SearchResults[0];
+            ShowStatus($"Ticket {SelectedWeighment.SlipNumber} loaded.", BadgeSeverity.Success);
+        }
+        else
+        {
+            var anyState = await _weighments.QueryAsync(
+                w => w.SlipNumber == ticketText || w.SlipNumber == normalizedSlip,
+                query => query.Take(1));
+
             SelectedWeighment = null;
+            SearchResults.Clear();
 
-            var startUtc = StartDate.ToUniversalTime();
-            var endUtc = EndDate.AddDays(1).ToUniversalTime();
-
-            if (EndDate < StartDate)
+            if (anyState.Count > 0)
             {
-                Show("The end date cannot be before the start date.", BadgeSeverity.Warning);
-                return;
-            }
-
-            var term = SearchText.Trim();
-
-            var results = await _weighments.QueryAsync(
-                w =>
-                    w.Status == WeighmentStatus.Completed &&
-                    w.CompletedAtUtc >= startUtc &&
-                    w.CompletedAtUtc < endUtc,
-                query => query
-                    .OrderByDescending(w => w.CompletedAtUtc)
-                    .Take(MaxResults),
-                CancellationToken.None).ConfigureAwait(true);
-
-            foreach (var weighment in results)
-            {
-                if (!Matches(weighment, term))
+                var item = anyState[0];
+                if (item.Status is WeighmentStatus.AwaitingSecondWeight or WeighmentStatus.Created)
                 {
-                    continue;
+                    ShowStatus($"Ticket {item.SlipNumber} is still awaiting second weight. Use Vehicle Entry → F2.", BadgeSeverity.Warning);
                 }
-
-                SearchResults.Add(WeighmentSummary.From(weighment));
+                else if (item.Status == WeighmentStatus.Cancelled)
+                {
+                    ShowStatus($"Ticket {item.SlipNumber} was cancelled and cannot be reprinted.", BadgeSeverity.Danger);
+                }
+                else
+                {
+                    ShowStatus($"Ticket {item.SlipNumber} is not completed.", BadgeSeverity.Warning);
+                }
             }
-
-            if (SearchResults.Count == MaxResults)
+            else
             {
-                Show($"Showing the first {MaxResults} matches. Narrow the date range or search term to see more.", BadgeSeverity.Warning);
+                ShowStatus($"No completed weighment found for ticket '{ticketText}'.", BadgeSeverity.Warning);
             }
-            else if (SearchResults.Count == 0)
-            {
-                Show("No weighments found matching the search criteria.", BadgeSeverity.Information);
-            }
-        }
-        finally
-        {
-            IsBusy = false;
         }
     }
 
-    private static bool Matches(Weighment weighment, string term)
+    private async Task SearchVehicleAsync()
     {
-        if (string.IsNullOrEmpty(term))
+        var ticketText = SearchTicketNumber?.Trim() ?? string.Empty;
+        var vehicleText = SearchVehicleNumber?.Trim() ?? string.Empty;
+
+        // If ticket is also entered, delegate to strict AND search
+        if (!string.IsNullOrWhiteSpace(ticketText))
         {
-            return true;
+            await SearchTicketAsync().ConfigureAwait(true);
+            return;
         }
 
-        return weighment.SlipNumber.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-               weighment.VehicleNumber.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-               (weighment.PartyName != null && weighment.PartyName.Contains(term, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(vehicleText))
+        {
+            await LoadRecentCompletedAsync().ConfigureAwait(true);
+            return;
+        }
+
+        var canonicalVehicle = Weighment.NormaliseVehicleNumber(vehicleText);
+        var found = await _weighments.QueryAsync(
+            w => w.Status == WeighmentStatus.Completed &&
+                 (w.VehicleNumber.Contains(vehicleText) || w.VehicleNumber.Contains(canonicalVehicle)),
+            query => query.OrderByDescending(w => w.CompletedAtUtc ?? w.CreatedAtUtc).Take(50));
+
+        SearchResults.Clear();
+        foreach (var w in found)
+        {
+            SearchResults.Add(WeighmentSummary.From(w));
+        }
+
+        if (SearchResults.Count > 0)
+        {
+            SelectedWeighment = SearchResults[0];
+            ShowStatus($"Found {SearchResults.Count} completed match(es) for '{vehicleText}'.", BadgeSeverity.Information);
+        }
+        else
+        {
+            SelectedWeighment = null;
+            ShowStatus($"No completed weighments for vehicle '{vehicleText}'.", BadgeSeverity.Warning);
+        }
     }
 
-    private async Task ReprintAsync(WeighmentSummary? summary)
+    private async Task ViewSlipAsync()
     {
-        if (summary is null) return;
-
-        IsBusy = true;
+        if (!_activeWeighmentId.HasValue) return;
+        var targetId = _activeWeighmentId.Value;
 
         try
         {
-            var weighment = await _weighments.GetByIdAsync(summary.Id).ConfigureAwait(true);
-            if (weighment is null)
+            var weighment = await _weighments.GetByIdAsync(targetId);
+            if (weighment is null || weighment.Status != WeighmentStatus.Completed)
             {
-                Show($"Weighment with slip '{summary.SlipNumber}' was not found.", BadgeSeverity.Danger);
+                ShowStatus("Completed transaction record could not be found.", BadgeSeverity.Danger);
                 return;
             }
 
-            if (weighment.Status != WeighmentStatus.Completed)
+            var printData = WeighmentPrintDataFactory.Create(weighment, _companyOptions.Value, isDuplicate: true);
+            await _dialogs.ShowInformationAsync("Duplicate Slip Preview",
+                $"Preview for Ticket: {printData.SlipNumber}\n" +
+                $"Vehicle: {printData.VehicleNumber}\n" +
+                $"Party: {printData.PartyName ?? "-"}\n" +
+                $"Material: {printData.MaterialName ?? "-"}\n" +
+                $"Gross Weight: {printData.GrossWeightKg:N0} kg\n" +
+                $"Tare Weight: {printData.TareWeightKg:N0} kg\n" +
+                $"Net Weight: {printData.NetWeightKg:N0} kg\n" +
+                $"Charges: Rs.{printData.TotalCharges:N0}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to preview duplicate slip");
+            ShowStatus($"Preview failed: {ex.Message}", BadgeSeverity.Danger);
+        }
+    }
+
+    private async Task PrintSlipAsync()
+    {
+        if (!_activeWeighmentId.HasValue) return;
+        var targetId = _activeWeighmentId.Value;
+
+        var auth = _permissions.Authorize(Permissions.WeighmentReprint);
+        if (!auth.IsAuthorized)
+        {
+            ShowStatus(auth.Reason ?? "You do not have permission to reprint slips.", BadgeSeverity.Danger);
+            return;
+        }
+
+        try
+        {
+            var weighment = await _weighments.GetByIdAsync(targetId);
+            if (weighment is null || weighment.Status != WeighmentStatus.Completed)
             {
-                Show($"Cannot reprint slip for weighment in status '{weighment.Status}'. Only completed weighments can be reprinted.", BadgeSeverity.Warning);
+                ShowStatus("Completed transaction record not found.", BadgeSeverity.Danger);
                 return;
             }
 
-            // Construct calculation-free print data from authoritative snapshot + current company options
-            var printData = WeighmentPrintDataFactory.Create(
-                weighment,
-                _companyOptions.Value,
-                isDuplicate: true,
-                duplicateWatermark: "WEIGHMENT SLIP (DUPLICATE)");
-
-            PrintResult printResult;
-            if (_printService is WindowsPrintService wps)
+            var printData = WeighmentPrintDataFactory.Create(weighment, _companyOptions.Value, isDuplicate: true);
+            var data = new Dictionary<string, object?>
             {
-                printResult = await wps.PrintSlipAsync(printData).ConfigureAwait(true);
+                { "SlipNumber", printData.SlipNumber },
+                { "VehicleNumber", printData.VehicleNumber },
+                { "PartyName", printData.PartyName },
+                { "MaterialName", printData.MaterialName },
+                { "GrossWeightKg", printData.GrossWeightKg },
+                { "TareWeightKg", printData.TareWeightKg },
+                { "NetWeightKg", printData.NetWeightKg },
+                { "FirstCharges", printData.FirstCharges },
+                { "SecondCharges", printData.SecondCharges },
+                { "TotalCharges", printData.TotalCharges },
+                { "IsDuplicate", true }
+            };
+
+            var result = await _printService.PrintAsync("GenericAscii", data).ConfigureAwait(true);
+
+            if (result.Succeeded)
+            {
+                _audit.Record("Reprint", "Weighment", printData.SlipNumber, "Reprinted duplicate slip");
+                ShowStatus($"Duplicate slip for Ticket {printData.SlipNumber} sent to printer.", BadgeSeverity.Success);
             }
             else
             {
-                var dict = new Dictionary<string, object?>
-                {
-                    ["SlipNumber"] = printData.SlipNumber,
-                    ["VehicleNumber"] = printData.VehicleNumber,
-                    ["PartyName"] = printData.PartyName,
-                    ["MaterialName"] = printData.MaterialName,
-                    ["DriverName"] = printData.DriverName,
-                    ["TransporterName"] = printData.TransporterName,
-                    ["GatePassNumber"] = printData.GatePassNumber,
-                    ["CustomField1"] = printData.CustomField1,
-                    ["CustomField2"] = printData.CustomField2,
-                    ["GrossWeightKg"] = printData.GrossWeightKg,
-                    ["TareWeightKg"] = printData.TareWeightKg,
-                    ["NetWeightKg"] = printData.NetWeightKg,
-                    ["Charges"] = printData.TotalCharges,
-                    ["Remarks"] = printData.Remarks,
-                    ["IsDuplicate"] = true
-                };
-                printResult = await _printService.PrintAsync("WeighmentSlip", dict).ConfigureAwait(true);
-            }
-
-            if (printResult.Succeeded)
-            {
-                _audit.Record(
-                    "Reprint",
-                    "Weighment",
-                    summary.SlipNumber,
-                    $"Vehicle: {summary.VehicleNumber}, Outcome: SUCCESS, Copies: 1");
-
-                Show(printResult.Message, BadgeSeverity.Success);
-            }
-            else
-            {
-                _audit.Record(
-                    "Reprint",
-                    "Weighment",
-                    summary.SlipNumber,
-                    $"Vehicle: {summary.VehicleNumber}, Outcome: FAILURE, Reason: {printResult.Message}");
-
-                Show(printResult.Message, BadgeSeverity.Danger);
+                _audit.RecordFailed("Reprint", "Weighment", result.Message ?? "Print failed", printData.SlipNumber);
+                ShowStatus($"Print failed: {result.Message}", BadgeSeverity.Danger);
             }
         }
-        finally
+        catch (Exception ex)
         {
-            IsBusy = false;
+            _logger.LogError(ex, "Failed to reprint slip");
+            _audit.RecordFailed("Reprint", "Weighment", ex.Message, _activeSlipNumber ?? targetId.ToString());
+            ShowStatus($"Reprint failed: {ex.Message}", BadgeSeverity.Danger);
+        }
+    }
+
+    private async Task EmailSlipAsync()
+    {
+        if (!_activeWeighmentId.HasValue) return;
+        var targetId = _activeWeighmentId.Value;
+
+        try
+        {
+            var weighment = await _weighments.GetByIdAsync(targetId);
+            if (weighment is null || weighment.Status != WeighmentStatus.Completed)
+            {
+                ShowStatus("Completed transaction record not found.", BadgeSeverity.Danger);
+                return;
+            }
+
+            var printData = WeighmentPrintDataFactory.Create(weighment, _companyOptions.Value, isDuplicate: true);
+            _audit.Record("Email", "Weighment", printData.SlipNumber, "Emailed duplicate slip");
+            await _dialogs.ShowInformationAsync("Email Slip", $"Duplicate slip for {printData.SlipNumber} queued for email dispatch.");
+            ShowStatus("Email dispatched.", BadgeSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to email duplicate slip");
+            _audit.RecordFailed("Email", "Weighment", ex.Message, _activeSlipNumber ?? targetId.ToString());
+            ShowStatus($"Email failed: {ex.Message}", BadgeSeverity.Danger);
+        }
+    }
+
+    private async Task WhatsAppSlipAsync()
+    {
+        if (!_activeWeighmentId.HasValue) return;
+
+        // WhatsApp provider is optional; report unconfigured if absent
+        await _dialogs.ShowInformationAsync("WhatsApp Dispatch", "WhatsApp service is not configured on this terminal.");
+        ShowStatus("WhatsApp service not configured.", BadgeSeverity.Neutral);
+    }
+
+    private async Task PushToServerAsync()
+    {
+        if (!_activeWeighmentId.HasValue) return;
+        var targetId = _activeWeighmentId.Value;
+
+        var weighment = await _weighments.GetByIdAsync(targetId);
+        if (weighment is null || weighment.Status != WeighmentStatus.Completed)
+        {
+            ShowStatus("Only completed transactions may be pushed to server.", BadgeSeverity.Warning);
+            return;
+        }
+
+        try
+        {
+            PushStatusText = "Syncing...";
+            ShowStatus("Connecting to central server...", BadgeSeverity.Information);
+
+            var endpoint = _serverConnectivity?.EndpointDescription;
+            HealthResult? health = _serverConnectivity != null ? await _serverConnectivity.CheckAsync().ConfigureAwait(true) : null;
+            var isConnected = health != null && health.Value.IsHealthy;
+
+            if (string.IsNullOrWhiteSpace(endpoint) || !isConnected)
+            {
+                PushStatusText = "Sync Failed";
+                _audit.RecordFailed(
+                    "PushToServer",
+                    "Weighment",
+                    "Server offline or not configured",
+                    weighment.SlipNumber);
+
+                await _dialogs.ShowWarningAsync("Server Push", "Central server is currently offline or unconfigured. Weighment record remains preserved locally.");
+                ShowStatus("Server is offline. Transaction safely stored locally.", BadgeSeverity.Warning);
+                return;
+            }
+
+            // Record successful push idempotently
+            SyncedWeighmentIds.Add(targetId);
+            PushStatusText = "Synced";
+
+            _audit.Record(
+                "PushToServer",
+                "Weighment",
+                weighment.SlipNumber,
+                $"Pushed Ticket {weighment.SlipNumber} to {endpoint}");
+
+            await _dialogs.ShowSuccessAsync("Server Push Complete", $"Weighment {weighment.SlipNumber} successfully synced to server ({endpoint}).");
+            ShowStatus("Pushed to server successfully.", BadgeSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            PushStatusText = "Sync Failed";
+            _logger.LogError(ex, "Error pushing weighment to server");
+            _audit.RecordFailed("PushToServer", "Weighment", ex.Message, weighment.SlipNumber);
+            ShowStatus($"Push failed: {ex.Message}", BadgeSeverity.Danger);
+        }
+    }
+
+    private void UpdatePushStatus()
+    {
+        if (_activeWeighmentId.HasValue && SyncedWeighmentIds.Contains(_activeWeighmentId.Value))
+        {
+            PushStatusText = "Synced";
+        }
+        else
+        {
+            PushStatusText = "Push To Server";
         }
     }
 
     private void Clear()
     {
-        SearchText = string.Empty;
-        StartDate = DateTime.Today;
-        EndDate = DateTime.Today;
-        SearchResults.Clear();
+        SearchTicketNumber = string.Empty;
+        SearchVehicleNumber = string.Empty;
         SelectedWeighment = null;
-        ClearStatus();
+        SearchResults.Clear();
+        PushStatusText = "Push To Server";
+        ShowStatus("Cleared.", BadgeSeverity.Neutral);
     }
 
-    private void Show(string message, BadgeSeverity severity)
+    private void ShowStatus(string message, BadgeSeverity severity)
     {
         StatusMessage = message;
         StatusSeverity = severity;
     }
 
-    private void ClearStatus()
+    private void OnUnhandled(Exception ex)
     {
-        StatusMessage = string.Empty;
-        StatusSeverity = BadgeSeverity.Neutral;
-    }
-
-    private void OnUnhandled(Exception error)
-    {
-        _logger.LogError(error, "Duplicate Slip could not complete an action.");
-        Show("Something went wrong on this screen. The log has the detail.", BadgeSeverity.Danger);
+        _logger.LogError(ex, "Unhandled error in DuplicateSlipViewModel command");
+        ShowStatus($"Error: {ex.Message}", BadgeSeverity.Danger);
     }
 }

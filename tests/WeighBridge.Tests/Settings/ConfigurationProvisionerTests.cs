@@ -30,6 +30,58 @@ public sealed class ConfigurationProvisionerTests
     }
 
     [Fact]
+    public void EnsureConfigurationFile_OnFreshInstall_ProducesCleanAppSettingsWithNoHardcodedValues()
+    {
+        using var data = new TempDataRoot();
+        var provisioner = new ConfigurationProvisioner(data.Paths);
+
+        var path = provisioner.EnsureConfigurationFile();
+
+        var configuration = new ConfigurationBuilder().AddJsonFile(path).Build();
+
+        // Organization and site must be empty defaults
+        Assert.Equal(string.Empty, configuration["Application:OrganizationName"]);
+        Assert.Equal(string.Empty, configuration["Application:SiteName"]);
+
+        // Company section must be clean with no hardcoded company info
+        Assert.Equal(string.Empty, configuration["Company:CompanyName"]);
+        Assert.Equal(string.Empty, configuration["Company:AddressLine1"]);
+        Assert.Equal(string.Empty, configuration["Company:AddressLine2"]);
+        Assert.Equal(string.Empty, configuration["Company:Phone"]);
+        Assert.Equal(string.Empty, configuration["Company:Email"]);
+        Assert.Equal(string.Empty, configuration["Company:TaxId"]);
+
+        // Email section must be disabled and clean
+        Assert.Equal("False", configuration["Email:Enabled"]);
+        Assert.Equal(string.Empty, configuration["Email:SenderName"]);
+        Assert.Equal(string.Empty, configuration["Email:SenderEmail"]);
+        Assert.Equal(string.Empty, configuration["Email:Password"]);
+        Assert.Equal(string.Empty, configuration["Email:SmtpServer"]);
+        Assert.Equal("587", configuration["Email:SmtpPort"]);
+        Assert.Equal("True", configuration["Email:UseSsl"]);
+
+        // SMS section must be clean
+        Assert.Equal("False", configuration["Sms:Enabled"]);
+        Assert.Equal(string.Empty, configuration["Sms:DefaultRecipient"]);
+        Assert.Equal(string.Empty, configuration["Sms:WhatsAppToken"]);
+
+        // Hardware decoding keys must be present and match spec
+        Assert.Equal("NUL (0x00)", configuration["Hardware:WeightIndicator:Decoding:EndingString"]);
+        Assert.Equal("0", configuration["Hardware:WeightIndicator:Decoding:DummyZero"]);
+        Assert.Equal("50", configuration["Hardware:WeightIndicator:Decoding:BufferData"]);
+        Assert.Equal("0", configuration["Hardware:WeightIndicator:Decoding:StableWaitTime"]);
+
+        // PortSettings must be present
+        Assert.Equal("COM4", configuration["Hardware:PortSettings:ReceivePort1:PortName"]);
+        Assert.Equal("COM5", configuration["Hardware:PortSettings:ReceivePort2:PortName"]);
+        Assert.Equal("COM6", configuration["Hardware:PortSettings:SendDataPort:PortName"]);
+
+        // Weighment settings must be present
+        Assert.Equal("True", configuration["Weighment:ManualTareEntry"]);
+        Assert.Equal("12 Hour", configuration["Weighment:TimeFormat"]);
+    }
+
+    [Fact]
     public void EnsureConfigurationFile_OnSecondRun_LeavesTheFileUnchanged()
     {
         using var data = new TempDataRoot();

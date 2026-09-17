@@ -2,9 +2,11 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using WeighBridge.App.Controls;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Commands;
+using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Dialogs;
 using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Navigation;
@@ -72,9 +74,11 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IUiDispatcher _dispatcher;
     private readonly ILogger<VehicleEntryViewModel> _logger;
+    private readonly IOptionsMonitor<WeighmentOptions>? _optionsMonitor;
 
     // Workflow state
-    private WeighmentWorkflowState _workflowState = WeighmentWorkflowState.Idle;
+    private WeighmentWorkflowState _workflowState = WeighmentWorkflowState.F1Entry;
+    private long? _activeReservationId;
     private long? _activeWeighmentId;
     private Guid? _activeVersion;
     private string? _activeSlipNumber;
@@ -134,10 +138,19 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private BadgeSeverity _stabilitySeverity = BadgeSeverity.Neutral;
     private string _liveSourceText = "[Manual]";
     private string _cameraStatusText = "Cameras Offline";
+    private bool _isAutoTareMode;
+    private bool _isManualTareMode;
+    private decimal? _manualTareKg;
+    private string _grossWeightInput = string.Empty;
+    private string _tareWeightInput = string.Empty;
 
     // Commands
     private readonly AsyncRelayCommand _switchToFirstEntry;
     private readonly AsyncRelayCommand _switchToSecondEntry;
+    private readonly RelayCommand _selectGrossMode;
+    private readonly RelayCommand _selectTareMode;
+    private readonly RelayCommand _selectAutoTareMode;
+    private readonly RelayCommand _selectManualTareMode;
     private readonly AsyncRelayCommand _allocateTicket;
     private readonly AsyncRelayCommand _recordFirstWeight;
     private readonly AsyncRelayCommand _recordSecondWeight;
@@ -147,9 +160,11 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private readonly AsyncRelayCommand _submitWorkflow;
     private readonly AsyncRelayCommand _cancelWeighment;
     private readonly AsyncRelayCommand _readIndicator;
+    private readonly INavigationService? _navigationService;
     private readonly AsyncRelayCommand _refresh;
     private readonly AsyncRelayCommand _clearContext;
     private readonly AsyncRelayCommand _printSlip;
+    private readonly AsyncRelayCommand _openSettings;
 
     public VehicleEntryViewModel(
         ICommandExecutor executor,
@@ -164,7 +179,9 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         IPermissionService permissions,
         IDialogService dialogs,
         IUiDispatcher dispatcher,
-        ILogger<VehicleEntryViewModel> logger)
+        ILogger<VehicleEntryViewModel> logger,
+        INavigationService? navigationService = null,
+        IOptionsMonitor<WeighmentOptions>? optionsMonitor = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
@@ -179,6 +196,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _navigationService = navigationService;
+        _optionsMonitor = optionsMonitor;
 
         Title = "Vehicle Entry";
         Description = "Industrial F1/F2 Weighment Workflow: First Entry, Second Entry, and Slip Completion.";
@@ -193,18 +212,43 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _reloadActiveTransaction = new AsyncRelayCommand(ReloadActiveTransactionAsync, () => !IsBusy && ActiveWeighmentId.HasValue, OnUnhandled);
         _submitWorkflow = new AsyncRelayCommand(SubmitWorkflowAsync, () => !IsBusy && CanSubmitCurrentWorkflow, OnUnhandled);
         _cancelWeighment = new AsyncRelayCommand(CancelWeighmentAsync, () => !IsBusy && CanCancel && Current is { IsOpen: true }, OnUnhandled);
-        _readIndicator = new AsyncRelayCommand(ReadIndicatorAsync, () => !IsBusy && IndicatorState == ConnectionState.Connected, OnUnhandled);
+        _readIndicator = new AsyncRelayCommand(ReadIndicatorAsync, () => !IsBusy, OnUnhandled);
         _refresh = new AsyncRelayCommand(RefreshAsync, () => !IsBusy, OnUnhandled);
         _clearContext = new AsyncRelayCommand(ClearContextAsync, () => !IsBusy, OnUnhandled);
         _printSlip = new AsyncRelayCommand(PrintSlipAsync, () => !IsBusy && Current is { Status: WeighmentStatus.Completed }, OnUnhandled);
+        _openSettings = new AsyncRelayCommand(() => _navigationService?.NavigateToAsync<SettingsViewModel>() ?? Task.CompletedTask);
+        _selectGrossMode = new RelayCommand(() => GrossTareText = "G");
+        _selectTareMode = new RelayCommand(() => GrossTareText = "T");
+        _selectAutoTareMode = new RelayCommand(() => GrossTareText = "A");
+        _selectManualTareMode = new RelayCommand(() => GrossTareText = "M");
 
         PropertyChanged += (_, changed) =>
         {
-            if (changed.PropertyName is nameof(IsBusy) or nameof(WorkflowState) or nameof(Current) or nameof(IndicatorState) or nameof(SelectedAwaiting))
+            if (changed.PropertyName is nameof(IsBusy) or nameof(WorkflowState) or nameof(Current) or nameof(IndicatorState) or nameof(SelectedAwaiting) or nameof(WeightInput) or nameof(SelectedArrivalMode))
             {
                 RefreshCommandStates();
+                OnPropertyChanged(nameof(DisplayGrossWeightKg));
+                OnPropertyChanged(nameof(DisplayTareWeightKg));
+                OnPropertyChanged(nameof(DisplayNetWeightKg));
+                OnPropertyChanged(nameof(GrossWeightText));
+                OnPropertyChanged(nameof(TareWeightText));
+                OnPropertyChanged(nameof(EntryModeText));
+                OnPropertyChanged(nameof(GrossTareText));
+                OnPropertyChanged(nameof(ModeLabelText));
+                OnPropertyChanged(nameof(F2DerivedModeText));
+                OnPropertyChanged(nameof(IsGrossFirstSelected));
+                OnPropertyChanged(nameof(IsTareFirstSelected));
+                OnPropertyChanged(nameof(IsAutoTareModeSelected));
+                OnPropertyChanged(nameof(IsManualTareModeSelected));
+                OnPropertyChanged(nameof(IsTareWeightReadOnly));
+                OnPropertyChanged(nameof(IsGrossWeightReadOnly));
             }
         };
+
+        if (_optionsMonitor is not null)
+        {
+            _optionsMonitor.OnChange(_ => _dispatcher.Post(RaiseRuntimeSettingsChanged));
+        }
     }
 
     public ObservableCollection<VehicleOption> ActiveVehicles { get; } = [];
@@ -213,6 +257,369 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     public ObservableCollection<VehicleTypeOption> ActiveVehicleTypes { get; } = [];
     public ObservableCollection<WeighmentSummary> AwaitingSecondWeight { get; } = [];
     public IReadOnlyList<WeighmentModeOption> ArrivalModeOptions => ArrivalModes;
+
+    public string CurrentTimeDisplay => DateTime.Now.ToString("M/d/yyyy h:mm:ss tt", CultureInfo.InvariantCulture);
+
+    public bool CanEnterManualWeight => RuntimeOptions.ManualTareEntry;
+
+    public bool IsSecondEntryChargesEnabled => RuntimeOptions.SecondEntryCharges;
+
+    public bool IsUnitBagsWeightColumnEnabled => RuntimeOptions.UnitBagsWeightColumn;
+
+    public bool IsOnlySingleEntryEnabled => RuntimeOptions.OnlySingleEntry;
+
+    public bool IsAutoTareWeightEnabled => RuntimeOptions.AutoTareWeight;
+
+    public bool IsWeightHoldEnabled => RuntimeOptions.WeightHold;
+
+    public string EntryModeText
+    {
+        get => WorkflowState switch
+        {
+            WeighmentWorkflowState.F2Entry or WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture => "F2",
+            _ => "F1"
+        };
+        set
+        {
+            if (string.Equals(value?.Trim(), "F2", StringComparison.OrdinalIgnoreCase))
+            {
+                _ = SwitchToSecondEntryAsync();
+            }
+            else if (string.Equals(value?.Trim(), "F1", StringComparison.OrdinalIgnoreCase))
+            {
+                _ = SwitchToFirstEntryAsync();
+            }
+        }
+    }
+
+    public ICommand SelectGrossModeCommand => _selectGrossMode;
+    public ICommand SelectTareModeCommand => _selectTareMode;
+    public ICommand SelectAutoTareModeCommand => _selectAutoTareMode;
+    public ICommand SelectManualTareModeCommand => _selectManualTareMode;
+
+    public string ModeLabelText => IsF2Mode
+        ? "2nd Weight Role"
+        : "Gross/Tare/Auto/Manual";
+
+    public string F2DerivedModeText
+    {
+        get
+        {
+            if (!IsF2Mode) return string.Empty;
+            if (Current is null) return "- [Select Pending Ticket]";
+            return Current.Mode == WeighmentMode.GrossFirst
+                ? "Tare (T) [2nd Weight]"
+                : "Gross (G) [2nd Weight]";
+        }
+    }
+
+    public bool IsGrossFirstSelected => IsF1Mode && !_isAutoTareMode && !_isManualTareMode && SelectedArrivalMode?.Value == WeighmentMode.GrossFirst;
+    public bool IsTareFirstSelected => IsF1Mode && !_isAutoTareMode && !_isManualTareMode && SelectedArrivalMode?.Value == WeighmentMode.TareFirst;
+    public bool IsAutoTareModeSelected => IsF1Mode && _isAutoTareMode && IsAutoTareWeightEnabled;
+    public bool IsManualTareModeSelected => IsF1Mode && _isManualTareMode;
+    public bool IsTareWeightReadOnly => IsF2Mode || _isAutoTareMode || (!_isManualTareMode && !CanEnterManualWeight);
+    public bool IsGrossWeightReadOnly => IsF2Mode ? Current?.Mode == WeighmentMode.GrossFirst : (SelectedArrivalMode.Value == WeighmentMode.TareFirst && !_isAutoTareMode && !_isManualTareMode);
+
+    public string GrossTareText
+    {
+        get
+        {
+            if (IsF2Mode)
+            {
+                // In F2, mode is strictly locked to the stored transaction complementary role
+                return Current?.Mode == WeighmentMode.GrossFirst ? "T" : "G";
+            }
+            if (_isManualTareMode)
+            {
+                return "M";
+            }
+            if (_isAutoTareMode && IsAutoTareWeightEnabled)
+            {
+                return "A";
+            }
+            return SelectedArrivalMode?.Value == WeighmentMode.TareFirst ? "T" : "G";
+        }
+        set
+        {
+            if (IsF2Mode)
+            {
+                // In F2, mode cannot be manually altered; it is derived from stored transaction state
+                return;
+            }
+
+            var trimmed = value?.Trim() ?? string.Empty;
+            if (string.Equals(trimmed, "A", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!IsAutoTareWeightEnabled)
+                {
+                    Show("Auto Tare Weight is disabled in site settings.", BadgeSeverity.Warning);
+                    return;
+                }
+                _isAutoTareMode = true;
+                _isManualTareMode = false;
+                SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
+                if (StandardTareWeightKg.HasValue)
+                {
+                    Show($"Auto Tare applied from Vehicle Master: {StandardTareWeightKg.Value:N0} kg.", BadgeSeverity.Information);
+                }
+                else
+                {
+                    Show("Vehicle does not have a standard tare weight registered in Vehicle Master.", BadgeSeverity.Warning);
+                }
+            }
+            else if (string.Equals(trimmed, "M", StringComparison.OrdinalIgnoreCase))
+            {
+                _isManualTareMode = true;
+                _isAutoTareMode = false;
+                SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
+                Show("Manual Tare mode [M] selected. You can enter tare weight directly.", BadgeSeverity.Information);
+            }
+            else if (string.Equals(trimmed, "T", StringComparison.OrdinalIgnoreCase))
+            {
+                _isAutoTareMode = false;
+                _isManualTareMode = false;
+                SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.TareFirst) ?? ArrivalModes[1];
+            }
+            else
+            {
+                _isAutoTareMode = false;
+                _isManualTareMode = false;
+                SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
+            }
+
+            OnPropertyChanged(nameof(GrossTareText));
+            OnPropertyChanged(nameof(IsAutoTareModeSelected));
+            OnPropertyChanged(nameof(IsManualTareModeSelected));
+            OnPropertyChanged(nameof(IsGrossFirstSelected));
+            OnPropertyChanged(nameof(IsTareFirstSelected));
+            OnPropertyChanged(nameof(IsTareWeightReadOnly));
+            OnPropertyChanged(nameof(IsGrossWeightReadOnly));
+            OnPropertyChanged(nameof(DisplayGrossWeightKg));
+            OnPropertyChanged(nameof(DisplayTareWeightKg));
+            OnPropertyChanged(nameof(DisplayNetWeightKg));
+            OnPropertyChanged(nameof(GrossWeightText));
+            OnPropertyChanged(nameof(TareWeightText));
+        }
+    }
+
+    public string GrossWeightText
+    {
+        get
+        {
+            if (Current?.GrossKg.HasValue == true)
+            {
+                return Current.GrossKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+            }
+            if (!string.IsNullOrWhiteSpace(_grossWeightInput))
+            {
+                return _grossWeightInput;
+            }
+            if (IsF1Mode && (SelectedArrivalMode?.Value == WeighmentMode.GrossFirst || SelectedArrivalMode == null) &&
+                !_isAutoTareMode && !_isManualTareMode && !string.IsNullOrWhiteSpace(WeightInput))
+            {
+                return WeightInput;
+            }
+            return "0";
+        }
+        set
+        {
+            if (IsGrossWeightReadOnly) return;
+            _grossWeightInput = value;
+            OnPropertyChanged(nameof(GrossWeightText));
+            OnPropertyChanged(nameof(DisplayGrossWeightKg));
+            OnPropertyChanged(nameof(DisplayNetWeightKg));
+            IsDirty = true;
+        }
+    }
+
+    public string TareWeightText
+    {
+        get
+        {
+            if (Current?.TareKg.HasValue == true)
+            {
+                return Current.TareKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+            }
+            if (_isAutoTareMode && StandardTareWeightKg.HasValue)
+            {
+                return StandardTareWeightKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+            }
+            if (_isManualTareMode && _manualTareKg.HasValue)
+            {
+                return _manualTareKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+            }
+            if (!string.IsNullOrWhiteSpace(_tareWeightInput))
+            {
+                return _tareWeightInput;
+            }
+            if (IsF1Mode && SelectedArrivalMode?.Value == WeighmentMode.TareFirst &&
+                !_isAutoTareMode && !_isManualTareMode && !string.IsNullOrWhiteSpace(WeightInput))
+            {
+                return WeightInput;
+            }
+            return "0";
+        }
+        set
+        {
+            if (IsTareWeightReadOnly) return;
+            if (_isManualTareMode)
+            {
+                _tareWeightInput = value;
+                if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out var parsed) ||
+                    decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed))
+                {
+                    _manualTareKg = parsed;
+                }
+                else if (string.IsNullOrWhiteSpace(value))
+                {
+                    _manualTareKg = null;
+                }
+            }
+            else
+            {
+                _tareWeightInput = value;
+            }
+            OnPropertyChanged(nameof(TareWeightText));
+            OnPropertyChanged(nameof(DisplayTareWeightKg));
+            OnPropertyChanged(nameof(DisplayNetWeightKg));
+            IsDirty = true;
+        }
+    }
+
+    public decimal DisplayGrossWeightKg
+    {
+        get
+        {
+            if (Current?.GrossKg.HasValue == true) return Current.GrossKg.Value;
+
+            // F1 mode: read from _grossWeightInput, fallback to WeightInput
+            if (IsF1Mode)
+            {
+                if (decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var g) ||
+                    decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out g))
+                {
+                    return g;
+                }
+                if ((SelectedArrivalMode?.Value == WeighmentMode.GrossFirst || SelectedArrivalMode == null) &&
+                    !_isAutoTareMode && !_isManualTareMode)
+                {
+                    if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var gFallback) ||
+                        decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out gFallback))
+                    {
+                        return gFallback;
+                    }
+                }
+                return 0m;
+            }
+
+            // F2 mode: use stored first weight or captured second weight
+            if (WorkflowState is WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture)
+            {
+                if (Current?.Mode == WeighmentMode.GrossFirst && Current.FirstWeightKg.HasValue)
+                {
+                    return Current.FirstWeightKg.Value;
+                }
+                // TareFirst F2: second weight is gross, read from _grossWeightInput or WeightInput
+                if (Current?.Mode == WeighmentMode.TareFirst)
+                {
+                    if (decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var g2) ||
+                        decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out g2))
+                    {
+                        return g2;
+                    }
+                    if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out g2) ||
+                        decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out g2))
+                    {
+                        return g2;
+                    }
+                }
+            }
+
+            return 0m;
+        }
+    }
+
+    public decimal DisplayTareWeightKg
+    {
+        get
+        {
+            if (Current?.TareKg.HasValue == true) return Current.TareKg.Value;
+
+            if (IsF1Mode && _isAutoTareMode && StandardTareWeightKg.HasValue)
+            {
+                return StandardTareWeightKg.Value;
+            }
+
+            if (IsF1Mode && _isManualTareMode && _manualTareKg.HasValue)
+            {
+                return _manualTareKg.Value;
+            }
+
+            // F1 TareFirst mode: read from _tareWeightInput, fallback to WeightInput
+            if (IsF1Mode)
+            {
+                if (decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var t) ||
+                    decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out t))
+                {
+                    return t;
+                }
+                if (SelectedArrivalMode?.Value == WeighmentMode.TareFirst &&
+                    !_isAutoTareMode && !_isManualTareMode)
+                {
+                    if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var tFallback) ||
+                        decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out tFallback))
+                    {
+                        return tFallback;
+                    }
+                }
+                return 0m;
+            }
+
+            // F2 mode: use stored first weight or captured second weight
+            if (WorkflowState is WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture)
+            {
+                if (Current?.Mode == WeighmentMode.TareFirst && Current.FirstWeightKg.HasValue)
+                {
+                    return Current.FirstWeightKg.Value;
+                }
+                // GrossFirst F2: second weight is tare, read from _tareWeightInput or WeightInput
+                if (Current?.Mode == WeighmentMode.GrossFirst)
+                {
+                    if (decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var t2) ||
+                        decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out t2))
+                    {
+                        return t2;
+                    }
+                    if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out t2) ||
+                        decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out t2))
+                    {
+                        return t2;
+                    }
+                }
+            }
+
+            return 0m;
+        }
+    }
+
+    public decimal DisplayNetWeightKg
+    {
+        get
+        {
+            if (Current?.NetKg.HasValue == true) return Current.NetKg.Value;
+
+            var gross = DisplayGrossWeightKg;
+            var tare = DisplayTareWeightKg;
+            if (gross > 0m && tare > 0m && gross >= tare)
+            {
+                return gross - tare;
+            }
+
+            return 0m;
+        }
+    }
+
+    public ICommand OpenSettingsCommand => _openSettings;
 
     #region State & Authorization Properties
 
@@ -225,7 +632,9 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(IsF1Mode));
                 OnPropertyChanged(nameof(IsF2Mode));
+                OnPropertyChanged(nameof(IsF2SearchActive));
                 OnPropertyChanged(nameof(IsIdle));
+                OnPropertyChanged(nameof(EntryModeText));
                 OnPropertyChanged(nameof(CanSubmitCurrentWorkflow));
                 OnPropertyChanged(nameof(WorkflowStateBadgeText));
                 OnPropertyChanged(nameof(WorkflowStateBadgeSeverity));
@@ -236,7 +645,14 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
     public bool IsF1Mode => WorkflowState is WeighmentWorkflowState.F1Entry or WeighmentWorkflowState.TicketAllocated or WeighmentWorkflowState.AwaitingFirstWeight;
     public bool IsF2Mode => WorkflowState is WeighmentWorkflowState.F2Entry or WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture;
+    public bool IsF2SearchActive => WorkflowState == WeighmentWorkflowState.F2Entry;
     public bool IsIdle => WorkflowState == WeighmentWorkflowState.Idle;
+
+    public long? ActiveReservationId
+    {
+        get => _activeReservationId;
+        private set => SetProperty(ref _activeReservationId, value);
+    }
 
     public long? ActiveWeighmentId
     {
@@ -274,7 +690,9 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
     public bool CanSubmitCurrentWorkflow => WorkflowState switch
     {
+        WeighmentWorkflowState.F1Entry => CanCreate,
         WeighmentWorkflowState.TicketAllocated or WeighmentWorkflowState.AwaitingFirstWeight => CanCreate,
+        WeighmentWorkflowState.F2Entry => CanEdit,
         WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture => CanEdit,
         _ => false
     };
@@ -433,6 +851,44 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 IsDirty = true;
                 _selectedVehicleTypeId = value?.Id;
                 _selectedVehicleTypeName = value?.Name;
+                OnPropertyChanged(nameof(SelectedVehicleTypeName));
+            }
+        }
+    }
+
+    public string? SelectedVehicleTypeName
+    {
+        get => _selectedVehicleTypeName;
+        set
+        {
+            if (SetProperty(ref _selectedVehicleTypeName, value))
+            {
+                IsDirty = true;
+
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    _selectedVehicleTypeId = null;
+                    _selectedVehicleTypeOption = null;
+                    OnPropertyChanged(nameof(SelectedVehicleTypeOption));
+                    return;
+                }
+
+                var trimmed = value.Trim();
+                var match = ActiveVehicleTypes.FirstOrDefault(t => string.Equals(t.Name, trimmed, StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                {
+                    _selectedVehicleTypeId = match.Id;
+                    _selectedVehicleTypeOption = match;
+                    IsDirty = true;
+                    OnPropertyChanged(nameof(SelectedVehicleTypeOption));
+                }
+                else
+                {
+                    _selectedVehicleTypeId = null;
+                    _selectedVehicleTypeOption = null;
+                    IsDirty = true;
+                    OnPropertyChanged(nameof(SelectedVehicleTypeOption));
+                }
             }
         }
     }
@@ -590,6 +1046,11 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         {
             _weightSource = WeightSource.Manual;
             OnPropertyChanged(nameof(EstimatedActualWeightKg));
+            OnPropertyChanged(nameof(DisplayGrossWeightKg));
+            OnPropertyChanged(nameof(DisplayTareWeightKg));
+            OnPropertyChanged(nameof(DisplayNetWeightKg));
+            OnPropertyChanged(nameof(GrossWeightText));
+            OnPropertyChanged(nameof(TareWeightText));
             if (WorkflowState == WeighmentWorkflowState.TicketAllocated && !string.IsNullOrWhiteSpace(value))
             {
                 WorkflowState = WeighmentWorkflowState.AwaitingFirstWeight;
@@ -749,6 +1210,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         }
 
         await RefreshAsync().ConfigureAwait(true);
+        await EnsureReservationAsync().ConfigureAwait(true);
     }
 
     public override Task OnNavigatedFromAsync()
@@ -882,7 +1344,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
     public async Task SwitchToFirstEntryAsync()
     {
-        if (WorkflowState == WeighmentWorkflowState.F1Entry)
+        if (WorkflowState is WeighmentWorkflowState.F1Entry or WeighmentWorkflowState.TicketAllocated && ActiveReservationId.HasValue)
         {
             return;
         }
@@ -904,14 +1366,87 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
         ResetWorkflowContext();
         WorkflowState = WeighmentWorkflowState.F1Entry;
-        Show("First Entry mode (F1) activated. Enter vehicle details.", BadgeSeverity.Information);
+        await EnsureReservationAsync().ConfigureAwait(true);
+    }
+
+    public async Task EnsureReservationAsync()
+    {
+        if (ActiveReservationId.HasValue || ActiveWeighmentId.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            // First check if there is already an active unconsumed reservation for this terminal
+            var existing = await _weighments.GetActiveReservationAsync("LOCAL").ConfigureAwait(true);
+            if (existing is not null)
+            {
+                ActiveReservationId = existing.Id;
+                ActiveSlipNumber = existing.SlipNumber;
+                WorkflowState = WeighmentWorkflowState.TicketAllocated;
+                Show($"Active Ticket {existing.SlipNumber} loaded. Enter vehicle details and capture weight (F3 / F5).", BadgeSeverity.Information);
+                return;
+            }
+
+            var result = await _executor
+                .ExecuteAsync(new ReserveTicketCommand(_weighments, tentativeVehicleNumber: VehicleNumber, terminalId: "LOCAL"))
+                .ConfigureAwait(true);
+
+            if (result is { IsSuccess: true, Value: not null })
+            {
+                var reservation = result.Value;
+                ActiveReservationId = reservation.Id;
+                ActiveSlipNumber = reservation.SlipNumber;
+                WorkflowState = WeighmentWorkflowState.TicketAllocated;
+                Show($"Ticket {reservation.SlipNumber} reserved. Enter vehicle details and capture weight (F3 / F5).", BadgeSeverity.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to allocate persistent ticket reservation on F1 entry");
+            Show("Could not allocate ticket reservation. Retry F1.", BadgeSeverity.Warning);
+        }
     }
 
     public async Task AllocateTicketAsync()
     {
+        await EnsureReservationAsync().ConfigureAwait(true);
+    }
+
+    public async Task RecordFirstWeightAsync()
+    {
         if (string.IsNullOrWhiteSpace(VehicleNumber))
         {
-            Show("Enter a vehicle number before allocating a ticket.", BadgeSeverity.Warning);
+            Show("Enter a vehicle number before recording first weight.", BadgeSeverity.Warning);
+            return;
+        }
+
+        if (!ActiveReservationId.HasValue)
+        {
+            await EnsureReservationAsync().ConfigureAwait(true);
+            if (!ActiveReservationId.HasValue)
+            {
+                Show("No ticket reservation is active. Cannot record weight.", BadgeSeverity.Warning);
+                return;
+            }
+        }
+
+        if (!TryReadWeight(out var kilograms))
+        {
+            return;
+        }
+
+        var options = _optionsMonitor?.CurrentValue;
+        if (options?.ChargesMandatory == true && Charges <= 0m)
+        {
+            Show("Weighing charges are mandatory according to site settings.", BadgeSeverity.Warning);
+            return;
+        }
+
+        if (options?.MinimumCharges > 0m && Charges < options.MinimumCharges)
+        {
+            Show($"Weighing charges must be at least ₹{options.MinimumCharges:0.##}.", BadgeSeverity.Warning);
             return;
         }
 
@@ -925,6 +1460,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             TransporterName = TransporterName,
             Remarks = Remarks,
             Charges = Charges,
+            NumberOfBags = IsUnitBagsWeightColumnEnabled ? NumberOfBags : null,
+            BagWeightKg = IsUnitBagsWeightColumnEnabled ? BagWeightKg : null,
             CustomField1 = CustomField1,
             CustomField2 = CustomField2,
             VehicleId = _selectedVehicleId,
@@ -934,46 +1471,37 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             VehicleTypeName = _selectedVehicleTypeName,
         };
 
-        var result = await _executor
-            .ExecuteAsync(new CreateWeighmentCommand(_weighments, request))
-            .ConfigureAwait(true);
-
-        Report(result);
-
-        if (result is not { IsSuccess: true, Value: not null })
-        {
-            return;
-        }
-
-        var saved = result.Value;
-        ActiveWeighmentId = saved.Id;
-        ActiveVersion = saved.Version;
-        ActiveSlipNumber = saved.SlipNumber;
-        Current = WeighmentSummary.From(saved);
-        IsDirty = false;
-        WorkflowState = WeighmentWorkflowState.TicketAllocated;
-
-        Show($"Ticket {saved.SlipNumber} allocated for {saved.VehicleNumber}. Capture first weight (F3 / F5).", BadgeSeverity.Success);
-        await RefreshAsync().ConfigureAwait(true);
-    }
-
-    public async Task RecordFirstWeightAsync()
-    {
-        if (!ActiveWeighmentId.HasValue)
-        {
-            Show("Allocate a ticket before recording first weight.", BadgeSeverity.Warning);
-            return;
-        }
-
-        if (!TryReadWeight(out var kilograms))
-        {
-            return;
-        }
-
         var source = _weightSource;
-        var result = await _executor
-            .ExecuteAsync(new RecordFirstWeightCommand(_weighments, ActiveWeighmentId.Value, kilograms, source))
-            .ConfigureAwait(true);
+        CommandResult<Weighment> result;
+        if (IsOnlySingleEntryEnabled)
+        {
+            if (!IsAutoTareWeightEnabled || !StandardTareWeightKg.HasValue)
+            {
+                Show("Single-entry mode requires Auto Tare Weight and a vehicle master tare.", BadgeSeverity.Warning);
+                return;
+            }
+
+            result = await _executor
+                .ExecuteAsync(new RecordSingleEntryWeightWithReservationCommand(
+                    _weighments,
+                    ActiveReservationId.Value,
+                    request,
+                    kilograms,
+                    source,
+                    StandardTareWeightKg.Value))
+                .ConfigureAwait(true);
+        }
+        else
+        {
+            result = await _executor
+                .ExecuteAsync(new RecordFirstWeightWithReservationCommand(
+                    _weighments,
+                    ActiveReservationId.Value,
+                    request,
+                    kilograms,
+                    source))
+                .ConfigureAwait(true);
+        }
 
         Report(result);
 
@@ -987,10 +1515,20 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
         Current = WeighmentSummary.From(saved);
         ResetWorkflowContext();
-        WorkflowState = WeighmentWorkflowState.Idle;
+        WorkflowState = IsOnlySingleEntryEnabled ? WeighmentWorkflowState.Completed : WeighmentWorkflowState.F1Entry;
 
-        Show($"First weight {kilograms:0.##} kg recorded on {saved.SlipNumber}. Vehicle queued for second weight.", BadgeSeverity.Success);
+        Show(
+            IsOnlySingleEntryEnabled
+                ? $"Single-entry weighment {saved.SlipNumber} completed. Net {saved.NetWeightKg:0.##} kg."
+                : $"First weight {kilograms:0.##} kg recorded on {saved.SlipNumber}. Vehicle queued for second weight.",
+            BadgeSeverity.Success);
+
         await RefreshAsync().ConfigureAwait(true);
+
+        if (!IsOnlySingleEntryEnabled)
+        {
+            await EnsureReservationAsync().ConfigureAwait(true);
+        }
     }
 
     #endregion
@@ -1122,6 +1660,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
     private void LoadPendingTransactionIntoF2(Weighment weighment)
     {
+        ActiveReservationId = null;
         ActiveWeighmentId = weighment.Id;
         ActiveVersion = weighment.Version;
         ActiveSlipNumber = weighment.SlipNumber;
@@ -1129,16 +1668,65 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
         Current = WeighmentSummary.From(weighment);
 
+        // Populate F1 fields so they display accurately in the locked display
+        SelectedVehicleTypeName = weighment.VehicleTypeName;
+        VehicleNumber = weighment.VehicleNumber;
+        PartyName = weighment.PartyName;
+        MaterialName = weighment.MaterialName;
+        DriverName = weighment.DriverName;
+        TransporterName = weighment.TransporterName;
+        Remarks = weighment.Remarks;
+        Charges = weighment.Charges;
+        CustomField1 = weighment.CustomField1;
+        CustomField2 = weighment.CustomField2;
+
+        SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == weighment.Mode) ?? ArrivalModes[0];
+
+        if (weighment.VehicleId.HasValue)
+        {
+            SelectedVehicleOption = ActiveVehicles.FirstOrDefault(v => v.Id == weighment.VehicleId);
+        }
+        else
+        {
+            _selectedVehicleId = null;
+            _selectedVehicleOption = null;
+            OnPropertyChanged(nameof(SelectedVehicleOption));
+        }
+
+        if (weighment.PartyId.HasValue)
+        {
+            SelectedPartyOption = ActiveParties.FirstOrDefault(p => p.Id == weighment.PartyId);
+        }
+        else
+        {
+            _selectedPartyId = null;
+            _selectedPartyOption = null;
+            OnPropertyChanged(nameof(SelectedPartyOption));
+        }
+
+        if (weighment.MaterialId.HasValue)
+        {
+            SelectedMaterialOption = ActiveMaterials.FirstOrDefault(m => m.Id == weighment.MaterialId);
+        }
+        else
+        {
+            _selectedMaterialId = null;
+            _selectedMaterialOption = null;
+            OnPropertyChanged(nameof(SelectedMaterialOption));
+        }
+
         // Pre-populate F2 fields if any were already entered
         SecondCharges = weighment.SecondCharges;
         NumberOfBags = weighment.NumberOfBags;
         BagWeightKg = weighment.BagWeightKg;
         GatePassNumber = weighment.GatePassNumber;
-        F2Remarks = weighment.Remarks;
+        F2Remarks = null; // Do not overwrite F1 remarks; F2 remarks are separate optional additions
         CustomField3 = weighment.CustomField3;
         CustomField4 = weighment.CustomField4;
 
         WeightInput = string.Empty;
+        _grossWeightInput = string.Empty;
+        _tareWeightInput = string.Empty;
         IsDirty = false;
         WorkflowState = WeighmentWorkflowState.F2Selected;
     }
@@ -1160,13 +1748,14 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             WeighmentId: ActiveWeighmentId.Value,
             Kilograms: kilograms,
             Source: _weightSource,
-            SecondCharges: SecondCharges,
-            NumberOfBags: NumberOfBags,
-            BagWeightKg: BagWeightKg,
+            SecondCharges: IsSecondEntryChargesEnabled ? SecondCharges : 0m,
+            NumberOfBags: IsUnitBagsWeightColumnEnabled ? NumberOfBags : null,
+            BagWeightKg: IsUnitBagsWeightColumnEnabled ? BagWeightKg : null,
             GatePassNumber: GatePassNumber,
             Remarks: F2Remarks,
             CustomField3: CustomField3,
-            CustomField4: CustomField4);
+            CustomField4: CustomField4,
+            ExpectedVersion: ActiveVersion);
 
         try
         {
@@ -1210,7 +1799,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         {
             Show("Transaction was deleted or retired.", BadgeSeverity.Danger);
             ResetWorkflowContext();
-            WorkflowState = WeighmentWorkflowState.Idle;
+            WorkflowState = WeighmentWorkflowState.F1Entry;
             return;
         }
 
@@ -1229,8 +1818,6 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         switch (WorkflowState)
         {
             case WeighmentWorkflowState.F1Entry:
-                await AllocateTicketAsync().ConfigureAwait(true);
-                break;
             case WeighmentWorkflowState.TicketAllocated:
             case WeighmentWorkflowState.AwaitingFirstWeight:
                 await RecordFirstWeightAsync().ConfigureAwait(true);
@@ -1250,7 +1837,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
     public async Task ClearContextAsync()
     {
-        if (IsDirty || ActiveWeighmentId.HasValue)
+        if (IsDirty || ActiveWeighmentId.HasValue || ActiveReservationId.HasValue)
         {
             var confirm = await _dialogs.ShowConfirmationAsync(
                 "Clear Context",
@@ -1265,14 +1852,30 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             }
         }
 
+        if (ActiveReservationId.HasValue && !ActiveWeighmentId.HasValue)
+        {
+            try
+            {
+                await _executor
+                    .ExecuteAsync(new CancelReservationCommand(_weighments, ActiveReservationId.Value, "Operator cleared form"))
+                    .ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to cancel reservation {Id} during ClearContext", ActiveReservationId.Value);
+            }
+        }
+
         ResetWorkflowContext();
         Current = null;
-        WorkflowState = WeighmentWorkflowState.Idle;
-        Show("Context cleared.", BadgeSeverity.Neutral);
+        WorkflowState = WeighmentWorkflowState.F1Entry;
+        Show("Context cleared. Allocating new ticket for First Entry (F1)...", BadgeSeverity.Information);
+        await EnsureReservationAsync().ConfigureAwait(true);
     }
 
     private void ResetWorkflowContext()
     {
+        ActiveReservationId = null;
         ActiveWeighmentId = null;
         ActiveVersion = null;
         ActiveSlipNumber = null;
@@ -1314,8 +1917,25 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         CustomField4 = null;
 
         WeightInput = string.Empty;
+        _grossWeightInput = string.Empty;
+        _tareWeightInput = string.Empty;
         CancellationReason = string.Empty;
+        _isAutoTareMode = false;
+        _isManualTareMode = false;
+        _manualTareKg = null;
         IsDirty = false;
+        OnPropertyChanged(nameof(GrossTareText));
+        OnPropertyChanged(nameof(IsAutoTareModeSelected));
+        OnPropertyChanged(nameof(IsManualTareModeSelected));
+        OnPropertyChanged(nameof(IsGrossFirstSelected));
+        OnPropertyChanged(nameof(IsTareFirstSelected));
+        OnPropertyChanged(nameof(IsTareWeightReadOnly));
+        OnPropertyChanged(nameof(IsGrossWeightReadOnly));
+        OnPropertyChanged(nameof(GrossWeightText));
+        OnPropertyChanged(nameof(TareWeightText));
+        OnPropertyChanged(nameof(DisplayGrossWeightKg));
+        OnPropertyChanged(nameof(DisplayTareWeightKg));
+        OnPropertyChanged(nameof(DisplayNetWeightKg));
     }
 
     #endregion
@@ -1325,7 +1945,30 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private bool TryReadWeight(out decimal kilograms)
     {
         kilograms = 0m;
-        var text = WeightInput?.Trim();
+
+        // Determine which field to read from based on the current mode.
+        // In F1: GrossFirst/Auto/Manual → read gross; TareFirst → read tare.
+        // In F2: complementary role → read from the second weight field.
+        string? text;
+        if (IsF2Mode)
+        {
+            // F2: second weight. GrossFirst → tare is 2nd, TareFirst → gross is 2nd.
+            text = Current?.Mode == WeighmentMode.GrossFirst
+                ? _tareWeightInput?.Trim()
+                : _grossWeightInput?.Trim();
+            // Fallback to WeightInput (Capture Weight box) if dedicated field is empty
+            if (string.IsNullOrWhiteSpace(text)) text = WeightInput?.Trim();
+        }
+        else if (SelectedArrivalMode.Value == WeighmentMode.TareFirst && !_isAutoTareMode && !_isManualTareMode)
+        {
+            text = _tareWeightInput?.Trim();
+            if (string.IsNullOrWhiteSpace(text)) text = WeightInput?.Trim();
+        }
+        else
+        {
+            text = _grossWeightInput?.Trim();
+            if (string.IsNullOrWhiteSpace(text)) text = WeightInput?.Trim();
+        }
 
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -1353,19 +1996,73 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     {
         if (IndicatorState != ConnectionState.Connected)
         {
-            Show("No indicator is connected — type the weight into the box.", BadgeSeverity.Warning);
+            if (LiveWeightKg > 0m)
+            {
+                ApplyCapturedWeight(LiveWeightKg, WeightSource.Simulator);
+                return Task.CompletedTask;
+            }
+
+            var dest = (SelectedArrivalMode.Value == WeighmentMode.TareFirst && !_isAutoTareMode && !_isManualTareMode)
+                ? "Tare Weight"
+                : "Gross Weight";
+            Show($"Indicator is disconnected. Type weight into {dest} or Capture Weight box.", BadgeSeverity.Warning);
             return Task.CompletedTask;
         }
 
-        WeightInput = LiveWeightKg % 1 == 0
-            ? LiveWeightKg.ToString("0", CultureInfo.InvariantCulture)
-            : LiveWeightKg.ToString("0.##", CultureInfo.InvariantCulture);
+        if (IsWeightHoldEnabled && !IsWeightStable)
+        {
+            Show("Weight Hold is enabled. Wait for a stable indicator reading before capturing weight.", BadgeSeverity.Warning);
+            return Task.CompletedTask;
+        }
 
-        _weightSource = LiveSourceText.Contains("Simulator")
+        var source = LiveSourceText.Contains("Simulator")
             ? WeightSource.Simulator
             : WeightSource.Indicator;
 
+        ApplyCapturedWeight(LiveWeightKg, source);
         return Task.CompletedTask;
+    }
+
+    private void ApplyCapturedWeight(decimal weight, WeightSource source)
+    {
+        var formatted = weight % 1 == 0
+            ? weight.ToString("0", CultureInfo.InvariantCulture)
+            : weight.ToString("0.##", CultureInfo.InvariantCulture);
+
+        _weightSource = source;
+
+        // Route captured weight to the correct field based on the active mode
+        bool isTareTarget;
+        if (IsF2Mode)
+        {
+            // F2: second weight is complementary role
+            isTareTarget = Current?.Mode == WeighmentMode.GrossFirst;
+        }
+        else
+        {
+            isTareTarget = SelectedArrivalMode.Value == WeighmentMode.TareFirst && !_isAutoTareMode && !_isManualTareMode;
+        }
+
+        if (isTareTarget)
+        {
+            _tareWeightInput = formatted;
+            OnPropertyChanged(nameof(TareWeightText));
+            OnPropertyChanged(nameof(DisplayTareWeightKg));
+        }
+        else
+        {
+            _grossWeightInput = formatted;
+            OnPropertyChanged(nameof(GrossWeightText));
+            OnPropertyChanged(nameof(DisplayGrossWeightKg));
+        }
+
+        // Also update WeightInput so it shows the capture in the Capture Weight box
+        WeightInput = formatted;
+
+        OnPropertyChanged(nameof(DisplayNetWeightKg));
+
+        var targetName = isTareTarget ? "Tare Weight" : "Gross Weight";
+        Show($"Captured {weight:N0} kg into {targetName} [{source}].", BadgeSeverity.Success);
     }
 
     private async Task CaptureCameraSnapshotAsync(Weighment weighment, string stage)
@@ -1438,7 +2135,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
         ResetWorkflowContext();
         Current = null;
-        WorkflowState = WeighmentWorkflowState.Idle;
+        WorkflowState = WeighmentWorkflowState.F1Entry;
         await RefreshAsync().ConfigureAwait(true);
     }
 
@@ -1507,12 +2204,30 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             {
                 SelectedVehicleTypeOption = ActiveVehicleTypes.FirstOrDefault(t => t.Id == match.VehicleTypeId);
             }
+            if (_isAutoTareMode)
+            {
+                OnPropertyChanged(nameof(DisplayTareWeightKg));
+                OnPropertyChanged(nameof(DisplayNetWeightKg));
+                if (match.TareWeightKg.HasValue)
+                {
+                    Show($"Auto Tare applied from Vehicle Master: {match.TareWeightKg.Value:N0} kg.", BadgeSeverity.Information);
+                }
+                else
+                {
+                    Show("Vehicle does not have a standard tare weight registered in Vehicle Master.", BadgeSeverity.Warning);
+                }
+            }
         }
         else
         {
             _selectedVehicleId = null;
             _selectedVehicleOption = null;
             StandardTareWeightKg = null;
+            if (_isAutoTareMode)
+            {
+                OnPropertyChanged(nameof(DisplayTareWeightKg));
+                OnPropertyChanged(nameof(DisplayNetWeightKg));
+            }
         }
         OnPropertyChanged(nameof(SelectedVehicleOption));
     }
@@ -1601,6 +2316,31 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _refresh.NotifyCanExecuteChanged();
         _clearContext.NotifyCanExecuteChanged();
         _printSlip.NotifyCanExecuteChanged();
+    }
+
+    private void EnsureReadyForFirstEntry()
+    {
+        if (WorkflowState is WeighmentWorkflowState.Idle && !ActiveWeighmentId.HasValue)
+        {
+            WorkflowState = WeighmentWorkflowState.F1Entry;
+            Show("First Entry mode (F1) ready. Enter vehicle details.", BadgeSeverity.Information);
+        }
+    }
+
+    private WeighmentOptions RuntimeOptions => _optionsMonitor?.CurrentValue ?? new WeighmentOptions();
+
+    private void RaiseRuntimeSettingsChanged()
+    {
+        OnPropertyChanged(nameof(CanEnterManualWeight));
+        OnPropertyChanged(nameof(IsSecondEntryChargesEnabled));
+        OnPropertyChanged(nameof(IsUnitBagsWeightColumnEnabled));
+        OnPropertyChanged(nameof(IsOnlySingleEntryEnabled));
+        OnPropertyChanged(nameof(IsAutoTareWeightEnabled));
+        OnPropertyChanged(nameof(IsWeightHoldEnabled));
+        OnPropertyChanged(nameof(ModeLabelText));
+        OnPropertyChanged(nameof(IsTareWeightReadOnly));
+        OnPropertyChanged(nameof(GrossTareText));
+        RefreshCommandStates();
     }
 
     #endregion

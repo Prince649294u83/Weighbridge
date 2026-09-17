@@ -21,6 +21,9 @@ public sealed class CameraOptions
     /// <summary>How long captures are retained before cleanup.</summary>
     public int RetentionDays { get; set; } = 90;
 
+    /// <summary>Single camera operational mode setting retained for legacy schema parity.</summary>
+    public bool SingleCameraMode { get; set; } = false;
+
     /// <summary>Configured camera devices.</summary>
     public IList<CameraDeviceOptions> Devices { get; set; } = [];
 }

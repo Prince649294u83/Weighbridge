@@ -97,12 +97,11 @@ public sealed class CsvReportHardeningTests : IDisposable
     }
 
     [Fact]
-    public async Task DailyWeighments_IgnoreNameFilters_AndRejectUnknownKeys()
+    public async Task DailyWeighments_RejectUnknownKeys()
     {
         await Complete("MH12AA0021", "Alpha Corp", "Coal");
         await Complete("MH12AA0022", "Beta Corp", "Sand");
 
-        // The daily report is deliberately unfiltered: it is the whole day.
         var daily = await CreateService().GenerateAsync("DailyWeighments", Params(), ReportFormat.Csv);
         Assert.True(daily.Succeeded, daily.Message);
         var body = (await File.ReadAllLinesAsync(daily.OutputPath!)).Skip(1).Where(l => l.Length > 0).ToArray();
@@ -135,6 +134,103 @@ public sealed class CsvReportHardeningTests : IDisposable
     }
 
     [Fact]
+    public async Task BuildDocument_AppliesAllSuppliedFilters_WithAndSemantics()
+    {
+        await Complete("MH12AA1001", "Alpha Corp", "Coal", "Truck");
+        await Complete("MH12AA1002", "Alpha Corp", "Sand", "Truck");
+        await Complete("MH12AA1003", "Beta Corp", "Coal", "Truck");
+        await Complete("MH12AA1004", "Alpha Corp", "Coal", "Trailer");
+
+        var document = await CreateService().BuildDocumentAsync(new Core.Reporting.ReportFilterParameters(
+            StartDateLocal: DateTime.Today.AddDays(-1),
+            EndDateLocal: DateTime.Today.AddDays(1),
+            VehicleNumber: "1001",
+            PartyName: "alpha",
+            MaterialName: "coal",
+            VehicleTypeName: "truck"));
+
+        Assert.Single(document.Rows);
+        Assert.Equal("MH12AA1001", document.Rows[0].VehicleNumber);
+        Assert.Equal("Alpha Corp", document.Rows[0].PartyName);
+        Assert.Equal("Coal", document.Rows[0].MaterialName);
+        Assert.Equal("Truck", document.Rows[0].VehicleTypeName);
+    }
+
+    [Fact]
+    public async Task BuildDocument_ReportsCompletedWeighmentsOnly()
+    {
+        await Complete("MH12AA2001", "Done Corp", "Coal");
+
+        var pending = await _harness.Service.CreateAsync(new Core.Abstractions.NewWeighment
+        {
+            VehicleNumber = "MH12AA2002",
+            Mode = WeighmentMode.GrossFirst,
+            PartyName = "Pending Corp",
+            MaterialName = "Coal",
+        });
+        await _harness.Service.RecordFirstWeightAsync(pending.Id, 20_000m, WeightSource.Indicator);
+
+        var cancelled = await _harness.Service.CreateAsync(new Core.Abstractions.NewWeighment
+        {
+            VehicleNumber = "MH12AA2003",
+            Mode = WeighmentMode.GrossFirst,
+            PartyName = "Cancelled Corp",
+            MaterialName = "Coal",
+        });
+        await _harness.Service.CancelAsync(cancelled.Id, "Test cancellation");
+
+        var document = await CreateService().BuildDocumentAsync(new Core.Reporting.ReportFilterParameters(
+            StartDateLocal: DateTime.Today.AddDays(-1),
+            EndDateLocal: DateTime.Today.AddDays(1)));
+
+        Assert.Single(document.Rows);
+        Assert.Equal("MH12AA2001", document.Rows[0].VehicleNumber);
+    }
+
+    [Theory]
+    [InlineData("abc!!!!")]
+    [InlineData("WB-ABC")]
+    [InlineData("42A")]
+    public void TryExtractSequenceNumber_RejectsInvalidSlipSyntax(string slip)
+    {
+        Assert.Null(CsvReportService.TryExtractSequenceNumber(slip));
+    }
+
+    [Fact]
+    public async Task BuildDocument_RejectsInvalidRanges()
+    {
+        var service = CreateService();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.BuildDocumentAsync(new Core.Reporting.ReportFilterParameters(
+            StartDateLocal: DateTime.Today,
+            EndDateLocal: DateTime.Today.AddDays(-1))));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.BuildDocumentAsync(new Core.Reporting.ReportFilterParameters(
+            StartSlipSequence: 10,
+            EndSlipSequence: 5,
+            StartDateLocal: DateTime.Today.AddDays(-1),
+            EndDateLocal: DateTime.Today)));
+    }
+
+    [Fact]
+    public async Task BuildDocument_CarriesRowLimitMetadata()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            await Complete($"MH12AA40{i:D2}", "Limit Corp", "Gravel");
+        }
+
+        var document = await CreateService(maxRows: 3).BuildDocumentAsync(new Core.Reporting.ReportFilterParameters(
+            StartDateLocal: DateTime.Today.AddDays(-1),
+            EndDateLocal: DateTime.Today.AddDays(1)));
+
+        Assert.True(document.IsRowLimited);
+        Assert.Equal(3, document.MaxRows);
+        Assert.Equal(3, document.TotalRecordCount);
+        Assert.Equal(3, document.Rows.Count);
+    }
+
+    [Fact]
     public async Task EndDateBeforeStartDate_IsRefused()
     {
         var result = await CreateService().GenerateAsync("DailyWeighments", Params(start: "5", end: "-5"), ReportFormat.Csv);
@@ -157,7 +253,7 @@ public sealed class CsvReportHardeningTests : IDisposable
         Assert.Contains("'+CMD", text);
     }
 
-    private async Task Complete(string vehicle, string party, string material)
+    private async Task Complete(string vehicle, string party, string material, string? vehicleTypeName = null)
     {
         var created = await _harness.Service.CreateAsync(new Core.Abstractions.NewWeighment
         {
@@ -165,6 +261,7 @@ public sealed class CsvReportHardeningTests : IDisposable
             Mode = WeighmentMode.GrossFirst,
             PartyName = party,
             MaterialName = material,
+            VehicleTypeName = vehicleTypeName,
         });
         await _harness.Service.RecordFirstWeightAsync(created.Id, 20_000m, WeightSource.Indicator);
         await _harness.Service.RecordSecondWeightAsync(created.Id, 10_000m, WeightSource.Manual);

@@ -125,7 +125,7 @@ public sealed class WeightDecoderTests
         var options = new WeightDecodeOptions
         {
             WeightDigits = 6,
-            DummyZero = true,
+            DummyZero = 1,
             DecimalPlaces = 0
         };
 

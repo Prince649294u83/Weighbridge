@@ -34,6 +34,7 @@
     <SolidColorBrush x:Key="Brush.Text.OnAccent" Color="{StaticResource Neutral.0}" />
     <SolidColorBrush x:Key="Brush.Text.Accent" Color="{StaticResource Primary.70}" />
     <SolidColorBrush x:Key="Brush.Text.Placeholder" Color="{StaticResource Neutral.40}" />
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="{StaticResource Neutral.50}" />
 
     <!--  ===== Borders =====  -->
     <SolidColorBrush x:Key="Brush.Border.Default" Color="{StaticResource Neutral.20}" />
@@ -48,6 +49,8 @@
     <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="{StaticResource Primary.90}" />
     <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="{StaticResource Primary.10}" />
     <SolidColorBrush x:Key="Brush.Accent.Disabled" Color="{StaticResource Primary.30}" />
+    <SolidColorBrush x:Key="Brush.Primary.Default" Color="{StaticResource Primary.70}" />
+    <SolidColorBrush x:Key="Brush.Primary.Dark" Color="{StaticResource Primary.80}" />
 
     <!--  ===== Semantic states =====  -->
     <SolidColorBrush x:Key="Brush.Success.Default" Color="{StaticResource Success.70}" />
@@ -74,6 +77,10 @@
 
     <SolidColorBrush x:Key="Brush.Neutral.Default" Color="{StaticResource Neutral.40}" />
     <SolidColorBrush x:Key="Brush.Neutral.Subtle" Color="{StaticResource Neutral.10}" />
+
+    <!--  ===== Document / Paper =====  -->
+    <SolidColorBrush x:Key="Brush.Paper.Background" Color="{StaticResource Neutral.0}" />
+    <SolidColorBrush x:Key="Brush.Paper.Text" Color="{StaticResource Neutral.90}" />
 
     <!--  ===== Window control buttons =====  -->
     <SolidColorBrush x:Key="Brush.WindowButton.Hover" Color="{StaticResource Neutral.10}" />

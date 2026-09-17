@@ -74,7 +74,7 @@ public sealed class WeightDecoder : IWeightDecoder
         }
 
         // STEP 4: Optional Dummy Zero Handling
-        if (options.DummyZero)
+        if (options.DummyZero != 0)
         {
             payload += "0";
         }

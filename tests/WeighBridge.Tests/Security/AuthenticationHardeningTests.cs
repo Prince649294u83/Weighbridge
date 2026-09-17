@@ -130,8 +130,8 @@ public sealed class AuthenticationHardeningTests
     private sealed class StubPermissionService : IPermissionService
     {
         public OperatorIdentity CurrentOperator { get; set; } = new("anon", "Anonymous", Roles.Unauthenticated);
-        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged;
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event EventHandler<OperatorChangedEventArgs>? OperatorChanged { add { } remove { } }
+        public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
         public AuthorizationResult Authorize(Permission permission) => AuthorizationResult.Allowed;
         public AuthorizationResult Authorize(object candidate) => AuthorizationResult.Allowed;
         public bool HasPermission(Permission permission) => true;

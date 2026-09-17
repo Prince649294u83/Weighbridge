@@ -15,29 +15,11 @@
     <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
     <converters:InverseBooleanToVisibilityConverter x:Key="Converter.InverseBooleanToVisibility" />
 
-    <Style x:Key="StatusLine.Accent" TargetType="Border">
-      <Setter Property="Background" Value="{DynamicResource Brush.Neutral.Default}" />
-      <Setter Property="CornerRadius" Value="2" />
-      <Style.Triggers>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Information">
-          <Setter Property="Background" Value="{DynamicResource Brush.Info.Default}" />
-        </DataTrigger>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Success">
-          <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
-        </DataTrigger>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Warning">
-          <Setter Property="Background" Value="{DynamicResource Brush.Warning.Default}" />
-        </DataTrigger>
-        <DataTrigger Binding="{Binding StatusSeverity}" Value="Danger">
-          <Setter Property="Background" Value="{DynamicResource Brush.Danger.Default}" />
-        </DataTrigger>
-      </Style.Triggers>
-    </Style>
-
     <Style x:Key="Field.Label"
            BasedOn="{StaticResource Text.Label}"
            TargetType="TextBlock">
-      <Setter Property="Margin" Value="0,12,0,4" />
+      <Setter Property="Margin" Value="0,6,0,2" />
+      <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
   </UserControl.Resources>
 
@@ -47,101 +29,265 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
+    <!--  Header  -->
     <controls:SectionHeader Grid.Row="0"
                             Description="{Binding Description}"
                             Icon="{StaticResource Icon.Reports}"
                             ShowSeparator="True"
                             Title="{Binding Title}" />
 
-    <Grid Grid.Row="1" Margin="0,20,0,0">
+    <!--  Main Content Area  -->
+    <Grid Grid.Row="1" Margin="0,16,0,0">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="380" />
+        <ColumnDefinition Width="480" />
         <ColumnDefinition Width="20" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <!--  Parameters  -->
-      <ScrollViewer Grid.Column="0"
-                    Style="{StaticResource ScrollViewer.Default}"
-                    VerticalScrollBarVisibility="Auto">
-        <controls:ModernCard Header="Parameters"
-                             Icon="{StaticResource Icon.Filter}"
-                             SubHeader="Report criteria">
+      <!--  Left: 8 Filter Inputs (Screenshot 2 Parity)  -->
+      <Border Grid.Column="0"
+              Background="{DynamicResource Brush.Surface.Raised}"
+              BorderBrush="{DynamicResource Brush.Border.Default}"
+              BorderThickness="1"
+              CornerRadius="{StaticResource Radius.MD}"
+              Padding="16,12">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel>
-            <TextBlock Style="{StaticResource Field.Label}" Text="Report Type" />
-            <ComboBox ItemsSource="{Binding AvailableReports}"
-                      SelectedItem="{Binding SelectedReport}" />
+            <TextBlock Style="{StaticResource Text.H3}" Text="Report Criteria" Margin="0,0,0,12" />
 
-            <TextBlock Style="{StaticResource Field.Label}" Text="Start Date" />
-            <DatePicker SelectedDate="{Binding StartDate}" />
+            <!--  Starting Slip No.  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Starting Slip No." />
+              <TextBox Grid.Column="1"
+                       AutomationProperties.Name="Starting Slip No"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding StartSlipInput, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
 
-            <TextBlock Style="{StaticResource Field.Label}" Text="End Date" />
-            <DatePicker SelectedDate="{Binding EndDate}" />
+            <!--  Ending Slip No.  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Ending Slip No." />
+              <TextBox Grid.Column="1"
+                       AutomationProperties.Name="Ending Slip No"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding EndSlipInput, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
 
-            <TextBlock Style="{StaticResource Field.Label}" Text="Party Name (Optional)" />
-            <TextBox Style="{StaticResource TextBox.Default}"
-                     Text="{Binding PartyName, UpdateSourceTrigger=PropertyChanged}" />
+            <!--  Start Date  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Start Date" />
+              <DatePicker Grid.Column="1"
+                          AutomationProperties.Name="Start Date"
+                          SelectedDate="{Binding StartDate}" />
+            </Grid>
 
-            <TextBlock Style="{StaticResource Field.Label}" Text="Material Name (Optional)" />
-            <TextBox Style="{StaticResource TextBox.Default}"
-                     Text="{Binding MaterialName, UpdateSourceTrigger=PropertyChanged}" />
+            <!--  End Date  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="End Date" />
+              <DatePicker Grid.Column="1"
+                          AutomationProperties.Name="End Date"
+                          SelectedDate="{Binding EndDate}" />
+            </Grid>
 
-            <StackPanel Margin="0,20,0,0"
-                        HorizontalAlignment="Right"
-                        Orientation="Horizontal">
-              <Button Command="{Binding GenerateCommand}"
-                      Content="Generate CSV"
-                      Style="{StaticResource Button.Primary}" />
+            <!--  Vehicle No.  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Vehicle No." />
+              <ComboBox Grid.Column="1"
+                        AutomationProperties.Name="Vehicle No"
+                        IsEditable="True"
+                        ItemsSource="{Binding AvailableVehicles}"
+                        Text="{Binding VehicleNumber, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ComboBox.Default}" />
+            </Grid>
+
+            <!--  Party Name  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Party Name" />
+              <ComboBox Grid.Column="1"
+                        AutomationProperties.Name="Party Name"
+                        IsEditable="True"
+                        ItemsSource="{Binding AvailableParties}"
+                        Text="{Binding PartyName, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ComboBox.Default}" />
+            </Grid>
+
+            <!--  Material  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Material" />
+              <ComboBox Grid.Column="1"
+                        AutomationProperties.Name="Material"
+                        IsEditable="True"
+                        ItemsSource="{Binding AvailableMaterials}"
+                        Text="{Binding MaterialName, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ComboBox.Default}" />
+            </Grid>
+
+            <!--  Vehicle Type  -->
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Vehicle Type" />
+              <ComboBox Grid.Column="1"
+                        AutomationProperties.Name="Vehicle Type"
+                        IsEditable="True"
+                        ItemsSource="{Binding AvailableVehicleTypes}"
+                        Text="{Binding VehicleTypeName, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource ComboBox.Default}" />
+            </Grid>
+
+            <!--  Divider  -->
+            <Separator Margin="0,4,0,12" Background="{DynamicResource Brush.Border.Subtle}" />
+
+            <!--  Action Buttons (Screenshot 2 Parity)  -->
+            <StackPanel Margin="0,4,0,0">
+              <Button AutomationProperties.Name="View Report"
+                      Command="{Binding ViewReportCommand}"
+                      Style="{StaticResource Button.Primary}"
+                      Margin="0,0,0,8"
+                      ToolTip="Open modal Report Preview window">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Document}" Margin="0,0,6,0" FontSize="14" />
+                  <TextBlock Text="View Report" FontWeight="Bold" />
+                </StackPanel>
+              </Button>
+
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+                        AutomationProperties.Name="Print"
+                        Command="{Binding PrintCommand}"
+                        Style="{StaticResource Button.Secondary}"
+                        ToolTip="Print report to default printer">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Print}" Margin="0,0,6,0" FontSize="14" />
+                    <TextBlock Text="Print" />
+                  </StackPanel>
+                </Button>
+
+                <Button Grid.Column="2"
+                        AutomationProperties.Name="Email"
+                        Command="{Binding EmailCommand}"
+                        Style="{StaticResource Button.Secondary}"
+                        ToolTip="Email report document">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Email}" Margin="0,0,6,0" FontSize="14" />
+                    <TextBlock Text="Email" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+                        AutomationProperties.Name="Export as Excel"
+                        Command="{Binding ExportExcelCommand}"
+                        Style="{StaticResource Button.Secondary}"
+                        ToolTip="Export report to Excel (.xlsx)">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Export}" Margin="0,0,6,0" FontSize="14" />
+                    <TextBlock Text="Export as Excel" />
+                  </StackPanel>
+                </Button>
+
+                <Button Grid.Column="2"
+                        AutomationProperties.Name="Export as PDF"
+                        Command="{Binding ExportPdfCommand}"
+                        Style="{StaticResource Button.Secondary}"
+                        ToolTip="Export report to PDF (.pdf)">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Document}" Margin="0,0,6,0" FontSize="14" />
+                    <TextBlock Text="Export as PDF" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+
+              <Button AutomationProperties.Name="Clear Filters"
+                      Command="{Binding ClearFiltersCommand}"
+                      Style="{StaticResource Button.Text}"
+                      HorizontalAlignment="Center"
+                      ToolTip="Reset all filter fields">
+                <TextBlock Text="Clear Filters" />
+              </Button>
             </StackPanel>
           </StackPanel>
-        </controls:ModernCard>
-      </ScrollViewer>
+        </ScrollViewer>
+      </Border>
 
-      <!--  Result Status  -->
-      <Grid Grid.Column="2">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+      <!--  Right: Instructions / Status  -->
+      <Border Grid.Column="2"
+              Background="{DynamicResource Brush.Surface.Raised}"
+              BorderBrush="{DynamicResource Brush.Border.Default}"
+              BorderThickness="1"
+              CornerRadius="{StaticResource Radius.MD}"
+              Padding="24,20">
+        <StackPanel>
+          <TextBlock Style="{StaticResource Text.H3}" Text="Reporting Instructions" Margin="0,0,0,12" />
+          <TextBlock Style="{StaticResource Text.Body}"
+                     Foreground="{DynamicResource Brush.Text.Secondary}"
+                     TextWrapping="Wrap"
+                     LineHeight="22"
+                     Margin="0,0,0,16"
+                     Text="Use the criteria on the left to filter completed transactions. You can filter by slip number range, date range, or specific vehicle, party, material, and vehicle type." />
 
-        <!--  Status line  -->
-        <Border Grid.Row="0"
-                Margin="0,0,0,16"
-                Background="{DynamicResource Brush.Surface.Sunken}"
-                CornerRadius="{StaticResource Radius.MD}"
-                AutomationProperties.LiveSetting="Polite"
-                Visibility="{Binding HasStatus, Converter={StaticResource Converter.BooleanToVisibility}}">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="4" />
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+          <TextBlock Style="{StaticResource Text.Body}"
+                     Foreground="{DynamicResource Brush.Text.Secondary}"
+                     TextWrapping="Wrap"
+                     LineHeight="22"
+                     Margin="0,0,0,16"
+                     Text="• Starting / Ending Slip: accepts sequence numbers (e.g. 1, 000042, WB-000042)&#x0a;• Text Filters: partial / contains matching is performed&#x0a;• View Report: opens a full-width monospace preview matching the dot-matrix slip format&#x0a;• Export: downloads an Excel (.xlsx) or PDF (.pdf) file directly." />
 
-            <Border Grid.Column="0" Style="{StaticResource StatusLine.Accent}" />
-
-            <TextBlock Grid.Column="1"
-                       Margin="14,10,14,10"
-                       Style="{StaticResource Text.Body.Wrapped}"
+          <!--  Status Message  -->
+          <Border Margin="0,16,0,0"
+                  Padding="16,12"
+                  Background="{DynamicResource Brush.Surface.Sunken}"
+                  CornerRadius="{StaticResource Radius.SM}"
+                  Visibility="{Binding HasStatus, Converter={StaticResource Converter.BooleanToVisibility}}">
+            <TextBlock Style="{StaticResource Text.Body}"
+                       FontWeight="SemiBold"
                        Text="{Binding StatusMessage}" />
-                       
-            <Button Grid.Column="2" 
-                    Margin="10"
-                    Command="{Binding OpenFolderCommand}"
-                    Content="Show in Explorer"
-                    Style="{StaticResource Button.Text}" />
-          </Grid>
-        </Border>
-
-        <controls:ModernCard Grid.Row="1"
-                             Header="Report Information"
-                             Icon="{StaticResource Icon.Information}"
-                             SubHeader="Generated outputs">
-                             
-            <TextBlock Style="{StaticResource Text.Body.Wrapped}" 
-                       Text="When a report is generated, it is saved to the configured output directory as a CSV file. You can open it in Excel or any spreadsheet software." />
-        </controls:ModernCard>
-      </Grid>
+          </Border>
+        </StackPanel>
+      </Border>
     </Grid>
   </Grid>
 </UserControl>

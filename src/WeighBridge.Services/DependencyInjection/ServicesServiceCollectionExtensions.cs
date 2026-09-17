@@ -99,6 +99,9 @@ public static class ServicesServiceCollectionExtensions
         // with the manager and starting it is the host's call, not this method's.
         services.AddSingleton<HealthRefreshTask>();
 
+        // Date & Time formatting service
+        services.AddSingleton<IDateTimeFormatter, WeighBridge.Services.Formatting.DateTimeFormatter>();
+
         // Business services.
         services.AddSingleton<Func<IUnitOfWork>>(provider => provider.GetRequiredService<IUnitOfWork>);
         services.AddSingleton<IWeighmentService, WeighmentService>();
@@ -115,6 +118,12 @@ public static class ServicesServiceCollectionExtensions
         services.AddSingleton<ISmsProvider, GsmModemSmsProvider>();
         services.AddSingleton<ISmsProvider>(provider => provider.GetRequiredService<HttpGatewaySmsProvider>());
         services.AddSingleton<ISmsService, SmsOutboxProcessor>();
+
+        // Email Messaging Subsystem
+        services.AddSingleton<IEmailService, SmtpEmailService>();
+
+        // Legacy Data Migration
+        services.AddSingleton<ILegacyDataImporter, WeighBridge.Services.Import.MdbLegacyImporter>();
 
         // SystemStatusService needs the database probe specifically; resolving
         // IHealthCheck by interface would be ambiguous once other checks register.

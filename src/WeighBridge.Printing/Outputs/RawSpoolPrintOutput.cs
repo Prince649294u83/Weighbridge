@@ -69,4 +69,50 @@ public sealed class RawSpoolPrintOutput(
             return PrintResult.Failure($"Raw spooling failed: {ex.Message}");
         }
     }
+
+    public async Task<PrintResult> OutputTextAsync(
+        string documentTitle,
+        string renderedText,
+        PrinterProfile profile,
+        int copies = 1,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(renderedText);
+        ArgumentNullException.ThrowIfNull(profile);
+
+        if (string.IsNullOrWhiteSpace(profile.PrinterName))
+        {
+            return PrintResult.Failure("No target printer name specified for raw spool printing.");
+        }
+
+        try
+        {
+            byte[] rawBytes = profile.Encoding.GetBytes(renderedText);
+
+            return await Task.Run(() =>
+            {
+                int effectiveCopies = Math.Max(1, copies);
+                for (int i = 0; i < effectiveCopies; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _logger.LogInformation("Sending raw text spool job ({Length} bytes, Copy {Copy}/{Total}) to printer '{PrinterName}'",
+                        rawBytes.Length, i + 1, effectiveCopies, profile.PrinterName);
+
+                    Win32PrintSpooler.SendBytesToPrinter(profile.PrinterName, documentTitle, rawBytes);
+                }
+
+                return PrintResult.Success($"Raw print job sent to '{profile.PrinterName}' ({effectiveCopies} copies).");
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Raw text spool print job for '{PrinterName}' was cancelled.", profile.PrinterName);
+            return PrintResult.Failure("Print operation was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to submit raw text spool job to printer '{PrinterName}'", profile.PrinterName);
+            return PrintResult.Failure($"Raw spooling failed: {ex.Message}");
+        }
+    }
 }
