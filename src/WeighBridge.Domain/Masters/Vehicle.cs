@@ -139,6 +139,19 @@ public sealed class Vehicle : EntityBase, IAggregateRoot, ISoftDeletable, IDeact
         Remarks = trimmedRemarks;
     }
 
+    /// <summary>Updates the vehicle master tare weight (e.g. from AutoUpdateTareWeight option).</summary>
+    public void UpdateTareWeight(decimal tareWeightKg)
+    {
+        if (tareWeightKg < 0m || tareWeightKg > MaximumTareKg)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(tareWeightKg),
+                tareWeightKg,
+                $"Tare weight must be between 0 and {MaximumTareKg:0} kg.");
+        }
+        TareWeightKg = tareWeightKg;
+    }
+
     /// <summary>Deactivates this vehicle so it cannot be selected for new weighments.</summary>
     public void Deactivate()
     {

@@ -133,6 +133,10 @@ public sealed class WindowsPrintService : IPrintService
 
         // Determine profile
         var effectiveProfile = profile ?? ResolveDefaultProfile(effectiveTemplateName, targetPrinter);
+        if (options.SideWisePrinting && !effectiveProfile.SideWisePrinting)
+        {
+            effectiveProfile = effectiveProfile with { SideWisePrinting = true };
+        }
 
         try
         {
@@ -194,12 +198,12 @@ public sealed class WindowsPrintService : IPrintService
             TareWeightKg: GetDecimal(data, "TareWeightKg"),
             TareCapturedAtLocal: null,
             NetWeightKg: GetDecimal(data, "NetWeightKg"),
-            NumberOfBags: null,
-            BagWeightKg: null,
-            TotalBagWeightKg: null,
-            ActualWeightKg: null,
-            FirstCharges: 0m,
-            SecondCharges: 0m,
+            NumberOfBags: GetNullableInt(data, "NumberOfBags"),
+            BagWeightKg: GetNullableDecimal(data, "BagWeightKg"),
+            TotalBagWeightKg: GetNullableDecimal(data, "TotalBagWeightKg"),
+            ActualWeightKg: GetNullableDecimal(data, "ActualWeightKg"),
+            FirstCharges: GetDecimal(data, "FirstCharges"),
+            SecondCharges: GetDecimal(data, "SecondCharges"),
             TotalCharges: GetDecimal(data, "Charges"),
             OpenedAtLocal: DateTime.Now,
             CompletedAtLocal: DateTime.Now,
@@ -302,18 +306,27 @@ public sealed class WindowsPrintService : IPrintService
     private PrinterProfile ResolveReportProfile(string printerName)
     {
         var options = CurrentPrinterOptions;
+        PrinterProfile profile;
         if (options.PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase))
         {
-            return PrinterProfile.DotMatrix(printerName);
+            profile = PrinterProfile.DotMatrix(printerName);
         }
-
-        if (options.PrinterType.Contains("Label", StringComparison.OrdinalIgnoreCase) ||
+        else if (options.PrinterType.Contains("Label", StringComparison.OrdinalIgnoreCase) ||
             options.PrinterType.Contains("Sticker", StringComparison.OrdinalIgnoreCase))
         {
-            return PrinterProfile.Thermal80mm(printerName);
+            profile = PrinterProfile.Thermal80mm(printerName);
+        }
+        else
+        {
+            profile = PrinterProfile.DefaultGdi(printerName);
         }
 
-        return PrinterProfile.DefaultGdi(printerName);
+        if (options.SideWisePrinting)
+        {
+            profile = profile with { SideWisePrinting = true };
+        }
+
+        return profile;
     }
 
     private static string GetString(IReadOnlyDictionary<string, object?> data, string key)
@@ -327,6 +340,26 @@ public sealed class WindowsPrintService : IPrintService
             if (decimal.TryParse(v.ToString(), out var parsed)) return parsed;
         }
         return 0m;
+    }
+
+    private static int? GetNullableInt(IReadOnlyDictionary<string, object?> data, string key)
+    {
+        if (data.TryGetValue(key, out var v) && v != null)
+        {
+            if (v is int i) return i;
+            if (int.TryParse(v.ToString(), out var parsed)) return parsed;
+        }
+        return null;
+    }
+
+    private static decimal? GetNullableDecimal(IReadOnlyDictionary<string, object?> data, string key)
+    {
+        if (data.TryGetValue(key, out var v) && v != null)
+        {
+            if (v is decimal d) return d;
+            if (decimal.TryParse(v.ToString(), out var parsed)) return parsed;
+        }
+        return null;
     }
 
     /// <inheritdoc />

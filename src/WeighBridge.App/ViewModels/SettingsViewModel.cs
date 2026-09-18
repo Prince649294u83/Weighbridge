@@ -9,11 +9,14 @@ using Microsoft.Extensions.Options;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Dialogs;
+using WeighBridge.Core.Events;
+using WeighBridge.Core.Events.Catalog;
 using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Navigation;
 using WeighBridge.Core.Security;
 using WeighBridge.Core.Settings;
 using WeighBridge.Core.Theming;
+using WeighBridge.App.Services;
 
 namespace WeighBridge.App.ViewModels;
 
@@ -46,6 +49,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IEmailService? _emailService;
     private readonly ILegacyDataImporter? _legacyImporter;
+    private readonly IEventPublisher? _eventPublisher;
 
     private readonly AsyncRelayCommand _saveConfiguration;
     private readonly AsyncRelayCommand _testConnection;
@@ -190,7 +194,8 @@ public sealed class SettingsViewModel : ViewModelBase
         IOptions<SmsOptions>? smsOptions = null,
         IConfiguration? configuration = null,
         IEmailService? emailService = null,
-        ILegacyDataImporter? legacyImporter = null)
+        ILegacyDataImporter? legacyImporter = null,
+        IEventPublisher? eventPublisher = null)
     {
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
@@ -203,6 +208,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _emailService = emailService;
         _legacyImporter = legacyImporter;
+        _eventPublisher = eventPublisher;
 
         Hardware = hardwareOptions?.Value ?? new HardwareOptions();
         Printer = printerOptions?.Value ?? new PrinterOptions();
@@ -301,7 +307,13 @@ public sealed class SettingsViewModel : ViewModelBase
     public AppTheme SelectedTheme
     {
         get => _selectedTheme;
-        set => SetProperty(ref _selectedTheme, value);
+        set
+        {
+            if (SetProperty(ref _selectedTheme, value))
+            {
+                _themeService.ApplyTheme(value);
+            }
+        }
     }
 
     public bool IsNavigationCollapsed
@@ -1317,6 +1329,20 @@ public sealed class SettingsViewModel : ViewModelBase
 
             var reconnected = await TryReconnectIndicatorAsync().ConfigureAwait(true);
 
+            if (_eventPublisher != null)
+            {
+                _eventPublisher.Publish(new SettingsChangedEvent("Hardware", null, "SettingsViewModel"));
+                _eventPublisher.Publish(new SettingsChangedEvent("Weighment", null, "SettingsViewModel"));
+                _eventPublisher.Publish(new SettingsChangedEvent("Printer", null, "SettingsViewModel"));
+                _eventPublisher.Publish(new SettingsChangedEvent("Company", null, "SettingsViewModel"));
+                _eventPublisher.Publish(new SettingsChangedEvent("Reporting", null, "SettingsViewModel"));
+                _eventPublisher.Publish(new SettingsChangedEvent("Sms", null, "SettingsViewModel"));
+                _eventPublisher.Publish(new SettingsChangedEvent("Email", null, "SettingsViewModel"));
+                _eventPublisher.Publish(new SettingsChangedEvent("All", null, "SettingsViewModel"));
+            }
+
+            ShortcutService.EnsureDesktopShortcut(AutoApplicationShortcut, _logger);
+
             await _dialogService.ShowInformationAsync(
                 "Settings Saved",
                 reconnected
@@ -1675,6 +1701,10 @@ public sealed class SettingsViewModel : ViewModelBase
             }
 
             LegacyImportStatus = $"Finished: {result.WeighmentsImported} weighments, {result.PartiesImported} parties, {result.MaterialsImported} materials, {result.VehiclesImported} vehicles imported.";
+            if (_eventPublisher != null && (result.VehiclesImported > 0 || result.PartiesImported > 0 || result.MaterialsImported > 0 || result.WeighmentsImported > 0))
+            {
+                _eventPublisher.Publish(new SettingsChangedEvent("Catalog", null, "SettingsViewModel"));
+            }
             await _dialogService.ShowInformationAsync("Legacy Migration Complete", summary);
         }
         catch (Exception ex)

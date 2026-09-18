@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using WeighBridge.App.Controls;
 using WeighBridge.App.Views;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Commands;
+using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Dialogs;
 using WeighBridge.Core.Logging;
 using WeighBridge.Core.Mvvm;
@@ -26,6 +28,8 @@ public sealed class ReportsViewModel : ViewModelBase
     private readonly IMaterialService _materialService;
     private readonly IVehicleTypeService _vehicleTypeService;
     private readonly IDialogService _dialogs;
+    private readonly IEmailService? _emailService;
+    private readonly IOptionsMonitor<EmailOptions>? _emailOptionsMonitor;
     private readonly IAuditLogger _audit;
     private readonly ILogger<ReportsViewModel> _logger;
     private ReportDocument? _lastDocument;
@@ -53,7 +57,9 @@ public sealed class ReportsViewModel : ViewModelBase
         IVehicleTypeService vehicleTypeService,
         IDialogService dialogs,
         IAuditLogger audit,
-        ILogger<ReportsViewModel> logger)
+        ILogger<ReportsViewModel> logger,
+        IEmailService? emailService = null,
+        IOptionsMonitor<EmailOptions>? emailOptionsMonitor = null)
     {
         _reportService = reportService ?? throw new ArgumentNullException(nameof(reportService));
         _printService = printService ?? throw new ArgumentNullException(nameof(printService));
@@ -62,6 +68,8 @@ public sealed class ReportsViewModel : ViewModelBase
         _materialService = materialService ?? throw new ArgumentNullException(nameof(materialService));
         _vehicleTypeService = vehicleTypeService ?? throw new ArgumentNullException(nameof(vehicleTypeService));
         _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
+        _emailService = emailService;
+        _emailOptionsMonitor = emailOptionsMonitor;
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -342,11 +350,35 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         try
         {
+            var emailConfig = _emailOptionsMonitor?.CurrentValue;
+            if (_emailService is null || emailConfig is null || !emailConfig.Enabled)
+            {
+                await _dialogs.ShowWarningAsync(
+                    "Email Report",
+                    "Email service is not enabled. Configure SMTP settings in Settings → Email tab.");
+                ShowStatus("Email not configured.", BadgeSeverity.Warning);
+                return;
+            }
+
+            if (emailConfig.Recipients.Length == 0)
+            {
+                await _dialogs.ShowWarningAsync(
+                    "Email Report",
+                    "No email recipients configured. Add recipients in Settings → Email tab.");
+                ShowStatus("No email recipients.", BadgeSeverity.Warning);
+                return;
+            }
+
             ReportDocument? doc = null;
+            ReportResult? csvResult = null;
             await RunBusyAsync(async () =>
             {
-                ShowStatus("Emailing report...", BadgeSeverity.Information);
+                ShowStatus("Preparing report for email...", BadgeSeverity.Information);
                 doc = await GetOrBuildDocumentAsync().ConfigureAwait(true);
+                if (doc is not null)
+                {
+                    csvResult = await _reportService.ExportAsync(doc, ReportFormat.Csv).ConfigureAwait(true);
+                }
             }, "Preparing report...").ConfigureAwait(true);
 
             if (doc is null)
@@ -354,16 +386,32 @@ public sealed class ReportsViewModel : ViewModelBase
                 return;
             }
 
-            _audit.Record(
-                "Email",
-                "Report",
-                null,
-                $"Email requested for report with {doc.TotalRecordCount} records.");
+            string subject = $"Weighment Report ({doc.StartDateLocal:dd-MMM-yyyy} to {doc.EndDateLocal:dd-MMM-yyyy})";
+            string body = $"Attached is the weighment report containing {doc.TotalRecordCount} record(s).\n" +
+                          $"Period: {doc.StartDateLocal:dd-MMM-yyyy} to {doc.EndDateLocal:dd-MMM-yyyy}";
 
-            await _dialogs.ShowWarningAsync(
-                "Email Report",
-                $"Report email is not configured on this terminal. The generated report contains {doc.TotalRecordCount} row(s) and remains available for preview/export.");
-            ShowStatus("Email not configured. Export PDF or Excel from the same report document.", BadgeSeverity.Warning);
+            byte[]? attachmentBytes = null;
+            string? attachmentName = null;
+            if (csvResult is { Succeeded: true, OutputPath: not null })
+            {
+                if (System.IO.File.Exists(csvResult.OutputPath))
+                {
+                    attachmentBytes = await System.IO.File.ReadAllBytesAsync(csvResult.OutputPath).ConfigureAwait(true);
+                    attachmentName = System.IO.Path.GetFileName(csvResult.OutputPath);
+                }
+            }
+
+            bool sent = await _emailService.SendEmailAsync(subject, body, emailConfig.Recipients, attachmentBytes, attachmentName).ConfigureAwait(true);
+
+            if (sent)
+            {
+                _audit.Record("Email", "Report", null, $"Emailed report with {doc.TotalRecordCount} records to {string.Join(", ", emailConfig.Recipients)}");
+                ShowStatus("Report emailed successfully.", BadgeSeverity.Success);
+            }
+            else
+            {
+                ShowStatus("Email dispatch failed. Check SMTP settings.", BadgeSeverity.Danger);
+            }
         }
         catch (Exception ex)
         {

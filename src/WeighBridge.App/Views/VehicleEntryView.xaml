@@ -112,7 +112,7 @@
               CornerRadius="{StaticResource Radius.MD}"
               Padding="14,10">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel>
+          <StackPanel PreviewKeyDown="OnFormPreviewKeyDown">
             <!--  Entry (F1/F2)  -->
             <Grid Margin="0,0,0,5">
               <Grid.ColumnDefinitions>
@@ -282,6 +282,87 @@
                        Text="{Binding Charges, UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
 
+            <!--  GST on Charges Breakdown  -->
+            <Grid Margin="0,0,0,5" Visibility="{Binding IsGstOnChargesEnabled, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="80" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="GST / Total" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       ToolTip="GST Amount (18%)"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Numeric}"
+                       Text="{Binding GstAmount, StringFormat='{}{0:N2}', Mode=OneWay}" />
+              <TextBox Grid.Column="3"
+                       IsReadOnly="True"
+                       ToolTip="Total Charges with GST"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       FontWeight="Bold"
+                       Style="{StaticResource TextBox.Numeric}"
+                       Text="{Binding TotalChargesWithGst, StringFormat='{}{0:N2}', Mode=OneWay}" />
+            </Grid>
+
+            <!--  Second Entry Charges  -->
+            <Grid Margin="0,0,0,5" Visibility="{Binding IsSecondChargesVisible, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="2nd Charges" />
+              <TextBox Grid.Column="1"
+                       AutomationProperties.Name="Second Charges"
+                       Style="{StaticResource TextBox.Numeric}"
+                       Text="{Binding SecondCharges, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+
+            <!--  Price Computing (Rate & Total)  -->
+            <Grid Margin="0,0,0,5" Visibility="{Binding IsPriceComputingEnabled, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="80" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Rate / Amount" />
+              <TextBox Grid.Column="1"
+                       AutomationProperties.Name="Material Rate"
+                       ToolTip="Rate per kg/ton (₹)"
+                       Style="{StaticResource TextBox.Numeric}"
+                       Text="{Binding MaterialRate, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBox Grid.Column="3"
+                       AutomationProperties.Name="Total Amount"
+                       ToolTip="Total material amount (Rate × Net)"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Numeric}"
+                       Text="{Binding TotalMaterialAmount, StringFormat='{}{0:N2}', Mode=OneWay}" />
+            </Grid>
+
+            <!--  Unit Bags Weight Column  -->
+            <Grid Margin="0,0,0,5" Visibility="{Binding IsUnitBagsWeightColumnEnabled, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="80" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Bags / Bag Wt" />
+              <TextBox Grid.Column="1"
+                       AutomationProperties.Name="Number of Bags"
+                       ToolTip="Number of bags"
+                       Style="{StaticResource TextBox.Numeric}"
+                       Text="{Binding NumberOfBags, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBox Grid.Column="3"
+                       AutomationProperties.Name="Bag Weight Kg"
+                       ToolTip="Tare weight per empty bag (kg)"
+                       Style="{StaticResource TextBox.Numeric}"
+                       Text="{Binding BagWeightKg, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+
             <!--  Gross(G) / Tare(T) / Auto(A) / Manual(M)  -->
             <Grid Margin="0,0,0,5">
               <Grid.ColumnDefinitions>
@@ -296,12 +377,6 @@
                   <ColumnDefinition Width="36" />
                   <ColumnDefinition Width="4" />
                   <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="3" />
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="3" />
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="3" />
-                  <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <TextBox Grid.Column="0"
                          AutomationProperties.Name="Gross Tare Mode"
@@ -310,91 +385,94 @@
                          HorizontalContentAlignment="Center"
                          Style="{StaticResource TextBox.Default}"
                          Text="{Binding GrossTareText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <Button Grid.Column="2"
-                        AutomationProperties.Name="Select Gross Mode"
-                        Command="{Binding SelectGrossModeCommand}"
-                        Padding="0,3"
-                        ToolTip="Arrived loaded — gross weight first (G)"
-                        HorizontalContentAlignment="Center">
-                  <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
-                      <Setter Property="Height" Value="28" />
-                      <Setter Property="MinWidth" Value="0" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsGrossFirstSelected}" Value="True">
-                          <Setter Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
-                          <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
-                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Default}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                  <TextBlock FontWeight="SemiBold" FontSize="11" Text="G" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
-                </Button>
-                <Button Grid.Column="4"
-                        AutomationProperties.Name="Select Tare Mode"
-                        Command="{Binding SelectTareModeCommand}"
-                        Padding="0,3"
-                        ToolTip="Arrived empty — tare weight first (T)"
-                        HorizontalContentAlignment="Center">
-                  <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
-                      <Setter Property="Height" Value="28" />
-                      <Setter Property="MinWidth" Value="0" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsTareFirstSelected}" Value="True">
-                          <Setter Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
-                          <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
-                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Default}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                  <TextBlock FontWeight="SemiBold" FontSize="11" Text="T" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
-                </Button>
-                <Button Grid.Column="6"
-                        AutomationProperties.Name="Select Auto Tare Mode"
-                        Command="{Binding SelectAutoTareModeCommand}"
-                        Padding="0,3"
-                        ToolTip="Auto tare weight from vehicle master (A)"
-                        Visibility="{Binding IsAutoTareWeightEnabled, Converter={StaticResource Converter.BooleanToVisibility}}"
-                        HorizontalContentAlignment="Center">
-                  <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
-                      <Setter Property="Height" Value="28" />
-                      <Setter Property="MinWidth" Value="0" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsAutoTareModeSelected}" Value="True">
-                          <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
-                          <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
-                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Success.Default}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                  <TextBlock FontWeight="SemiBold" FontSize="11" Text="A" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
-                </Button>
-                <Button Grid.Column="8"
-                        AutomationProperties.Name="Select Manual Tare Mode"
-                        Command="{Binding SelectManualTareModeCommand}"
-                        Padding="0,3"
-                        ToolTip="Manual tare weight input (M)"
-                        HorizontalContentAlignment="Center">
-                  <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
-                      <Setter Property="Height" Value="28" />
-                      <Setter Property="MinWidth" Value="0" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsManualTareModeSelected}" Value="True">
-                          <Setter Property="Background" Value="{DynamicResource Brush.Warning.Default}" />
-                          <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
-                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Warning.Default}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                  <TextBlock FontWeight="SemiBold" FontSize="11" Text="M" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
-                </Button>
+                <UniformGrid Grid.Column="2" Rows="1">
+                  <Button AutomationProperties.Name="Select Gross Mode"
+                          Command="{Binding SelectGrossModeCommand}"
+                          Padding="0,3"
+                          Margin="0,0,2,0"
+                          ToolTip="Arrived loaded — gross weight first (G)"
+                          HorizontalContentAlignment="Center">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="MinWidth" Value="0" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsGrossFirstSelected}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Default}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                    <TextBlock FontWeight="SemiBold" FontSize="11" Text="G" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                  </Button>
+                  <Button AutomationProperties.Name="Select Tare Mode"
+                          Command="{Binding SelectTareModeCommand}"
+                          Padding="0,3"
+                          Margin="2,0,2,0"
+                          ToolTip="Arrived empty — tare weight first (T)"
+                          HorizontalContentAlignment="Center">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="MinWidth" Value="0" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsTareFirstSelected}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Default}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                    <TextBlock FontWeight="SemiBold" FontSize="11" Text="T" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                  </Button>
+                  <Button AutomationProperties.Name="Select Auto Tare Mode"
+                          Command="{Binding SelectAutoTareModeCommand}"
+                          Padding="0,3"
+                          Margin="2,0,2,0"
+                          ToolTip="Auto tare weight from vehicle master (A)"
+                          Visibility="{Binding IsAutoTareWeightEnabled, Converter={StaticResource Converter.BooleanToVisibility}}"
+                          HorizontalContentAlignment="Center">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="MinWidth" Value="0" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsAutoTareModeSelected}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Success.Default}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                    <TextBlock FontWeight="SemiBold" FontSize="11" Text="A" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                  </Button>
+                  <Button AutomationProperties.Name="Select Manual Tare Mode"
+                          Command="{Binding SelectManualTareModeCommand}"
+                          Padding="0,3"
+                          Margin="2,0,0,0"
+                          ToolTip="Manual tare weight input (M)"
+                          Visibility="{Binding CanEnterManualWeight, Converter={StaticResource Converter.BooleanToVisibility}}"
+                          HorizontalContentAlignment="Center">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="MinWidth" Value="0" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsManualTareModeSelected}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Brush.Warning.Default}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Warning.Default}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                    <TextBlock FontWeight="SemiBold" FontSize="11" Text="M" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                  </Button>
+                </UniformGrid>
               </Grid>
 
               <!-- In F2: Locked complementary role derived from stored transaction state -->
@@ -462,6 +540,23 @@
                        Foreground="{DynamicResource Brush.Accent.Default}"
                        Style="{StaticResource TextBox.Default}"
                        Text="{Binding DisplayNetWeightKg, StringFormat='{}{0:N0}', Mode=OneWay}" />
+            </Grid>
+
+            <!--  Actual Weight (Net - Total Bags)  -->
+            <Grid Margin="0,0,0,6" Visibility="{Binding IsUnitBagsWeightColumnEnabled, Converter={StaticResource Converter.BooleanToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Actual Weight" />
+              <TextBox Grid.Column="1"
+                       AutomationProperties.Name="Actual Weight Output"
+                       FontWeight="Bold"
+                       IsReadOnly="True"
+                       HorizontalContentAlignment="Right"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding EstimatedActualWeightKg, StringFormat='{}{0:N0}', Mode=OneWay}" />
             </Grid>
 
             <!--  Weight Input (When manual or reading indicator)  -->

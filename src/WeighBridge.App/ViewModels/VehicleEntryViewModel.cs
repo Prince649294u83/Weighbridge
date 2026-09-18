@@ -16,6 +16,8 @@ using WeighBridge.Domain.Enums;
 using WeighBridge.Domain.Masters;
 using WeighBridge.Domain.Weighments;
 using WeighBridge.Services.Weighments;
+using WeighBridge.Core.Events;
+using WeighBridge.Core.Events.Catalog;
 
 namespace WeighBridge.App.ViewModels;
 
@@ -181,7 +183,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         IUiDispatcher dispatcher,
         ILogger<VehicleEntryViewModel> logger,
         INavigationService? navigationService = null,
-        IOptionsMonitor<WeighmentOptions>? optionsMonitor = null)
+        IOptionsMonitor<WeighmentOptions>? optionsMonitor = null,
+        IEventSubscriber? eventSubscriber = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
@@ -219,8 +222,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _openSettings = new AsyncRelayCommand(() => _navigationService?.NavigateToAsync<SettingsViewModel>() ?? Task.CompletedTask);
         _selectGrossMode = new RelayCommand(() => GrossTareText = "G");
         _selectTareMode = new RelayCommand(() => GrossTareText = "T");
-        _selectAutoTareMode = new RelayCommand(() => GrossTareText = "A");
-        _selectManualTareMode = new RelayCommand(() => GrossTareText = "M");
+        _selectAutoTareMode = new RelayCommand(() => GrossTareText = "A", () => IsAutoTareWeightEnabled);
+        _selectManualTareMode = new RelayCommand(() => GrossTareText = "M", () => CanEnterManualWeight);
 
         PropertyChanged += (_, changed) =>
         {
@@ -230,6 +233,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 OnPropertyChanged(nameof(DisplayGrossWeightKg));
                 OnPropertyChanged(nameof(DisplayTareWeightKg));
                 OnPropertyChanged(nameof(DisplayNetWeightKg));
+                OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                OnPropertyChanged(nameof(TotalMaterialAmount));
                 OnPropertyChanged(nameof(GrossWeightText));
                 OnPropertyChanged(nameof(TareWeightText));
                 OnPropertyChanged(nameof(EntryModeText));
@@ -242,12 +247,32 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsManualTareModeSelected));
                 OnPropertyChanged(nameof(IsTareWeightReadOnly));
                 OnPropertyChanged(nameof(IsGrossWeightReadOnly));
+                OnPropertyChanged(nameof(IsSecondChargesVisible));
             }
         };
 
         if (_optionsMonitor is not null)
         {
             _optionsMonitor.OnChange(_ => _dispatcher.Post(RaiseRuntimeSettingsChanged));
+        }
+
+        if (eventSubscriber is not null)
+        {
+            eventSubscriber.Subscribe<SettingsChangedEvent>(evt =>
+            {
+                _dispatcher.Post(RaiseRuntimeSettingsChanged);
+                if (evt.SectionName is "Catalog" or "Masters" or "All")
+                {
+                    _dispatcher.Post(async () => await RefreshAsync());
+                }
+            });
+            eventSubscriber.Subscribe<VehicleSavedEvent>(_ => _dispatcher.Post(async () => await RefreshAsync()));
+            eventSubscriber.Subscribe<VehicleCreatedEvent>(_ => _dispatcher.Post(async () => await RefreshAsync()));
+            eventSubscriber.Subscribe<VehicleUpdatedEvent>(_ => _dispatcher.Post(async () => await RefreshAsync()));
+            eventSubscriber.Subscribe<PartyCreatedEvent>(_ => _dispatcher.Post(async () => await RefreshAsync()));
+            eventSubscriber.Subscribe<PartyUpdatedEvent>(_ => _dispatcher.Post(async () => await RefreshAsync()));
+            eventSubscriber.Subscribe<MaterialCreatedEvent>(_ => _dispatcher.Post(async () => await RefreshAsync()));
+            eventSubscriber.Subscribe<MaterialUpdatedEvent>(_ => _dispatcher.Post(async () => await RefreshAsync()));
         }
     }
 
@@ -271,6 +296,18 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     public bool IsAutoTareWeightEnabled => RuntimeOptions.AutoTareWeight;
 
     public bool IsWeightHoldEnabled => RuntimeOptions.WeightHold;
+
+    public bool IsGstOnChargesEnabled => RuntimeOptions.GstOnCharges;
+
+    public decimal GstPercentage => RuntimeOptions.GstPercentage;
+
+    public decimal GstAmount => IsGstOnChargesEnabled ? Math.Round(Charges * (GstPercentage / 100m), 2) : 0m;
+
+    public decimal TotalChargesWithGst => Charges + GstAmount;
+
+    public bool IsPriceComputingEnabled => RuntimeOptions.PriceComputing;
+
+    public bool IsSecondChargesVisible => IsF2Mode && IsSecondEntryChargesEnabled;
 
     public string EntryModeText
     {
@@ -369,6 +406,11 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             }
             else if (string.Equals(trimmed, "M", StringComparison.OrdinalIgnoreCase))
             {
+                if (!CanEnterManualWeight)
+                {
+                    Show("Manual Tare Entry is disabled in site settings.", BadgeSeverity.Warning);
+                    return;
+                }
                 _isManualTareMode = true;
                 _isAutoTareMode = false;
                 SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
@@ -397,6 +439,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             OnPropertyChanged(nameof(DisplayGrossWeightKg));
             OnPropertyChanged(nameof(DisplayTareWeightKg));
             OnPropertyChanged(nameof(DisplayNetWeightKg));
+            OnPropertyChanged(nameof(EstimatedActualWeightKg));
+            OnPropertyChanged(nameof(TotalMaterialAmount));
             OnPropertyChanged(nameof(GrossWeightText));
             OnPropertyChanged(nameof(TareWeightText));
         }
@@ -414,8 +458,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             {
                 return _grossWeightInput;
             }
-            if (IsF1Mode && (SelectedArrivalMode?.Value == WeighmentMode.GrossFirst || SelectedArrivalMode == null) &&
-                !_isAutoTareMode && !_isManualTareMode && !string.IsNullOrWhiteSpace(WeightInput))
+            if (IsF1Mode && (SelectedArrivalMode?.Value == WeighmentMode.GrossFirst || SelectedArrivalMode == null || _isAutoTareMode || _isManualTareMode) &&
+                !string.IsNullOrWhiteSpace(WeightInput))
             {
                 return WeightInput;
             }
@@ -428,6 +472,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             OnPropertyChanged(nameof(GrossWeightText));
             OnPropertyChanged(nameof(DisplayGrossWeightKg));
             OnPropertyChanged(nameof(DisplayNetWeightKg));
+            OnPropertyChanged(nameof(EstimatedActualWeightKg));
+            OnPropertyChanged(nameof(TotalMaterialAmount));
             IsDirty = true;
         }
     }
@@ -482,6 +528,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             OnPropertyChanged(nameof(TareWeightText));
             OnPropertyChanged(nameof(DisplayTareWeightKg));
             OnPropertyChanged(nameof(DisplayNetWeightKg));
+            OnPropertyChanged(nameof(EstimatedActualWeightKg));
+            OnPropertyChanged(nameof(TotalMaterialAmount));
             IsDirty = true;
         }
     }
@@ -500,8 +548,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 {
                     return g;
                 }
-                if ((SelectedArrivalMode?.Value == WeighmentMode.GrossFirst || SelectedArrivalMode == null) &&
-                    !_isAutoTareMode && !_isManualTareMode)
+                if (SelectedArrivalMode?.Value == WeighmentMode.GrossFirst || SelectedArrivalMode == null || _isAutoTareMode || _isManualTareMode)
                 {
                     if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var gFallback) ||
                         decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out gFallback))
@@ -914,8 +961,28 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     public decimal Charges
     {
         get => _charges;
-        set => SetProperty(ref _charges, value, () => IsDirty = true);
+        set => SetProperty(ref _charges, value, () =>
+        {
+            IsDirty = true;
+            OnPropertyChanged(nameof(GstAmount));
+            OnPropertyChanged(nameof(TotalChargesWithGst));
+        });
     }
+
+    private decimal _materialRate;
+    public decimal MaterialRate
+    {
+        get => _materialRate;
+        set => SetProperty(ref _materialRate, value, () =>
+        {
+            IsDirty = true;
+            OnPropertyChanged(nameof(TotalMaterialAmount));
+        });
+    }
+
+    public decimal TotalMaterialAmount => IsPriceComputingEnabled
+        ? Math.Round(((EstimatedActualWeightKg.HasValue && EstimatedActualWeightKg.Value > 0m) ? EstimatedActualWeightKg.Value : DisplayNetWeightKg) * MaterialRate, 2)
+        : 0m;
 
     public string? CustomField1
     {
@@ -953,6 +1020,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             IsDirty = true;
             OnPropertyChanged(nameof(TotalBagWeightKg));
             OnPropertyChanged(nameof(EstimatedActualWeightKg));
+            OnPropertyChanged(nameof(TotalMaterialAmount));
         });
     }
 
@@ -964,6 +1032,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             IsDirty = true;
             OnPropertyChanged(nameof(TotalBagWeightKg));
             OnPropertyChanged(nameof(EstimatedActualWeightKg));
+            OnPropertyChanged(nameof(TotalMaterialAmount));
         });
     }
 
@@ -977,19 +1046,29 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     {
         get
         {
-            if (Current is null || !TotalBagWeightKg.HasValue)
+            if (!TotalBagWeightKg.HasValue)
             {
                 return null;
             }
 
-            if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var currentWeight) ||
-                decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out currentWeight))
+            var net = DisplayNetWeightKg;
+            if (net > 0m)
             {
-                var first = Current.FirstWeightKg ?? 0m;
-                var gross = Current.Mode == WeighmentMode.GrossFirst ? first : currentWeight;
-                var tare = Current.Mode == WeighmentMode.GrossFirst ? currentWeight : first;
-                var net = gross - tare;
-                return net >= 0 ? net - TotalBagWeightKg.Value : null;
+                var actual = net - TotalBagWeightKg.Value;
+                return actual >= 0m ? actual : 0m;
+            }
+
+            if (Current is not null)
+            {
+                if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var currentWeight) ||
+                    decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out currentWeight))
+                {
+                    var first = Current.FirstWeightKg ?? 0m;
+                    var gross = Current.Mode == WeighmentMode.GrossFirst ? first : currentWeight;
+                    var tare = Current.Mode == WeighmentMode.GrossFirst ? currentWeight : first;
+                    var n = gross - tare;
+                    return n >= 0 ? Math.Max(0m, n - TotalBagWeightKg.Value) : null;
+                }
             }
 
             return null;
@@ -1225,19 +1304,15 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     {
         _dispatcher.Post(() =>
         {
-            LiveWeightKg = reading.Value;
+            var displayVal = reading.Value < 0m ? 0m : reading.Value;
+            LiveWeightKg = displayVal;
             LiveWeightUnit = string.IsNullOrWhiteSpace(reading.Unit) ? "kg" : reading.Unit;
             IsWeightStable = reading.IsStable;
 
-            if (reading.IsZero)
+            if (reading.IsZero || reading.IsNegative || displayVal == 0m)
             {
                 StabilityStatusText = "ZERO";
                 StabilitySeverity = BadgeSeverity.Neutral;
-            }
-            else if (reading.IsNegative)
-            {
-                StabilityStatusText = "NEGATIVE";
-                StabilitySeverity = BadgeSeverity.Danger;
             }
             else if (reading.IsStable)
             {
@@ -1450,6 +1525,12 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             return;
         }
 
+        var custom1 = CustomField1;
+        if (IsPriceComputingEnabled && MaterialRate > 0m && string.IsNullOrWhiteSpace(custom1))
+        {
+            custom1 = $"Rate: {MaterialRate:N2} | Total: {TotalMaterialAmount:N2}";
+        }
+
         var request = new NewWeighment
         {
             VehicleNumber = VehicleNumber,
@@ -1462,7 +1543,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             Charges = Charges,
             NumberOfBags = IsUnitBagsWeightColumnEnabled ? NumberOfBags : null,
             BagWeightKg = IsUnitBagsWeightColumnEnabled ? BagWeightKg : null,
-            CustomField1 = CustomField1,
+            CustomField1 = custom1,
             CustomField2 = CustomField2,
             VehicleId = _selectedVehicleId,
             PartyId = _selectedPartyId,
@@ -1473,11 +1554,15 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
         var source = _weightSource;
         CommandResult<Weighment> result;
-        if (IsOnlySingleEntryEnabled)
+        decimal? singleTare = (_isAutoTareMode && IsAutoTareWeightEnabled)
+            ? StandardTareWeightKg
+            : (_isManualTareMode ? _manualTareKg : (IsOnlySingleEntryEnabled ? StandardTareWeightKg : null));
+
+        if (IsOnlySingleEntryEnabled || (_isAutoTareMode && IsAutoTareWeightEnabled && singleTare.HasValue) || (_isManualTareMode && singleTare.HasValue))
         {
-            if (!IsAutoTareWeightEnabled || !StandardTareWeightKg.HasValue)
+            if (!singleTare.HasValue)
             {
-                Show("Single-entry mode requires Auto Tare Weight and a vehicle master tare.", BadgeSeverity.Warning);
+                Show("Single-entry mode requires Auto Tare Weight or Manual Tare entry.", BadgeSeverity.Warning);
                 return;
             }
 
@@ -1488,7 +1573,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                     request,
                     kilograms,
                     source,
-                    StandardTareWeightKg.Value))
+                    singleTare.Value))
                 .ConfigureAwait(true);
         }
         else
@@ -1516,16 +1601,20 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         Current = WeighmentSummary.From(saved);
         ResetWorkflowContext();
         WorkflowState = IsOnlySingleEntryEnabled ? WeighmentWorkflowState.Completed : WeighmentWorkflowState.F1Entry;
+        if (saved.Status == WeighmentStatus.Completed)
+        {
+            WorkflowState = WeighmentWorkflowState.Completed;
+        }
 
         Show(
-            IsOnlySingleEntryEnabled
+            saved.Status == WeighmentStatus.Completed
                 ? $"Single-entry weighment {saved.SlipNumber} completed. Net {saved.NetWeightKg:0.##} kg."
                 : $"First weight {kilograms:0.##} kg recorded on {saved.SlipNumber}. Vehicle queued for second weight.",
             BadgeSeverity.Success);
 
         await RefreshAsync().ConfigureAwait(true);
 
-        if (!IsOnlySingleEntryEnabled)
+        if (WorkflowState != WeighmentWorkflowState.Completed)
         {
             await EnsureReservationAsync().ConfigureAwait(true);
         }
@@ -2204,10 +2293,12 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             {
                 SelectedVehicleTypeOption = ActiveVehicleTypes.FirstOrDefault(t => t.Id == match.VehicleTypeId);
             }
-            if (_isAutoTareMode)
+            if (_isAutoTareMode && IsAutoTareWeightEnabled)
             {
                 OnPropertyChanged(nameof(DisplayTareWeightKg));
                 OnPropertyChanged(nameof(DisplayNetWeightKg));
+                OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                OnPropertyChanged(nameof(TotalMaterialAmount));
                 if (match.TareWeightKg.HasValue)
                 {
                     Show($"Auto Tare applied from Vehicle Master: {match.TareWeightKg.Value:N0} kg.", BadgeSeverity.Information);
@@ -2223,10 +2314,12 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             _selectedVehicleId = null;
             _selectedVehicleOption = null;
             StandardTareWeightKg = null;
-            if (_isAutoTareMode)
+            if (_isAutoTareMode && IsAutoTareWeightEnabled)
             {
                 OnPropertyChanged(nameof(DisplayTareWeightKg));
                 OnPropertyChanged(nameof(DisplayNetWeightKg));
+                OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                OnPropertyChanged(nameof(TotalMaterialAmount));
             }
         }
         OnPropertyChanged(nameof(SelectedVehicleOption));
@@ -2316,6 +2409,10 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _refresh.NotifyCanExecuteChanged();
         _clearContext.NotifyCanExecuteChanged();
         _printSlip.NotifyCanExecuteChanged();
+        _selectGrossMode.NotifyCanExecuteChanged();
+        _selectTareMode.NotifyCanExecuteChanged();
+        _selectAutoTareMode.NotifyCanExecuteChanged();
+        _selectManualTareMode.NotifyCanExecuteChanged();
     }
 
     private void EnsureReadyForFirstEntry()
@@ -2331,15 +2428,35 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
     private void RaiseRuntimeSettingsChanged()
     {
+        if (_isAutoTareMode && !IsAutoTareWeightEnabled)
+        {
+            GrossTareText = "G";
+        }
+        if (_isManualTareMode && !CanEnterManualWeight)
+        {
+            GrossTareText = "G";
+        }
+
         OnPropertyChanged(nameof(CanEnterManualWeight));
         OnPropertyChanged(nameof(IsSecondEntryChargesEnabled));
+        OnPropertyChanged(nameof(IsSecondChargesVisible));
         OnPropertyChanged(nameof(IsUnitBagsWeightColumnEnabled));
         OnPropertyChanged(nameof(IsOnlySingleEntryEnabled));
         OnPropertyChanged(nameof(IsAutoTareWeightEnabled));
         OnPropertyChanged(nameof(IsWeightHoldEnabled));
+        OnPropertyChanged(nameof(IsGstOnChargesEnabled));
+        OnPropertyChanged(nameof(GstAmount));
+        OnPropertyChanged(nameof(TotalChargesWithGst));
+        OnPropertyChanged(nameof(IsPriceComputingEnabled));
+        OnPropertyChanged(nameof(TotalMaterialAmount));
+        OnPropertyChanged(nameof(EstimatedActualWeightKg));
         OnPropertyChanged(nameof(ModeLabelText));
         OnPropertyChanged(nameof(IsTareWeightReadOnly));
         OnPropertyChanged(nameof(GrossTareText));
+        OnPropertyChanged(nameof(IsAutoTareModeSelected));
+        OnPropertyChanged(nameof(IsManualTareModeSelected));
+        OnPropertyChanged(nameof(IsGrossFirstSelected));
+        OnPropertyChanged(nameof(IsTareFirstSelected));
         RefreshCommandStates();
     }
 

@@ -8,9 +8,9 @@ namespace WeighBridge.Hardware.WeightIndicators;
 /// </summary>
 public sealed class StabilityDetector
 {
-    private readonly decimal _toleranceKg;
-    private readonly int _requiredSampleCount;
-    private readonly TimeSpan _requiredDuration;
+    private decimal _toleranceKg;
+    private int _requiredSampleCount;
+    private TimeSpan _requiredDuration;
 
     private readonly List<WeightReading> _samples = [];
     private DateTime? _stableSinceUtc;
@@ -18,6 +18,13 @@ public sealed class StabilityDetector
     public StabilityDetector(WeightIndicatorOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        UpdateOptions(options);
+    }
+
+    /// <summary>Updates stability criteria dynamically.</summary>
+    public void UpdateOptions(WeightIndicatorOptions options)
+    {
+        if (options == null) return;
         _toleranceKg = options.StabilityToleranceKg > 0 ? options.StabilityToleranceKg : 5.0m;
         _requiredSampleCount = options.StabilitySampleCount > 0 ? options.StabilitySampleCount : 5;
         _requiredDuration = TimeSpan.FromMilliseconds(options.StabilityDurationMs > 0 ? options.StabilityDurationMs : 1000);

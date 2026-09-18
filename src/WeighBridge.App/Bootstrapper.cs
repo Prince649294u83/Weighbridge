@@ -162,7 +162,12 @@ public sealed class Bootstrapper : IAsyncDisposable
         // shutdown has one place to stop them all.
         var tasks = _services.GetRequiredService<IBackgroundTaskManager>();
         tasks.Register(_services.GetRequiredService<HealthRefreshTask>());
+        tasks.Register(_services.GetRequiredService<WeighBridge.Services.Messaging.SmsOutboxTask>());
         tasks.StartAll();
+
+        WeighBridge.App.Services.ShortcutService.EnsureDesktopShortcut(
+            _services.GetRequiredService<IOptions<WeighmentOptions>>(),
+            _logger);
 
         _logger?.LogInformation("Background task manager started {Count} task(s)", tasks.Tasks.Count);
     }

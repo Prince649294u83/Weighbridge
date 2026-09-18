@@ -80,6 +80,8 @@ public static class HardwareServiceCollectionExtensions
             return sp.GetRequiredService<PlaceholderWeightIndicatorService>();
         });
 
+        services.AddSingleton<AuxiliaryYardDisplayService>();
+
         // Cameras
         services.AddSingleton<CameraService>();
         services.AddSingleton<PlaceholderCameraService>();

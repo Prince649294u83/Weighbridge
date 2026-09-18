@@ -62,6 +62,14 @@ public sealed class DatabaseInitializer(
                 .CreateDbContextAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            if (context.Database.IsSqlite())
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;",
+                    cancellationToken).ConfigureAwait(false);
+                _logger.LogInformation("SQLite initialized with WAL mode, synchronous NORMAL, and busy_timeout 5000ms.");
+            }
+
             var known = context.Database.GetMigrations().ToList();
 
             if (known.Count == 0)

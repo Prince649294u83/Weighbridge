@@ -63,6 +63,17 @@ public sealed class JsonConfigurationWriter(
             foreach (var (key, value) in values)
             {
                 Assign(root, key, value);
+                try
+                {
+                    if (_configuration != null)
+                    {
+                        _configuration[key] = value?.ToString();
+                    }
+                }
+                catch
+                {
+                    // Ignore if read-only provider
+                }
             }
 
             var dir = Path.GetDirectoryName(path);

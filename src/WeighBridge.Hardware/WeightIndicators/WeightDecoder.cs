@@ -103,6 +103,12 @@ public sealed class WeightDecoder : IWeightDecoder
             parsedValue *= options.ScaleFactor;
         }
 
+        // Negative zero-drift clamp: scale tare or sensor drift below 0 must reset to zero
+        if (parsedValue < 0m)
+        {
+            parsedValue = 0m;
+        }
+
         decodedWeight = parsedValue;
 
         if (_logger.IsEnabled(LogLevel.Trace))

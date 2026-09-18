@@ -27,7 +27,8 @@ public sealed record PrinterProfile(
     bool SupportsCut = false,
     bool SupportsFormFeed = false,
     bool SupportsBold = true,
-    string PhysicalPaperProfile = "Standard"
+    string PhysicalPaperProfile = "Standard",
+    bool SideWisePrinting = false
 )
 {
     /// <summary>Default profile for standard 80-column GDI laser/inkjet printers.</summary>

@@ -30,7 +30,7 @@ public sealed class ConnectionStringProvider(IOptions<DatabaseOptions> options, 
 
     /// <summary>The connection string handed to the SQLite provider.</summary>
     public string ConnectionString => string.IsNullOrWhiteSpace(_options.ConnectionString)
-        ? $"Data Source={DatabaseFilePath}"
+        ? $"Data Source={DatabaseFilePath};Mode=ReadWriteCreate;Default Timeout=30;"
         : _options.ConnectionString;
 
     /// <summary>Short description shown in the status bar tooltip.</summary>

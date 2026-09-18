@@ -34,6 +34,10 @@ public static class CoreServiceCollectionExtensions
         services.AddOptions<DatabaseOptions>()
             .Bind(configuration.GetSection(DatabaseOptions.SectionName));
 
+        services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<HardwareOptions>>(
+            new Microsoft.Extensions.Options.ConfigurationChangeTokenSource<HardwareOptions>(
+                configuration.GetSection(HardwareOptions.SectionName)));
+
         services.AddOptions<HardwareOptions>()
             .Configure(options =>
             {

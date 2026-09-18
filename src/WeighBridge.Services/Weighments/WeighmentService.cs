@@ -5,8 +5,11 @@ using WeighBridge.Core.Abstractions;
 using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Events;
 using WeighBridge.Core.Events.Catalog;
+using WeighBridge.Core.Messaging;
+using WeighBridge.Core.Printing;
 using WeighBridge.Core.Security;
 using WeighBridge.Domain.Enums;
+using WeighBridge.Domain.Masters;
 using WeighBridge.Domain.Weighments;
 
 namespace WeighBridge.Services.Weighments;
@@ -47,6 +50,8 @@ public sealed class WeighmentService : IWeighmentService
     private readonly ILogger<WeighmentService> _logger;
     private readonly IEmailService? _emailService;
     private readonly IOptionsMonitor<EmailOptions>? _emailOptionsMonitor;
+    private readonly ISmsService? _smsService;
+    private readonly IOptionsMonitor<SmsOptions>? _smsOptionsMonitor;
 
     public WeighmentService(
         Func<IUnitOfWork> unitOfWork,
@@ -56,7 +61,9 @@ public sealed class WeighmentService : IWeighmentService
         IOptions<WeighmentOptions>? options = null,
         IOptionsMonitor<WeighmentOptions>? optionsMonitor = null,
         IEmailService? emailService = null,
-        IOptionsMonitor<EmailOptions>? emailOptionsMonitor = null)
+        IOptionsMonitor<EmailOptions>? emailOptionsMonitor = null,
+        ISmsService? smsService = null,
+        IOptionsMonitor<SmsOptions>? smsOptionsMonitor = null)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
@@ -66,6 +73,8 @@ public sealed class WeighmentService : IWeighmentService
         _optionsMonitor = optionsMonitor;
         _emailService = emailService;
         _emailOptionsMonitor = emailOptionsMonitor;
+        _smsService = smsService;
+        _smsOptionsMonitor = smsOptionsMonitor;
     }
 
     /// <inheritdoc />
@@ -296,6 +305,12 @@ public sealed class WeighmentService : IWeighmentService
             ModuleName));
 
         TrySendWeighmentEmail(weighment, isFirstEntry: false);
+        TrySendWeighmentSms(weighment);
+
+        if (options.AutoUpdateTareWeight && weighment.Tare is not null)
+        {
+            await TryUpdateVehicleTareWeightAsync(weighment.VehicleId, weighment.VehicleNumber, weighment.Tare.Kilograms, cancellationToken).ConfigureAwait(false);
+        }
 
         return weighment;
     }
@@ -372,6 +387,12 @@ public sealed class WeighmentService : IWeighmentService
             ModuleName));
 
         TrySendWeighmentEmail(weighment, isFirstEntry: false);
+        TrySendWeighmentSms(weighment);
+
+        if (options.AutoUpdateTareWeight && weighment.Tare is not null)
+        {
+            await TryUpdateVehicleTareWeightAsync(weighment.VehicleId, weighment.VehicleNumber, weighment.Tare.Kilograms, cancellationToken).ConfigureAwait(false);
+        }
 
         return weighment;
     }
@@ -899,14 +920,9 @@ public sealed class WeighmentService : IWeighmentService
         }
 
         var options = CurrentOptions;
-        if (!options.OnlySingleEntry)
+        if (!options.OnlySingleEntry && !options.ManualTareEntry && !options.AutoTareWeight)
         {
             throw new InvalidOperationException("Single-entry weighments are disabled in site settings.");
-        }
-
-        if (!options.AutoTareWeight)
-        {
-            throw new InvalidOperationException("Single-entry weighments require Auto Tare Weight to be enabled in site settings.");
         }
 
         EnsureChargesAllowed(request.Charges, nameof(request.Charges), options);
@@ -1006,6 +1022,12 @@ public sealed class WeighmentService : IWeighmentService
             ModuleName));
 
         TrySendWeighmentEmail(weighment, isFirstEntry: false);
+        TrySendWeighmentSms(weighment);
+
+        if (options.AutoUpdateTareWeight && weighment.Tare is not null)
+        {
+            await TryUpdateVehicleTareWeightAsync(weighment.VehicleId, weighment.VehicleNumber, weighment.Tare.Kilograms, cancellationToken).ConfigureAwait(false);
+        }
 
         return weighment;
     }
@@ -1078,5 +1100,61 @@ public sealed class WeighmentService : IWeighmentService
                 _logger.LogWarning(ex, "Background email dispatch failed for slip {SlipNumber}", weighment.SlipNumber);
             }
         });
+    }
+
+    private void TrySendWeighmentSms(Weighment weighment)
+    {
+        if (_smsService == null || _smsOptionsMonitor == null)
+        {
+            return;
+        }
+
+        var smsConfig = _smsOptionsMonitor.CurrentValue;
+        if (!smsConfig.Enabled)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var printData = WeighmentPrintDataFactory.Create(weighment);
+                await _smsService.QueueWeighmentSmsAsync(printData).ConfigureAwait(false);
+                await _smsService.ProcessOutboxAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Background SMS dispatch failed for slip {SlipNumber}", weighment.SlipNumber);
+            }
+        });
+    }
+
+    private async Task TryUpdateVehicleTareWeightAsync(
+        long? vehicleId,
+        string vehicleNumber,
+        decimal tareWeightKg,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var unitOfWork = _unitOfWork();
+            var vehicleRepo = unitOfWork.Repository<Vehicle>();
+            var vehicle = vehicleId.HasValue
+                ? await vehicleRepo.GetByIdAsync(vehicleId.Value, cancellationToken).ConfigureAwait(false)
+                : (await vehicleRepo.FindAsync(v => v.VehicleNumber == vehicleNumber, cancellationToken).ConfigureAwait(false)).FirstOrDefault();
+
+            if (vehicle is not null)
+            {
+                vehicle.UpdateTareWeight(tareWeightKg);
+                vehicleRepo.Update(vehicle);
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                _logger.LogInformation("Auto-updated Vehicle {Vehicle} tare weight to {Tare} kg", vehicle.VehicleNumber, tareWeightKg);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to auto-update tare weight for vehicle {VehicleNumber}", vehicleNumber);
+        }
     }
 }

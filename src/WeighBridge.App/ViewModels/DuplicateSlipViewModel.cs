@@ -31,6 +31,9 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
     private readonly IPermissionService _permissions;
     private readonly IDialogService _dialogs;
     private readonly IOptions<CompanyOptions> _companyOptions;
+    private readonly IOptionsMonitor<CompanyOptions>? _companyOptionsMonitor;
+    private readonly IEmailService? _emailService;
+    private readonly IOptionsMonitor<EmailOptions>? _emailOptionsMonitor;
     private readonly IAuditLogger _audit;
     private readonly ILogger<DuplicateSlipViewModel> _logger;
 
@@ -52,13 +55,19 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
         IOptions<CompanyOptions> companyOptions,
         IAuditLogger audit,
         ILogger<DuplicateSlipViewModel> logger,
-        IServerConnectivityService? serverConnectivity = null)
+        IServerConnectivityService? serverConnectivity = null,
+        IOptionsMonitor<CompanyOptions>? companyOptionsMonitor = null,
+        IEmailService? emailService = null,
+        IOptionsMonitor<EmailOptions>? emailOptionsMonitor = null)
     {
         _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
         _printService = printService ?? throw new ArgumentNullException(nameof(printService));
         _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
         _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
         _companyOptions = companyOptions ?? throw new ArgumentNullException(nameof(companyOptions));
+        _companyOptionsMonitor = companyOptionsMonitor;
+        _emailService = emailService;
+        _emailOptionsMonitor = emailOptionsMonitor;
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _serverConnectivity = serverConnectivity;
@@ -427,10 +436,43 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
                 return;
             }
 
-            var printData = WeighmentPrintDataFactory.Create(weighment, _companyOptions.Value, isDuplicate: true);
-            _audit.Record("Email", "Weighment", printData.SlipNumber, "Emailed duplicate slip");
-            await _dialogs.ShowInformationAsync("Email Slip", $"Duplicate slip for {printData.SlipNumber} queued for email dispatch.");
-            ShowStatus("Email dispatched.", BadgeSeverity.Success);
+            var printData = WeighmentPrintDataFactory.Create(weighment, CurrentCompanyOptions, isDuplicate: true);
+
+            var emailConfig = _emailOptionsMonitor?.CurrentValue;
+            if (_emailService is null || emailConfig is null || !emailConfig.Enabled)
+            {
+                _audit.Record("Email", "Weighment", printData.SlipNumber, "Email not configured - slip not sent");
+                await _dialogs.ShowInformationAsync("Email Slip", "Email service is not enabled. Configure SMTP settings in Settings → Email tab.");
+                ShowStatus("Email not configured.", BadgeSeverity.Warning);
+                return;
+            }
+
+            if (emailConfig.Recipients.Length == 0)
+            {
+                await _dialogs.ShowInformationAsync("Email Slip", "No email recipients configured. Add recipients in Settings → Email tab.");
+                ShowStatus("No email recipients.", BadgeSeverity.Warning);
+                return;
+            }
+
+            string subject = $"Weighment Slip {printData.SlipNumber} - {printData.VehicleNumber}";
+            string body = $"Duplicate weighment slip for {printData.VehicleNumber}\n" +
+                          $"Slip#: {printData.SlipNumber}\n" +
+                          $"Party: {printData.PartyName}\n" +
+                          $"Material: {printData.MaterialName}\n" +
+                          $"Net Weight: {printData.NetWeightKg:N0} kg\n" +
+                          $"Charges: {printData.TotalCharges:N2}";
+
+            bool sent = await _emailService.SendEmailAsync(subject, body, emailConfig.Recipients).ConfigureAwait(true);
+
+            if (sent)
+            {
+                _audit.Record("Email", "Weighment", printData.SlipNumber, $"Emailed duplicate slip to {string.Join(", ", emailConfig.Recipients)}");
+                ShowStatus("Email dispatched.", BadgeSeverity.Success);
+            }
+            else
+            {
+                ShowStatus("Email dispatch failed. Check SMTP settings.", BadgeSeverity.Danger);
+            }
         }
         catch (Exception ex)
         {
@@ -443,10 +485,39 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
     private async Task WhatsAppSlipAsync()
     {
         if (!_activeWeighmentId.HasValue) return;
+        var targetId = _activeWeighmentId.Value;
 
-        // WhatsApp provider is optional; report unconfigured if absent
-        await _dialogs.ShowInformationAsync("WhatsApp Dispatch", "WhatsApp service is not configured on this terminal.");
-        ShowStatus("WhatsApp service not configured.", BadgeSeverity.Neutral);
+        try
+        {
+            var weighment = await _weighments.GetByIdAsync(targetId);
+            if (weighment is null || weighment.Status != WeighmentStatus.Completed)
+            {
+                ShowStatus("Completed transaction record not found.", BadgeSeverity.Danger);
+                return;
+            }
+
+            var printData = WeighmentPrintDataFactory.Create(weighment, CurrentCompanyOptions, isDuplicate: true);
+            string message = $"Weighment Slip: {printData.SlipNumber}\n" +
+                             $"Vehicle: {printData.VehicleNumber}\n" +
+                             $"Party: {printData.PartyName}\n" +
+                             $"Material: {printData.MaterialName}\n" +
+                             $"Net Weight: {printData.NetWeightKg:N0} kg\n" +
+                             $"Charges: {printData.TotalCharges:N2}";
+
+            string encodedMessage = Uri.EscapeDataString(message);
+            string url = $"https://wa.me/?text={encodedMessage}";
+
+            var psi = new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true };
+            System.Diagnostics.Process.Start(psi);
+
+            _audit.Record("WhatsApp", "Weighment", printData.SlipNumber, "Launched WhatsApp share for duplicate slip");
+            ShowStatus("WhatsApp opened.", BadgeSeverity.Success);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to launch WhatsApp for duplicate slip");
+            ShowStatus($"WhatsApp dispatch failed: {ex.Message}", BadgeSeverity.Danger);
+        }
     }
 
     private async Task PushToServerAsync()
@@ -539,4 +610,6 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
         _logger.LogError(ex, "Unhandled error in DuplicateSlipViewModel command");
         ShowStatus($"Error: {ex.Message}", BadgeSeverity.Danger);
     }
+
+    private CompanyOptions CurrentCompanyOptions => _companyOptionsMonitor?.CurrentValue ?? _companyOptions.Value;
 }

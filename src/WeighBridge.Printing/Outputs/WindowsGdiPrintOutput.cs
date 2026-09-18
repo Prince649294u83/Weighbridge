@@ -53,6 +53,7 @@ public sealed class WindowsGdiPrintOutput(
                 printDoc.DocumentName = documentTitle;
                 printDoc.PrinterSettings.PrinterName = profile.PrinterName;
                 printDoc.PrinterSettings.Copies = (short)Math.Max(1, copies);
+                printDoc.DefaultPageSettings.Landscape = profile.SideWisePrinting;
 
                 if (!printDoc.PrinterSettings.IsValid)
                 {
@@ -136,6 +137,7 @@ public sealed class WindowsGdiPrintOutput(
                 printDoc.DocumentName = documentTitle;
                 printDoc.PrinterSettings.PrinterName = profile.PrinterName;
                 printDoc.PrinterSettings.Copies = (short)Math.Max(1, copies);
+                printDoc.DefaultPageSettings.Landscape = profile.SideWisePrinting;
 
                 if (!printDoc.PrinterSettings.IsValid)
                 {

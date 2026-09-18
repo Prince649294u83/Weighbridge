@@ -13,7 +13,7 @@ namespace WeighBridge.Hardware.WeightIndicators;
 /// </summary>
 public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposable
 {
-    private readonly WeightIndicatorOptions _options;
+    private WeightIndicatorOptions _options;
     private readonly ISerialPortTransport _transport;
     private readonly IFrameExtractor _frameExtractor;
     private readonly IIndicatorProtocolParser _protocolParser;
@@ -35,7 +35,8 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
         IFrameExtractor frameExtractor,
         IIndicatorProtocolParser protocolParser,
         ILogger<WeightIndicatorService> logger,
-        IWeightDecoder? weightDecoder = null)
+        IWeightDecoder? weightDecoder = null,
+        IOptionsMonitor<HardwareOptions>? optionsMonitor = null)
     {
         _options = options.Value.WeightIndicator;
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
@@ -45,6 +46,28 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
         _weightDecoder = weightDecoder ?? new WeightDecoder();
         _stabilityDetector = new StabilityDetector(_options);
         _currentReading = WeightReading.Empty;
+
+        optionsMonitor?.OnChange(newOpts =>
+        {
+            if (newOpts?.WeightIndicator is not null)
+            {
+                UpdateOptions(newOpts.WeightIndicator);
+            }
+        });
+    }
+
+    /// <summary>Updates options dynamically without requiring application restart.</summary>
+    public void UpdateOptions(WeightIndicatorOptions newOptions)
+    {
+        ArgumentNullException.ThrowIfNull(newOptions);
+        _options = newOptions;
+        _stabilityDetector.UpdateOptions(newOptions);
+        if (_transport is SerialPortTransport serialTransport)
+        {
+            serialTransport.UpdateOptions(newOptions);
+        }
+        _logger.LogInformation("WeightIndicatorService updated live configuration: Port={Port}, Baud={Baud}",
+            newOptions.PortName, newOptions.BaudRate);
     }
 
     /// <inheritdoc />
@@ -337,8 +360,9 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
                         };
                     }
 
+                    decimal effectiveValue = parsedReading.Value < 0m ? 0m : parsedReading.Value;
                     bool isStable = _stabilityDetector.Evaluate(parsedReading);
-                    var finalReading = parsedReading with { IsStable = isStable };
+                    var finalReading = parsedReading with { Value = effectiveValue, IsStable = isStable };
                     CurrentReading = finalReading;
 
                     if (_readingCount < 5 || _readingCount % 200 == 0)

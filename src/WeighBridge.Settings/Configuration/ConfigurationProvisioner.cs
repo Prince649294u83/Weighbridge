@@ -237,14 +237,22 @@ public static class SecretAwareConfiguration
 {
     /// <summary>
     /// Returns a configuration view of <paramref name="source"/> in which every leaf whose
+    /// <summary>
+    /// Returns a live view of configuration where any property whose stored
     /// value carries the <see cref="SecretProtector.Prefix"/> has been decrypted. A value
     /// that cannot be decrypted — written by another user profile or machine — decrypts
     /// to empty so the terminal starts and reports the subsystem unconfigured instead of
-    /// failing on startup.
+    /// failing on startup. If source is an IConfigurationRoot, returns a live delegating root
+    /// preserving reload tokens and dynamic updates.
     /// </summary>
     public static IConfiguration WithDecryptedSecrets(IConfiguration source)
     {
         ArgumentNullException.ThrowIfNull(source);
+
+        if (source is IConfigurationRoot root)
+        {
+            return new SecretAwareConfigurationRoot(root);
+        }
 
         var flattened = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         Flatten(source, string.Empty, flattened);
@@ -278,4 +286,119 @@ public static class SecretAwareConfiguration
             Flatten(child, path, target);
         }
     }
+}
+
+/// <summary>
+/// Decorates an <see cref="IConfigurationRoot"/>, decrypting DPAPI-protected secrets on read,
+/// normalizing booleans, and delegating Reload() and GetReloadToken() to the underlying root.
+/// </summary>
+public sealed class SecretAwareConfigurationRoot : IConfigurationRoot, IDisposable
+{
+    private readonly IConfigurationRoot _innerRoot;
+
+    public SecretAwareConfigurationRoot(IConfigurationRoot innerRoot)
+    {
+        _innerRoot = innerRoot ?? throw new ArgumentNullException(nameof(innerRoot));
+    }
+
+    public string? this[string key]
+    {
+        get
+        {
+            var val = _innerRoot[key];
+            if (SecretProtector.IsProtected(val))
+            {
+                return SecretProtector.TryUnprotect(val) ?? string.Empty;
+            }
+            if (key.EndsWith("DummyZero", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(val, "false", StringComparison.OrdinalIgnoreCase)) return "0";
+                if (string.Equals(val, "true", StringComparison.OrdinalIgnoreCase)) return "1";
+            }
+            return val;
+        }
+        set => _innerRoot[key] = value;
+    }
+
+    public IEnumerable<IConfigurationProvider> Providers => _innerRoot.Providers;
+
+    public IEnumerable<IConfigurationSection> GetChildren() =>
+        _innerRoot.GetChildren().Select(c => (IConfigurationSection)new SecretAwareConfigurationSection(c));
+
+    public Microsoft.Extensions.Primitives.IChangeToken GetReloadToken() => _innerRoot.GetReloadToken();
+
+    public IConfigurationSection GetSection(string key) =>
+        new SecretAwareConfigurationSection(_innerRoot.GetSection(key));
+
+    public void Reload() => _innerRoot.Reload();
+
+    public void Dispose()
+    {
+        if (_innerRoot is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
+}
+
+/// <summary>
+/// Decorates an <see cref="IConfigurationSection"/>, decrypting DPAPI-protected secrets on read.
+/// </summary>
+public sealed class SecretAwareConfigurationSection : IConfigurationSection
+{
+    private readonly IConfigurationSection _innerSection;
+
+    public SecretAwareConfigurationSection(IConfigurationSection innerSection)
+    {
+        _innerSection = innerSection ?? throw new ArgumentNullException(nameof(innerSection));
+    }
+
+    public string? this[string key]
+    {
+        get
+        {
+            var val = _innerSection[key];
+            if (SecretProtector.IsProtected(val))
+            {
+                return SecretProtector.TryUnprotect(val) ?? string.Empty;
+            }
+            if (key.EndsWith("DummyZero", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(val, "false", StringComparison.OrdinalIgnoreCase)) return "0";
+                if (string.Equals(val, "true", StringComparison.OrdinalIgnoreCase)) return "1";
+            }
+            return val;
+        }
+        set => _innerSection[key] = value;
+    }
+
+    public string Key => _innerSection.Key;
+    public string Path => _innerSection.Path;
+
+    public string? Value
+    {
+        get
+        {
+            var val = _innerSection.Value;
+            if (SecretProtector.IsProtected(val))
+            {
+                return SecretProtector.TryUnprotect(val) ?? string.Empty;
+            }
+            if (Path.EndsWith("DummyZero", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(val, "false", StringComparison.OrdinalIgnoreCase)) return "0";
+                if (string.Equals(val, "true", StringComparison.OrdinalIgnoreCase)) return "1";
+            }
+            return val;
+        }
+        set => _innerSection.Value = value;
+    }
+
+    public IEnumerable<IConfigurationSection> GetChildren() =>
+        _innerSection.GetChildren().Select(c => (IConfigurationSection)new SecretAwareConfigurationSection(c));
+
+    public Microsoft.Extensions.Primitives.IChangeToken GetReloadToken() => _innerSection.GetReloadToken();
+
+    public IConfigurationSection GetSection(string key) =>
+        new SecretAwareConfigurationSection(_innerSection.GetSection(key));
 }

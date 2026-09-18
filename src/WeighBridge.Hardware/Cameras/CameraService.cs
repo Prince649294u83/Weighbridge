@@ -16,7 +16,7 @@ namespace WeighBridge.Hardware.Cameras;
 /// </summary>
 public sealed class CameraService : ICameraService, IDisposable
 {
-    private readonly CameraOptions _options;
+    private CameraOptions _options;
     private readonly IApplicationPaths _paths;
     private readonly ILogger<CameraService> _logger;
 
@@ -27,10 +27,25 @@ public sealed class CameraService : ICameraService, IDisposable
         IOptions<CameraOptions> options,
         IApplicationPaths paths,
         ILogger<CameraService> logger)
+        : this(options, paths, logger, null)
     {
-        _options = options.Value ?? throw new ArgumentNullException(nameof(options));
+    }
+
+    public CameraService(
+        IOptions<CameraOptions> options,
+        IApplicationPaths paths,
+        ILogger<CameraService> logger,
+        IOptionsMonitor<CameraOptions>? monitor)
+    {
+        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _paths = paths ?? throw new ArgumentNullException(nameof(paths));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        monitor?.OnChange(updated =>
+        {
+            _options = updated;
+            _logger.LogInformation("Camera options updated dynamically: Enabled={Enabled}, Devices={Count}", updated.Enabled, updated.Devices.Count);
+        });
     }
 
     /// <inheritdoc />
@@ -105,6 +120,7 @@ public sealed class CameraService : ICameraService, IDisposable
         try
         {
             _paths.EnsureCreated();
+            Directory.CreateDirectory(_paths.CaptureDirectory);
 
             string safeSlip = string.IsNullOrWhiteSpace(slipNumber)
                 ? "DRAFT"

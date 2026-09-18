@@ -21,4 +21,17 @@ public partial class VehicleEntryView : UserControl
             vm.SelectPendingTransactionCommand.Execute(null);
         }
     }
+
+    private void OnFormPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            var focused = Keyboard.FocusedElement as System.Windows.UIElement;
+            if (focused is not null and not Button)
+            {
+                focused.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                e.Handled = true;
+            }
+        }
+    }
 }

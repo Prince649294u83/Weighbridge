@@ -9,7 +9,7 @@ namespace WeighBridge.Hardware.WeightIndicators;
 /// </summary>
 public sealed class SerialPortTransport : ISerialPortTransport
 {
-    private readonly WeightIndicatorOptions _options;
+    private WeightIndicatorOptions _options;
     private readonly ILogger<SerialPortTransport> _logger;
     private SerialPort? _serialPort;
     private Stream? _baseStream;
@@ -21,6 +21,12 @@ public sealed class SerialPortTransport : ISerialPortTransport
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public void UpdateOptions(WeightIndicatorOptions newOptions)
+    {
+        ArgumentNullException.ThrowIfNull(newOptions);
+        _options = newOptions;
     }
 
     public bool IsOpen => _serialPort is { IsOpen: true };
@@ -41,7 +47,10 @@ public sealed class SerialPortTransport : ISerialPortTransport
 
             var parity = Enum.TryParse<Parity>(_options.Parity, true, out var p) ? p : Parity.None;
             var stopBits = Enum.TryParse<StopBits>(_options.StopBits, true, out var s) ? s : StopBits.One;
-            var handshake = Enum.TryParse<Handshake>(_options.Handshake, true, out var h) ? h : Handshake.None;
+            var handshake = _options.Decoding.RtsCts
+                ? Handshake.RequestToSend
+                : (Enum.TryParse<Handshake>(_options.Handshake, true, out var h) ? h : Handshake.None);
+            bool rts = _options.RtsEnable || _options.Decoding.RtsCts;
             int timeout = _options.ReadTimeoutMs > 0 ? _options.ReadTimeoutMs : 5000;
 
             _logger.Log(
@@ -55,7 +64,7 @@ public sealed class SerialPortTransport : ISerialPortTransport
                 parity,
                 stopBits,
                 _options.DtrEnable,
-                _options.RtsEnable,
+                rts,
                 handshake);
 
             _serialPort = new SerialPort(
@@ -68,7 +77,7 @@ public sealed class SerialPortTransport : ISerialPortTransport
                 ReadTimeout = timeout,
                 WriteTimeout = timeout,
                 DtrEnable = _options.DtrEnable,
-                RtsEnable = _options.RtsEnable,
+                RtsEnable = rts,
                 Handshake = handshake,
             };
 

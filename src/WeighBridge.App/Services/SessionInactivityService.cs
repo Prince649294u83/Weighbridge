@@ -2,6 +2,7 @@ using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WeighBridge.Core.Busy;
+using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Logging;
 using WeighBridge.Core.Security;
 
@@ -18,6 +19,7 @@ public sealed class SessionInactivityService : IDisposable
     private readonly IBusyStateService _busyState;
     private readonly IAuditLogger _audit;
     private readonly IOptions<SecurityOptions> _options;
+    private readonly IOptionsMonitor<WeighmentOptions>? _weighmentOptionsMonitor;
     private readonly ILogger<SessionInactivityService> _logger;
     private readonly DispatcherTimer _timer;
 
@@ -35,13 +37,15 @@ public sealed class SessionInactivityService : IDisposable
         IBusyStateService busyState,
         IAuditLogger audit,
         IOptions<SecurityOptions> options,
-        ILogger<SessionInactivityService> logger)
+        ILogger<SessionInactivityService> logger,
+        IOptionsMonitor<WeighmentOptions>? weighmentOptionsMonitor = null)
     {
         _permissionService = permissionService ?? throw new ArgumentNullException(nameof(permissionService));
         _authenticationService = authenticationService ?? throw new ArgumentNullException(nameof(authenticationService));
         _busyState = busyState ?? throw new ArgumentNullException(nameof(busyState));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _weighmentOptionsMonitor = weighmentOptionsMonitor;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _timer = new DispatcherTimer
@@ -73,6 +77,16 @@ public sealed class SessionInactivityService : IDisposable
 
         var idleDuration = DateTime.UtcNow - _lastActivityUtc;
         var timeout = _options.Value.EffectiveInactivityTimeout;
+
+        var disconnectSec = _weighmentOptionsMonitor?.CurrentValue?.DisconnectTimeSeconds ?? 0;
+        if (disconnectSec > 0)
+        {
+            var disconnectTimeout = TimeSpan.FromSeconds(disconnectSec);
+            if (disconnectTimeout < timeout)
+            {
+                timeout = disconnectTimeout;
+            }
+        }
 
         if (idleDuration >= timeout)
         {

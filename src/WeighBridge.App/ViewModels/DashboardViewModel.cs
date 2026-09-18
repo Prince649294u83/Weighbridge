@@ -152,19 +152,15 @@ public sealed class DashboardViewModel : ViewModelBase
     {
         _dispatcher.Post(() =>
         {
-            LiveWeight = reading.Value.ToString("0.##");
+            var displayVal = reading.Value < 0m ? 0m : reading.Value;
+            LiveWeight = displayVal.ToString("0.##");
             LiveUnit = reading.Unit;
             IsIndicatorStable = reading.IsStable;
 
-            if (reading.IsZero)
+            if (reading.IsZero || reading.IsNegative || displayVal == 0m)
             {
                 IndicatorStatus = "ZERO";
                 IndicatorSeverity = BadgeSeverity.Neutral;
-            }
-            else if (reading.IsNegative)
-            {
-                IndicatorStatus = "NEGATIVE";
-                IndicatorSeverity = BadgeSeverity.Danger;
             }
             else if (reading.IsStable)
             {

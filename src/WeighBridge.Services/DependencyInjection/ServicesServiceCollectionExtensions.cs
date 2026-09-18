@@ -118,6 +118,7 @@ public static class ServicesServiceCollectionExtensions
         services.AddSingleton<ISmsProvider, GsmModemSmsProvider>();
         services.AddSingleton<ISmsProvider>(provider => provider.GetRequiredService<HttpGatewaySmsProvider>());
         services.AddSingleton<ISmsService, SmsOutboxProcessor>();
+        services.AddSingleton<SmsOutboxTask>();
 
         // Email Messaging Subsystem
         services.AddSingleton<IEmailService, SmtpEmailService>();

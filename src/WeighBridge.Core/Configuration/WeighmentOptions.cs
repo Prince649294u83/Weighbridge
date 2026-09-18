@@ -27,6 +27,9 @@ public sealed class WeighmentOptions
     /// <summary>Apply GST calculation to weighing charges.</summary>
     public bool GstOnCharges { get; set; } = false;
 
+    /// <summary>GST percentage applied to weighing charges (defaults to 18%).</summary>
+    public decimal GstPercentage { get; set; } = 18m;
+
     /// <summary>Restrict operator to single-entry weighments.</summary>
     public bool OnlySingleEntry { get; set; } = false;
 
