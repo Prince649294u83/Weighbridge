@@ -15,6 +15,11 @@ public sealed class InverseBooleanConverter : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is bool b ? !b : false;
+        if (value is bool b)
+        {
+            return b ? false : Binding.DoNothing;
+        }
+
+        return Binding.DoNothing;
     }
 }

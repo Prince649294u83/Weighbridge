@@ -14,6 +14,7 @@
   <UserControl.Resources>
     <BooleanToVisibilityConverter x:Key="Settings.BoolToVisibility" />
     <converters:InverseBooleanConverter x:Key="InverseBoolConverter" />
+    <converters:BooleanToRadioButtonConverter x:Key="BoolToRadioConverter" />
 
     <Style x:Key="Settings.Label" TargetType="TextBlock" BasedOn="{StaticResource Text.Secondary}">
       <Setter Property="VerticalAlignment" Value="Center" />
@@ -113,8 +114,8 @@
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="Email" />
               <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <RadioButton Content="Enable" IsChecked="{Binding EmailEnabled}" GroupName="EmailToggle" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                <RadioButton Content="Disable" IsChecked="{Binding EmailEnabled, Converter={StaticResource InverseBoolConverter}}" GroupName="EmailToggle" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Enable" IsChecked="{Binding EmailEnabled, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Disable" IsChecked="{Binding EmailEnabled, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
 
@@ -325,8 +326,8 @@
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="Unit Bags Weight Column" />
               <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <RadioButton Content="Enable" IsChecked="{Binding UnitBagsWeightColumn}" GroupName="Inp1" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                <RadioButton Content="Disable" IsChecked="{Binding UnitBagsWeightColumn, Converter={StaticResource InverseBoolConverter}}" GroupName="Inp1" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Enable" IsChecked="{Binding UnitBagsWeightColumn, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Disable" IsChecked="{Binding UnitBagsWeightColumn, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
 
@@ -337,8 +338,8 @@
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="Manual Tare Entry" />
               <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <RadioButton Content="Enable" IsChecked="{Binding ManualTareEntry}" GroupName="Inp2" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                <RadioButton Content="Disable" IsChecked="{Binding ManualTareEntry, Converter={StaticResource InverseBoolConverter}}" GroupName="Inp2" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Enable" IsChecked="{Binding ManualTareEntry, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Disable" IsChecked="{Binding ManualTareEntry, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
 
@@ -349,8 +350,8 @@
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="Auto Tare Weight" />
               <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <RadioButton Content="Enable" IsChecked="{Binding AutoTareWeight}" GroupName="Inp3" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                <RadioButton Content="Disable" IsChecked="{Binding AutoTareWeight, Converter={StaticResource InverseBoolConverter}}" GroupName="Inp3" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Enable" IsChecked="{Binding AutoTareWeight, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Disable" IsChecked="{Binding AutoTareWeight, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
 
@@ -361,8 +362,8 @@
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="2nd Entry Charges" />
               <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <RadioButton Content="Enable" IsChecked="{Binding SecondEntryCharges}" GroupName="Inp4" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                <RadioButton Content="Disable" IsChecked="{Binding SecondEntryCharges, Converter={StaticResource InverseBoolConverter}}" GroupName="Inp4" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Enable" IsChecked="{Binding SecondEntryCharges, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Disable" IsChecked="{Binding SecondEntryCharges, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
 
@@ -373,8 +374,8 @@
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="GST on Charges" />
               <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <RadioButton Content="Enable" IsChecked="{Binding GstOnCharges}" GroupName="Inp5" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                <RadioButton Content="Disable" IsChecked="{Binding GstOnCharges, Converter={StaticResource InverseBoolConverter}}" GroupName="Inp5" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Enable" IsChecked="{Binding GstOnCharges, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Disable" IsChecked="{Binding GstOnCharges, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
 
@@ -385,8 +386,8 @@
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="Only Single Entry (No Pending Slip)" />
               <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <RadioButton Content="Enable" IsChecked="{Binding OnlySingleEntry}" GroupName="Inp6" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                <RadioButton Content="Disable" IsChecked="{Binding OnlySingleEntry, Converter={StaticResource InverseBoolConverter}}" GroupName="Inp6" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Enable" IsChecked="{Binding OnlySingleEntry, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,24,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                <RadioButton Content="Disable" IsChecked="{Binding OnlySingleEntry, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
           </StackPanel>
@@ -414,8 +415,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Settings.Label}" Text="Price Computing" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                  <RadioButton Content="Enable" IsChecked="{Binding PriceComputing}" GroupName="Oth1" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                  <RadioButton Content="Disable" IsChecked="{Binding PriceComputing, Converter={StaticResource InverseBoolConverter}}" GroupName="Oth1" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Enable" IsChecked="{Binding PriceComputing, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Disable" IsChecked="{Binding PriceComputing, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
                 </StackPanel>
               </Grid>
 
@@ -438,8 +439,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Settings.Label}" Text="Allow Zero Net Weight" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                  <RadioButton Content="Enable" IsChecked="{Binding AllowZeroNetWeight}" GroupName="Oth3" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                  <RadioButton Content="Disable" IsChecked="{Binding AllowZeroNetWeight, Converter={StaticResource InverseBoolConverter}}" GroupName="Oth3" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Enable" IsChecked="{Binding AllowZeroNetWeight, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Disable" IsChecked="{Binding AllowZeroNetWeight, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
                 </StackPanel>
               </Grid>
 
@@ -450,8 +451,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Settings.Label}" Text="Auto Application Shortcut" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                  <RadioButton Content="Enable" IsChecked="{Binding AutoApplicationShortcut}" GroupName="Oth4" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                  <RadioButton Content="Disable" IsChecked="{Binding AutoApplicationShortcut, Converter={StaticResource InverseBoolConverter}}" GroupName="Oth4" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Enable" IsChecked="{Binding AutoApplicationShortcut, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Disable" IsChecked="{Binding AutoApplicationShortcut, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
                 </StackPanel>
               </Grid>
 
@@ -462,8 +463,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Settings.Label}" Text="Auto Update Tare Weight" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                  <RadioButton Content="Enable" IsChecked="{Binding AutoUpdateTareWeight}" GroupName="Oth5" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                  <RadioButton Content="Disable" IsChecked="{Binding AutoUpdateTareWeight, Converter={StaticResource InverseBoolConverter}}" GroupName="Oth5" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Enable" IsChecked="{Binding AutoUpdateTareWeight, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Disable" IsChecked="{Binding AutoUpdateTareWeight, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
                 </StackPanel>
               </Grid>
 
@@ -474,8 +475,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Settings.Label}" Text="Weight Hold" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                  <RadioButton Content="Enable" IsChecked="{Binding WeightHold}" GroupName="Oth6" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                  <RadioButton Content="Disable" IsChecked="{Binding WeightHold, Converter={StaticResource InverseBoolConverter}}" GroupName="Oth6" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Enable" IsChecked="{Binding WeightHold, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Disable" IsChecked="{Binding WeightHold, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
                 </StackPanel>
               </Grid>
             </StackPanel>
@@ -501,8 +502,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Settings.Label}" Text="Print QR Code" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                  <RadioButton Content="Enable" IsChecked="{Binding PrintQrCode}" GroupName="Oth7" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                  <RadioButton Content="Disable" IsChecked="{Binding PrintQrCode, Converter={StaticResource InverseBoolConverter}}" GroupName="Oth7" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Enable" IsChecked="{Binding PrintQrCode, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Disable" IsChecked="{Binding PrintQrCode, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
                 </StackPanel>
               </Grid>
 
@@ -513,8 +514,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource Settings.Label}" Text="Charges Mandatory" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                  <RadioButton Content="Enable" IsChecked="{Binding ChargesMandatory}" GroupName="Oth8" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
-                  <RadioButton Content="Disable" IsChecked="{Binding ChargesMandatory, Converter={StaticResource InverseBoolConverter}}" GroupName="Oth8" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Enable" IsChecked="{Binding ChargesMandatory, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=True}" Margin="0,0,16,0" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
+                  <RadioButton Content="Disable" IsChecked="{Binding ChargesMandatory, Converter={StaticResource BoolToRadioConverter}, ConverterParameter=False}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
                 </StackPanel>
               </Grid>
 
