@@ -330,7 +330,7 @@
               <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Rate / Amount" />
               <TextBox Grid.Column="1"
                        AutomationProperties.Name="Material Rate"
-                       ToolTip="Rate per kg/ton (₹)"
+                       ToolTip="Rate per Kg/ton (₹)"
                        Style="{StaticResource TextBox.Numeric}"
                        Text="{Binding MaterialRate, UpdateSourceTrigger=PropertyChanged}" />
               <TextBox Grid.Column="3"
@@ -358,7 +358,7 @@
                        Text="{Binding NumberOfBags, UpdateSourceTrigger=PropertyChanged}" />
               <TextBox Grid.Column="3"
                        AutomationProperties.Name="Bag Weight Kg"
-                       ToolTip="Tare weight per empty bag (kg)"
+                       ToolTip="Tare weight per empty bag (Kg)"
                        Style="{StaticResource TextBox.Numeric}"
                        Text="{Binding BagWeightKg, UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
@@ -745,10 +745,10 @@
                                     Binding="{Binding MaterialName}"
                                     Width="110" />
                 <DataGridTextColumn Header="Gross Weight"
-                                    Binding="{Binding GrossKg, StringFormat='{}{0:N0} kg'}"
+                                    Binding="{Binding GrossKg, StringFormat='{}{0:N0} Kg'}"
                                     Width="100" />
                 <DataGridTextColumn Header="Tare Weight"
-                                    Binding="{Binding TareKg, StringFormat='{}{0:N0} kg'}"
+                                    Binding="{Binding TareKg, StringFormat='{}{0:N0} Kg'}"
                                     Width="100" />
               </DataGrid.Columns>
             </DataGrid>

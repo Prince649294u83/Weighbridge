@@ -304,7 +304,7 @@
                        HorizontalContentAlignment="Right"
                        Background="{DynamicResource Brush.Surface.Sunken}"
                        Style="{StaticResource TextBox.Default}"
-                       Text="{Binding SelectedWeighment.GrossKg, StringFormat='{}{0:N0} kg', Mode=OneWay}" />
+                       Text="{Binding SelectedWeighment.GrossKg, StringFormat='{}{0:N0} Kg', Mode=OneWay}" />
             </Grid>
 
             <!--  Tare Weight  -->
@@ -320,7 +320,7 @@
                        HorizontalContentAlignment="Right"
                        Background="{DynamicResource Brush.Surface.Sunken}"
                        Style="{StaticResource TextBox.Default}"
-                       Text="{Binding SelectedWeighment.TareKg, StringFormat='{}{0:N0} kg', Mode=OneWay}" />
+                       Text="{Binding SelectedWeighment.TareKg, StringFormat='{}{0:N0} Kg', Mode=OneWay}" />
             </Grid>
 
             <!--  Net Weight  -->
@@ -337,7 +337,7 @@
                        Background="{DynamicResource Brush.Surface.Sunken}"
                        Foreground="{DynamicResource Brush.Accent.Default}"
                        Style="{StaticResource TextBox.Default}"
-                       Text="{Binding SelectedWeighment.NetKg, StringFormat='{}{0:N0} kg', Mode=OneWay}" />
+                       Text="{Binding SelectedWeighment.NetKg, StringFormat='{}{0:N0} Kg', Mode=OneWay}" />
             </Grid>
           </StackPanel>
         </ScrollViewer>

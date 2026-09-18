@@ -134,7 +134,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private ConnectionState _indicatorState = ConnectionState.Unknown;
 
     private decimal _liveWeightKg;
-    private string _liveWeightUnit = "kg";
+    private string _liveWeightUnit = "Kg";
     private bool _isWeightStable;
     private string _stabilityStatusText = "DISCONNECTED";
     private BadgeSeverity _stabilitySeverity = BadgeSeverity.Neutral;
@@ -1176,7 +1176,14 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     public string LiveWeightUnit
     {
         get => _liveWeightUnit;
-        private set => SetProperty(ref _liveWeightUnit, value);
+        private set
+        {
+            var normalized = string.Equals(value, "kg", StringComparison.OrdinalIgnoreCase) ? "Kg" : value;
+            if (SetProperty(ref _liveWeightUnit, normalized))
+            {
+                OnPropertyChanged(nameof(LiveWeightDisplay));
+            }
+        }
     }
 
     public string LiveWeightDisplay => IndicatorState == ConnectionState.Connected
@@ -1306,7 +1313,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         {
             var displayVal = reading.Value < 0m ? 0m : reading.Value;
             LiveWeightKg = displayVal;
-            LiveWeightUnit = string.IsNullOrWhiteSpace(reading.Unit) ? "kg" : reading.Unit;
+            LiveWeightUnit = string.IsNullOrWhiteSpace(reading.Unit) ? "Kg" : (string.Equals(reading.Unit, "kg", StringComparison.OrdinalIgnoreCase) ? "Kg" : reading.Unit);
             IsWeightStable = reading.IsStable;
 
             if (reading.IsZero || reading.IsNegative || displayVal == 0m)

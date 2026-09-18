@@ -372,7 +372,7 @@
               <ComboBox ItemsSource="{Binding AvailableVehicleTypes}"
                         SelectedItem="{Binding FormSelectedVehicleType, Mode=TwoWay}" />
 
-              <TextBlock Style="{StaticResource Field.Label}" Text="Standard Tare Weight (kg)" />
+              <TextBlock Style="{StaticResource Field.Label}" Text="Standard Tare Weight (Kg)" />
               <TextBox Text="{Binding FormTareWeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
               <TextBlock Style="{StaticResource Field.Label}" Text="Remarks" />

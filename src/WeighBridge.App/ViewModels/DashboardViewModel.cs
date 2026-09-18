@@ -24,7 +24,7 @@ public sealed class DashboardViewModel : ViewModelBase
     private int _currentlyWaiting;
 
     private string _liveWeight = "0";
-    private string _liveUnit = "kg";
+    private string _liveUnit = "Kg";
     private string _indicatorStatus = "Disconnected";
     private BadgeSeverity _indicatorSeverity = BadgeSeverity.Danger;
     private bool _isIndicatorStable;
@@ -72,7 +72,7 @@ public sealed class DashboardViewModel : ViewModelBase
     public string LiveUnit
     {
         get => _liveUnit;
-        private set => SetProperty(ref _liveUnit, value);
+        private set => SetProperty(ref _liveUnit, string.Equals(value, "kg", StringComparison.OrdinalIgnoreCase) ? "Kg" : value);
     }
 
     public string IndicatorStatus
@@ -154,7 +154,7 @@ public sealed class DashboardViewModel : ViewModelBase
         {
             var displayVal = reading.Value < 0m ? 0m : reading.Value;
             LiveWeight = displayVal.ToString("0.##");
-            LiveUnit = reading.Unit;
+            LiveUnit = string.IsNullOrWhiteSpace(reading.Unit) ? "Kg" : (string.Equals(reading.Unit, "kg", StringComparison.OrdinalIgnoreCase) ? "Kg" : reading.Unit);
             IsIndicatorStable = reading.IsStable;
 
             if (reading.IsZero || reading.IsNegative || displayVal == 0m)

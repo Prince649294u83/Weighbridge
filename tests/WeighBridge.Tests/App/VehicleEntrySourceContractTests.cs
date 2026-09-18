@@ -134,5 +134,12 @@ public sealed class VehicleEntrySourceContractTests
         Assert.Contains("RelativeSource AncestorType=Button", viewSource);
         Assert.DoesNotContain("Brush.Primary.Default", viewSource);
     }
+
+    [Fact]
+    public void LiveWeightUnit_DefaultsAndNormalizesTo_Capitalized_Kg()
+    {
+        Assert.Contains("private string _liveWeightUnit = \"Kg\";", Source);
+        Assert.Contains("string.Equals(value, \"kg\", StringComparison.OrdinalIgnoreCase) ? \"Kg\" : value", Source);
+    }
 }
 
