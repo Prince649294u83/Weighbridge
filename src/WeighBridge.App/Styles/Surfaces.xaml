@@ -7,9 +7,9 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    Slim overlay-style scrollbar. The thumb is 4px at rest and widens to 8px on hover,
-    mirroring the Windows 11 behaviour - it stays out of the way while scanning a long
-    weighment list but is easy to grab.
+    High-contrast, easily accessible scrollbar style. The thumb is 10px at rest and
+    expands to 12px on hover inside a 14px visible track channel, providing clear visual contrast
+    and an easy target for pointer interaction.
   -->
   <Style x:Key="ScrollBar.Thumb" TargetType="Thumb">
     <Setter Property="OverridesDefaultStyle" Value="True" />
@@ -17,9 +17,18 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Thumb">
-          <Border Background="{DynamicResource Brush.Border.Strong}"
+          <Border x:Name="ThumbBorder"
+                  Background="{DynamicResource Brush.Text.Muted}"
                   CornerRadius="{StaticResource Radius.Pill}"
                   SnapsToDevicePixels="True" />
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource Brush.Text.Secondary}" />
+            </Trigger>
+            <Trigger Property="IsDragging" Value="True">
+              <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
@@ -42,34 +51,37 @@
 
   <Style x:Key="ScrollBar.Default" TargetType="ScrollBar">
     <Setter Property="OverridesDefaultStyle" Value="True" />
-    <Setter Property="Background" Value="Transparent" />
-    <Setter Property="Width" Value="12" />
-    <Setter Property="MinWidth" Value="12" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Hover}" />
+    <Setter Property="Width" Value="14" />
+    <Setter Property="MinWidth" Value="14" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ScrollBar">
-          <Grid x:Name="Root" Background="Transparent">
+          <Border x:Name="Root"
+                  Background="{TemplateBinding Background}"
+                  CornerRadius="{StaticResource Radius.Pill}"
+                  SnapsToDevicePixels="True">
             <Track x:Name="PART_Track"
-                   Margin="4,4"
+                   Margin="2"
                    IsDirectionReversed="True">
               <Track.DecreaseRepeatButton>
                 <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ScrollBar.PageButton}" />
               </Track.DecreaseRepeatButton>
               <Track.Thumb>
-                <Thumb x:Name="Thumb" Width="4" Style="{StaticResource ScrollBar.Thumb}" />
+                <Thumb x:Name="Thumb" Width="10" Style="{StaticResource ScrollBar.Thumb}" />
               </Track.Thumb>
               <Track.IncreaseRepeatButton>
                 <RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource ScrollBar.PageButton}" />
               </Track.IncreaseRepeatButton>
             </Track>
-          </Grid>
+          </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
               <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
               <Setter TargetName="Thumb" Property="Width" Value="Auto" />
-              <Setter TargetName="Thumb" Property="Height" Value="4" />
-              <Setter Property="Height" Value="12" />
-              <Setter Property="MinHeight" Value="12" />
+              <Setter TargetName="Thumb" Property="Height" Value="10" />
+              <Setter Property="Height" Value="14" />
+              <Setter Property="MinHeight" Value="14" />
               <Setter Property="Width" Value="Auto" />
               <Setter Property="MinWidth" Value="0" />
             </Trigger>
@@ -78,14 +90,14 @@
                 <Condition Property="IsMouseOver" Value="True" />
                 <Condition Property="Orientation" Value="Vertical" />
               </MultiTrigger.Conditions>
-              <Setter TargetName="Thumb" Property="Width" Value="8" />
+              <Setter TargetName="Thumb" Property="Width" Value="12" />
             </MultiTrigger>
             <MultiTrigger>
               <MultiTrigger.Conditions>
                 <Condition Property="IsMouseOver" Value="True" />
                 <Condition Property="Orientation" Value="Horizontal" />
               </MultiTrigger.Conditions>
-              <Setter TargetName="Thumb" Property="Height" Value="8" />
+              <Setter TargetName="Thumb" Property="Height" Value="12" />
             </MultiTrigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

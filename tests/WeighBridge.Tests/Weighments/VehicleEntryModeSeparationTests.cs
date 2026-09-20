@@ -197,4 +197,46 @@ public sealed class VehicleEntryModeSeparationTests : IDisposable
         Assert.Equal("Rajesh Kumar", printData.DriverName);
         Assert.Equal("Prime Haulers", printData.TransporterName);
     }
+
+    [Fact]
+    public async Task WeighmentSummary_Projects_Gross_And_Tare_First_With_ModeCode()
+    {
+        // 1. Pending GrossFirst weighment
+        var grossReq = new NewWeighment
+        {
+            VehicleNumber = "MH12GF9999",
+            Mode = WeighmentMode.GrossFirst,
+            PartyName = "Gross First Logistics",
+            MaterialName = "Iron Ore"
+        };
+        var gCreated = (await _harness.Executor.ExecuteAsync(new CreateWeighmentCommand(_harness.Service, grossReq))).Value!;
+        var gRecordResult = await _harness.Executor.ExecuteAsync(new RecordFirstWeightCommand(_harness.Service, gCreated.Id, 32000m, WeightSource.Indicator));
+        var gPending = gRecordResult.Value!;
+
+        var gSummary = WeighBridge.App.ViewModels.WeighmentSummary.From(gPending);
+        Assert.Equal("G", gSummary.ModeCode);
+        Assert.Equal(32000m, gSummary.GrossKg);
+        Assert.Null(gSummary.TareKg);
+        Assert.Equal("32,000 Kg", gSummary.FormattedGrossKg);
+        Assert.Equal("—", gSummary.FormattedTareKg);
+
+        // 2. Pending TareFirst weighment
+        var tareReq = new NewWeighment
+        {
+            VehicleNumber = "MH12TF8888",
+            Mode = WeighmentMode.TareFirst,
+            PartyName = "Tare First Transport",
+            MaterialName = "Coal"
+        };
+        var tCreated = (await _harness.Executor.ExecuteAsync(new CreateWeighmentCommand(_harness.Service, tareReq))).Value!;
+        var tRecordResult = await _harness.Executor.ExecuteAsync(new RecordFirstWeightCommand(_harness.Service, tCreated.Id, 11000m, WeightSource.Indicator));
+        var tPending = tRecordResult.Value!;
+
+        var tSummary = WeighBridge.App.ViewModels.WeighmentSummary.From(tPending);
+        Assert.Equal("T", tSummary.ModeCode);
+        Assert.Null(tSummary.GrossKg);
+        Assert.Equal(11000m, tSummary.TareKg);
+        Assert.Equal("—", tSummary.FormattedGrossKg);
+        Assert.Equal("11,000 Kg", tSummary.FormattedTareKg);
+    }
 }

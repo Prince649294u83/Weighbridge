@@ -168,6 +168,29 @@ public sealed class DialogService : IDialogService
             return true;
         });
 
+    /// <inheritdoc />
+    public Task<string?> ShowSaveFileDialogAsync(
+        string title,
+        string defaultFileName,
+        string filter,
+        string? initialDirectory = null)
+        => InvokeAsync(() =>
+        {
+            var sfd = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = title,
+                FileName = defaultFileName,
+                Filter = filter,
+                InitialDirectory = !string.IsNullOrWhiteSpace(initialDirectory) && System.IO.Directory.Exists(initialDirectory)
+                    ? initialDirectory
+                    : Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+            };
+
+            var owner = ResolveOwner();
+            bool? result = owner != null ? sfd.ShowDialog(owner) : sfd.ShowDialog();
+            return result == true ? sfd.FileName : null;
+        });
+
     private bool? ShowDialogWindow(Window dialog)
     {
         dialog.Owner = ResolveOwner();

@@ -411,6 +411,7 @@ public sealed class FullFeatureEndToEndTests : IDisposable
         public Task ShowLoadingAsync(string message, Func<Task> operation) => operation();
         public Task ShowProgressAsync(string title, Func<IProgressReporter, Task> operation, bool isCancellable = false) => operation(new NullProgressReporter());
         public Task<bool> ShowLoginAsync() => Task.FromResult(true);
+        public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, string filter, string? initialDirectory = null) => Task.FromResult<string?>(null);
 
         private sealed class NullProgressReporter : IProgressReporter
         {

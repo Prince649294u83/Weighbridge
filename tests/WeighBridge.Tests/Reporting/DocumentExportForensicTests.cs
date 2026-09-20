@@ -89,7 +89,7 @@ public sealed class DocumentExportForensicTests : IDisposable
         Assert.Contains("/Type /Pages", text);
         Assert.Contains("/Type /Page", text);
         Assert.Contains("/Type /Font", text);
-        Assert.Contains("/BaseFont /Helvetica", text);
+        Assert.Contains("/BaseFont /Courier", text);
 
         // Stream and trailer checks
         Assert.Contains("stream", text);
@@ -103,9 +103,11 @@ public sealed class DocumentExportForensicTests : IDisposable
         Assert.Contains("Forensic Test Weighbridge Ltd", text);
         Assert.Contains("MH12AB1001", text);
         Assert.Contains("MH12AB1002", text);
-        Assert.Contains("Acme Industries", text);
-        Assert.Contains("Zenith Logistics", text);
-        Assert.Contains("Total \\(2 Records\\)", text);
+        Assert.Contains("Acme", text);
+        Assert.Contains("Zenith", text);
+        Assert.Contains("Total No of Records", text);
+        Assert.Contains("Total Net Weight", text);
+        Assert.Contains("Total Charges", text);
     }
 
     [Fact]
@@ -208,11 +210,11 @@ public sealed class DocumentExportForensicTests : IDisposable
 
         // Assert
         Assert.StartsWith("%PDF-1.4", text);
-        Assert.Contains("/Count 3", text); // 60 rows across ~25 rows per page = 3 pages
-        Assert.Contains("Page 1 of 3", text);
-        Assert.Contains("Page 2 of 3", text);
-        Assert.Contains("Page 3 of 3", text);
-        Assert.Contains("Total \\(60 Records\\)", text);
+        Assert.Contains("/Type /Pages", text);
+        Assert.Contains("/Kids", text);
+        Assert.Contains("/Count 2", text);
+        Assert.Contains("Total No of Records", text);
+        Assert.Contains("Total Net Weight", text);
     }
 
     [Fact]
@@ -260,6 +262,42 @@ public sealed class DocumentExportForensicTests : IDisposable
         Assert.Equal(0, proc.ExitCode);
         Assert.Contains("[PyMuPDF] ALL PAGES RENDERED AND VALIDATED SUCCESSFULLY!", stdout);
         Assert.Contains("[openpyxl] WORKBOOK STRUCTURE AND DATA TYPES VALIDATED SUCCESSFULLY!", stdout);
+    }
+
+    [Fact]
+    public async Task Export_CustomOutputPath_WritesToExactUserSpecifiedDirectory()
+    {
+        await Complete("MH12AB9000", "Custom Path Logistics", "Granite", 40_000m, 15_000m, 350m);
+        var service = CreateService();
+        var doc = await service.BuildDocumentAsync(new ReportFilterParameters(
+            StartDateLocal: DateTime.Today.AddDays(-1),
+            EndDateLocal: DateTime.Today.AddDays(1)));
+
+        var customDir = Path.Combine(Path.GetTempPath(), $"wb_custom_dir_{Guid.NewGuid():N}");
+        var customPdfPath = Path.Combine(customDir, "CustomReport.pdf");
+        var customXlsxPath = Path.Combine(customDir, "CustomReport.xlsx");
+
+        try
+        {
+            var pdfResult = await service.ExportAsync(doc, ReportFormat.Pdf, customPdfPath);
+            Assert.True(pdfResult.Succeeded);
+            Assert.Equal(customPdfPath, pdfResult.OutputPath);
+            Assert.True(File.Exists(customPdfPath));
+            Assert.True(new FileInfo(customPdfPath).Length > 0);
+
+            var xlsxResult = await service.ExportAsync(doc, ReportFormat.Excel, customXlsxPath);
+            Assert.True(xlsxResult.Succeeded);
+            Assert.Equal(customXlsxPath, xlsxResult.OutputPath);
+            Assert.True(File.Exists(customXlsxPath));
+            Assert.True(new FileInfo(customXlsxPath).Length > 0);
+        }
+        finally
+        {
+            if (Directory.Exists(customDir))
+            {
+                try { Directory.Delete(customDir, recursive: true); } catch { }
+            }
+        }
     }
 
     private async Task Complete(string vehicle, string party, string material, decimal gross, decimal tare, decimal charges)

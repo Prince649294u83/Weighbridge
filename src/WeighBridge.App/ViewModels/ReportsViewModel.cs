@@ -425,12 +425,21 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         try
         {
+            var defaultFileName = $"Weighment_Report_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            var filter = "Excel Workbook (*.xlsx)|*.xlsx|All Files (*.*)|*.*";
+            var chosenPath = await _dialogs.ShowSaveFileDialogAsync("Save Excel Report", defaultFileName, filter).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(chosenPath))
+            {
+                ShowStatus("Excel export cancelled.", BadgeSeverity.Neutral);
+                return;
+            }
+
             ReportResult? result = null;
             await RunBusyAsync(async () =>
             {
                 ShowStatus("Exporting to Excel...", BadgeSeverity.Information);
                 var doc = await GetOrBuildDocumentAsync().ConfigureAwait(true);
-                result = await _reportService.ExportAsync(doc, ReportFormat.Excel).ConfigureAwait(true);
+                result = await _reportService.ExportAsync(doc, ReportFormat.Excel, chosenPath).ConfigureAwait(true);
             }, "Exporting report...").ConfigureAwait(true);
 
             if (result is null)
@@ -467,12 +476,21 @@ public sealed class ReportsViewModel : ViewModelBase
     {
         try
         {
+            var defaultFileName = $"Weighment_Report_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            var filter = "PDF Document (*.pdf)|*.pdf|All Files (*.*)|*.*";
+            var chosenPath = await _dialogs.ShowSaveFileDialogAsync("Save PDF Report", defaultFileName, filter).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(chosenPath))
+            {
+                ShowStatus("PDF export cancelled.", BadgeSeverity.Neutral);
+                return;
+            }
+
             ReportResult? result = null;
             await RunBusyAsync(async () =>
             {
                 ShowStatus("Exporting to PDF...", BadgeSeverity.Information);
                 var doc = await GetOrBuildDocumentAsync().ConfigureAwait(true);
-                result = await _reportService.ExportAsync(doc, ReportFormat.Pdf).ConfigureAwait(true);
+                result = await _reportService.ExportAsync(doc, ReportFormat.Pdf, chosenPath).ConfigureAwait(true);
             }, "Exporting report...").ConfigureAwait(true);
 
             if (result is null)

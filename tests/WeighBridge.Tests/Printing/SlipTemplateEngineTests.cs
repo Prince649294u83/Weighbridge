@@ -221,4 +221,62 @@ public sealed class SlipTemplateEngineTests
         Assert.Contains("श्री गणेश ट्रेडर्स", rendered);
         Assert.Contains("सोयाबीन धान्य", rendered);
     }
+
+    [Fact]
+    public void RenderToText_DotMatrixExactPhysicalLayout_MatchesImageSpecification()
+    {
+        var weighment = Weighment.Open(
+            vehicleNumber: "KA11 B 1410",
+            mode: WeighmentMode.GrossFirst,
+            partyName: "APMC",
+            materialName: "PADDY",
+            vehicleTypeName: "LORRY",
+            charges: 100m);
+
+        typeof(EntityBase).GetProperty("Id")?.SetValue(weighment, 6265L);
+        typeof(Weighment).GetProperty("SlipNumber")?.SetValue(weighment, "00006265");
+
+        var grossTime = new DateTime(2025, 6, 25, 17, 13, 23, DateTimeKind.Utc);
+        var tareTime = new DateTime(2025, 6, 25, 17, 36, 17, DateTimeKind.Utc);
+        weighment.RecordFirstWeight(new WeightCapture(22760m, grossTime, WeightSource.Indicator));
+        weighment.RecordSecondWeight(new WeightCapture(8340m, tareTime, WeightSource.Indicator));
+
+        var companyOptions = new CompanyOptions
+        {
+            CompanyName = "APMC Pandavapura",
+            AddressLine1 = "Phone: 255106, 9481846430"
+        };
+        var printData = WeighmentPrintDataFactory.Create(weighment, companyOptions, isDuplicate: true);
+        var document = _engine.Parse(BuiltInTemplates.DotMatrix);
+        var profile = PrinterProfile.DotMatrix();
+
+        string rendered = _engine.RenderToText(document, printData, profile);
+
+        // 1. Header is auto-centered and matches physical ticket
+        Assert.Contains("APMC Pandavapura", rendered);
+        Assert.Contains("Phone: 255106, 9481846430", rendered);
+
+        // 2. Exact ticket & metadata rows with widths
+        Assert.Contains("Serial No.   : 00006265", rendered);
+        Assert.Contains("Vehicle No   : KA11B1410", rendered);
+        Assert.Contains("Vehicle Type : LORRY", rendered);
+        Assert.Contains("Material     : PADDY", rendered);
+        Assert.Contains("Party Name   : APMC", rendered);
+
+        // 3. Weight table rows with 12-char right alignment and integer kg
+        Assert.Contains("Gross Weight  :        22760     Kg.", rendered);
+        Assert.Contains("Tare Weight   :         8340     Kg.", rendered);
+        Assert.Contains("Net Weight    :        14420     Kg.", rendered);
+
+        // 4. Whole rupee charges
+        Assert.Contains("Charges      : Rs. 100", rendered);
+
+        // 5. Signatures
+        Assert.Contains("Operator Sign.", rendered);
+        Assert.Contains("User Name :", rendered);
+
+        // 6. User constraint: NO duplicate slip watermark or header inserted arbitrarily
+        Assert.DoesNotContain("*** DUPLICATE SLIP ***", rendered);
+        Assert.DoesNotContain("DUPLICATE TICKET", rendered);
+    }
 }

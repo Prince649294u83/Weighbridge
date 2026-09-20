@@ -36,6 +36,23 @@ if (-not (Test-Path $publishBase)) {
     New-Item -ItemType Directory -Path $publishBase -Force | Out-Null
 }
 
+$diagProject = Join-Path $projectRoot 'src\WeighBridge.SerialDiagnostic\WeighBridge.SerialDiagnostic.csproj'
+$iconSource = Join-Path $projectRoot 'installer-assets\Icons\truck.ico'
+
+# Function to patch runtimeconfig.json with W^X mitigation for Win7
+function Apply-RuntimeConfigMitigation($targetDir) {
+    $runtimeConfigPath = Join-Path $targetDir 'WeighBridge.App.runtimeconfig.json'
+    if (Test-Path $runtimeConfigPath) {
+        $json = Get-Content $runtimeConfigPath -Raw | ConvertFrom-Json
+        if (-not $json.runtimeOptions.configProperties) {
+            $json.runtimeOptions | Add-Member -MemberType NoteProperty -Name "configProperties" -Value (New-Object PSObject)
+        }
+        $json.runtimeOptions.configProperties | Add-Member -MemberType NoteProperty -Name "System.Runtime.EnableWriteXorExecute" -Value $false -Force
+        $json | ConvertTo-Json -Depth 10 | Set-Content $runtimeConfigPath -Encoding UTF8
+        Say "Injected System.Runtime.EnableWriteXorExecute=false into $runtimeConfigPath"
+    }
+}
+
 # 1. Modern 64-bit build (Windows 10/11)
 $modernDir = Join-Path $publishBase 'modern-win-x64'
 Say "Publishing Modern build (win-x64) to $modernDir..."
@@ -47,6 +64,20 @@ dotnet publish $project `
     -p:PublishReadyToRun=false `
     -o $modernDir `
     --nologo
+
+dotnet publish $diagProject `
+    -c Release `
+    -r win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=false `
+    -p:PublishReadyToRun=false `
+    -o $modernDir `
+    --nologo
+
+if (Test-Path $iconSource) {
+    Copy-Item $iconSource (Join-Path $modernDir 'truck.ico') -Force
+}
+Apply-RuntimeConfigMitigation $modernDir
 
 # 2. Legacy 32-bit build (Windows 7/8/10 32-bit)
 $legacyX86Dir = Join-Path $publishBase 'legacy-win-x86'
@@ -60,6 +91,21 @@ dotnet publish $project `
     -o $legacyX86Dir `
     --nologo
 
+dotnet publish $diagProject `
+    -c Release `
+    -r win-x86 `
+    --self-contained true `
+    -p:PublishSingleFile=false `
+    -p:PublishReadyToRun=false `
+    -o $legacyX86Dir `
+    --nologo
+
+if (Test-Path $iconSource) {
+    Copy-Item $iconSource (Join-Path $legacyX86Dir 'truck.ico') -Force
+}
+Apply-RuntimeConfigMitigation $legacyX86Dir
+
 Say "Publication completed successfully!"
 Say "  Modern 64-bit: $modernDir"
 Say "  Legacy 32-bit: $legacyX86Dir"
+

@@ -59,7 +59,9 @@ public sealed record WeighmentSummary(
     string? CreatedBy,
     string? ModifiedBy,
     DateTime? FirstWeightTimeLocal,
-    string WaitingDurationText)
+    string WaitingDurationText,
+    DateTime? GrossWeightTimeLocal = null,
+    DateTime? TareWeightTimeLocal = null)
 {
     private const string WeightFormat = "#,##0.##";
     private const string CurrencyFormat = "N2";
@@ -137,7 +139,9 @@ public sealed record WeighmentSummary(
             weighment.CreatedBy,
             weighment.ModifiedBy,
             firstWeightTimeUtc?.ToLocalTime(),
-            waitingDuration);
+            waitingDuration,
+            weighment.Gross?.CapturedAtUtc.ToLocalTime(),
+            weighment.Tare?.CapturedAtUtc.ToLocalTime());
     }
 
     /// <summary>True while the weighment can still be worked on.</summary>
@@ -186,6 +190,9 @@ public sealed record WeighmentSummary(
         ? "Arrived loaded — gross first"
         : "Arrived empty — tare first";
 
+    /// <summary>Short mode indicator code (G for Gross-first, T for Tare-first).</summary>
+    public string ModeCode => Mode == WeighmentMode.GrossFirst ? "G" : "T";
+
     /// <summary>Gross weight, or a dash.</summary>
     public string GrossText => Format(GrossKg);
 
@@ -197,6 +204,33 @@ public sealed record WeighmentSummary(
 
     /// <summary>The weight taken first, whichever it was, or a dash.</summary>
     public string FirstWeightText => Format(FirstWeightKg);
+
+    /// <summary>Gross weight capture date text.</summary>
+    public string GrossWeightDateText => GrossWeightTimeLocal?.ToString("dd-MM-yyyy") ?? Absent;
+
+    /// <summary>Gross weight capture time text.</summary>
+    public string GrossWeightTimeText => GrossWeightTimeLocal?.ToString("hh:mm tt") ?? Absent;
+
+    /// <summary>Tare weight capture date text.</summary>
+    public string TareWeightDateText => TareWeightTimeLocal?.ToString("dd-MM-yyyy") ?? Absent;
+
+    /// <summary>Tare weight capture time text.</summary>
+    public string TareWeightTimeText => TareWeightTimeLocal?.ToString("hh:mm tt") ?? Absent;
+
+    /// <summary>Gross weight capture full date and time text.</summary>
+    public string GrossWeightDateTimeText => GrossWeightTimeLocal.HasValue ? GrossWeightTimeLocal.Value.ToString("dd-MM-yyyy hh:mm tt") : Absent;
+
+    /// <summary>Tare weight capture full date and time text.</summary>
+    public string TareWeightDateTimeText => TareWeightTimeLocal.HasValue ? TareWeightTimeLocal.Value.ToString("dd-MM-yyyy hh:mm tt") : Absent;
+
+    /// <summary>Formatted gross weight in kilograms.</summary>
+    public string FormattedGrossKg => GrossKg.HasValue ? $"{GrossKg.Value:N0} Kg" : Absent;
+
+    /// <summary>Formatted tare weight in kilograms.</summary>
+    public string FormattedTareKg => TareKg.HasValue ? $"{TareKg.Value:N0} Kg" : Absent;
+
+    /// <summary>Formatted net weight in kilograms.</summary>
+    public string FormattedNetKg => NetKg.HasValue ? $"{NetKg.Value:N0} Kg" : Absent;
 
     /// <summary>True when bag deduction is configured.</summary>
     public bool HasBagDeduction => TotalBagWeightKg.HasValue && TotalBagWeightKg.Value > 0;

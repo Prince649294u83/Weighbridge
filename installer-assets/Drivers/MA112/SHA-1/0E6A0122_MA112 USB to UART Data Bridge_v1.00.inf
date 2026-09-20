@@ -1,0 +1,83 @@
+;*****************************************************************************
+;
+; Module Name:  0E6A0122_MA112 USB to UART Data Bridge_v1.00.inf
+;
+; Function:
+;	Install the Megawin MA112 USB to UART Data Bridge device on Win2000/XP/VISTA/7/8/10
+;
+; Version:
+;	1.0.0.0
+;
+; Copyright (c) 1999-2016 Megawin Technology Co., Ltd.
+;
+; 
+;
+; NOTICE: This software is licensed, not sold.  Any modification of this
+; inf file to change the reference to an operating system or to change the
+; reference to a device is not permitted unless authorized in writing by
+; Megawin Technology Co., Ltd.
+;
+;*****************************************************************************
+
+[Version] 
+Signature = "$Windows NT$"
+Class = Ports
+ClassGuid = {4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider = %MEGAWINCO%
+LayoutFile = layout.inf
+DriverVer = 11/01/2016, 1.0.0.0
+CatalogFile = 0E6A0122_MA112 USB to UART Data Bridge_v1.00.cat
+
+
+[Manufacturer] 
+%MEGAWINNAME% = VirComDevice, NTx86, NTamd64
+
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+
+[VirComDevice.NTx86]
+%DESCRIPTION%=DriverInstall,USB\VID_0E6A&PID_0122
+
+
+[VirComDevice.NTamd64]
+%DESCRIPTION%=DriverInstall,USB\VID_0E6A&PID_0122
+
+
+[SourceDisksFiles]
+[SourceDisksNames]
+
+
+[DriverInstall.NT]
+include=mdmcpq.inf
+CopyFiles = DriverCopyFiles
+AddReg = DriverInstall.NT.AddReg
+
+
+[DriverCopyFiles]
+Usbser.sys,,,0x20
+
+
+[DriverInstall.NT.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,Usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+
+[DriverInstall.NT.Services]
+AddService = usbser, 0x00000002, DriverService
+
+
+[DriverService]
+DisplayName = %SERVICE%
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\Usbser.sys
+
+[Strings] 
+MEGAWINCO    = "Megawin"
+MEGAWINNAME  = "Megawin Technology Co., Ltd."
+DESCRIPTION = "MA112 USB to UART Data Bridge"
+SERVICE = "MA112 USB to UART Data Bridge"

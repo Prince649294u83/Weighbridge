@@ -36,6 +36,20 @@
     <converters:InverseBooleanConverter x:Key="Converter.InverseBoolean" />
     <converters:InverseBooleanToVisibilityConverter x:Key="Converter.InverseBooleanToVisibility" />
 
+    <Style x:Key="Cell.RightAligned" TargetType="TextBlock">
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="TextAlignment" Value="Right" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style x:Key="Cell.Centered" TargetType="TextBlock">
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="Cell.Truncated" TargetType="TextBlock">
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+    </Style>
+
     <Style x:Key="Field.Label"
            BasedOn="{StaticResource Text.Label}"
            TargetType="TextBlock">
@@ -715,43 +729,102 @@
             </Grid>
 
             <!--  DataGrid  -->
-            <DataGrid Grid.Row="1"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      IsReadOnly="True"
-                      ItemsSource="{Binding AwaitingSecondWeight}"
-                      SelectedItem="{Binding SelectedAwaiting, Mode=TwoWay}"
-                      SelectionMode="Single"
-                      MouseDoubleClick="OnWaitingRowDoubleClick"
-                      Style="{StaticResource DataGrid.Default}">
-              <DataGrid.Columns>
-                <DataGridTextColumn Header="Ticket No."
-                                    Binding="{Binding SlipNumber}"
-                                    Width="100" />
-                <DataGridTextColumn Header="Vehicle No"
-                                    Binding="{Binding VehicleNumber}"
-                                    Width="110" />
-                <DataGridTextColumn Header="Vehicle Type"
-                                    Binding="{Binding VehicleTypeName}"
-                                    Width="100" />
-                <DataGridTextColumn Header="Party Name"
-                                    Binding="{Binding PartyName}"
-                                    Width="*" />
-                <DataGridTextColumn Header="Charges 1st"
-                                    Binding="{Binding Charges, StringFormat='₹{0:N0}'}"
-                                    Width="90" />
-                <DataGridTextColumn Header="Material"
-                                    Binding="{Binding MaterialName}"
-                                    Width="110" />
-                <DataGridTextColumn Header="Gross Weight"
-                                    Binding="{Binding GrossKg, StringFormat='{}{0:N0} Kg'}"
-                                    Width="100" />
-                <DataGridTextColumn Header="Tare Weight"
-                                    Binding="{Binding TareKg, StringFormat='{}{0:N0} Kg'}"
-                                    Width="100" />
-              </DataGrid.Columns>
-            </DataGrid>
+            <Grid Grid.Row="1">
+              <DataGrid x:Name="WaitingGrid"
+                        AutoGenerateColumns="False"
+                        CanUserAddRows="False"
+                        CanUserDeleteRows="False"
+                        CanUserSortColumns="True"
+                        IsReadOnly="True"
+                        ItemsSource="{Binding AwaitingSecondWeight}"
+                        SelectedItem="{Binding SelectedAwaiting, Mode=TwoWay}"
+                        SelectionMode="Single"
+                        HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollBarVisibility="Auto"
+                        AlternatingRowBackground="{DynamicResource Brush.Surface.Sunken}"
+                        MouseDoubleClick="OnWaitingRowDoubleClick"
+                        Style="{StaticResource DataGrid.Default}">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Ticket No."
+                                      Binding="{Binding SlipNumber}"
+                                      FontWeight="SemiBold"
+                                      Width="95" />
+                  <DataGridTextColumn Header="Mode"
+                                      Binding="{Binding ModeCode}"
+                                      FontWeight="Bold"
+                                      ElementStyle="{StaticResource Cell.Centered}"
+                                      Width="50" />
+                  <DataGridTextColumn Header="Vehicle No"
+                                      Binding="{Binding VehicleNumber}"
+                                      FontWeight="SemiBold"
+                                      Width="110" />
+                  <DataGridTextColumn Header="Vehicle Type"
+                                      Binding="{Binding VehicleTypeName}"
+                                      ElementStyle="{StaticResource Cell.Truncated}"
+                                      Width="105" />
+                  <DataGridTextColumn Header="Party Name"
+                                      Binding="{Binding PartyName}"
+                                      ElementStyle="{StaticResource Cell.Truncated}"
+                                      Width="135" />
+                  <DataGridTextColumn Header="Charges 1st"
+                                      Binding="{Binding Charges, StringFormat='₹{0:N0}'}"
+                                      FontFamily="Consolas"
+                                      ElementStyle="{StaticResource Cell.RightAligned}"
+                                      Width="85" />
+                  <DataGridTextColumn Header="Charges 2nd"
+                                      Binding="{Binding SecondCharges, StringFormat='₹{0:N0}'}"
+                                      FontFamily="Consolas"
+                                      ElementStyle="{StaticResource Cell.RightAligned}"
+                                      Width="85" />
+                  <DataGridTextColumn Header="Material"
+                                      Binding="{Binding MaterialName}"
+                                      ElementStyle="{StaticResource Cell.Truncated}"
+                                      Width="105" />
+                  <DataGridTextColumn Header="Gross Weight"
+                                      Binding="{Binding FormattedGrossKg}"
+                                      FontFamily="Consolas"
+                                      FontWeight="SemiBold"
+                                      ElementStyle="{StaticResource Cell.RightAligned}"
+                                      Width="100" />
+                  <DataGridTextColumn Header="Tare Weight"
+                                      Binding="{Binding FormattedTareKg}"
+                                      FontFamily="Consolas"
+                                      FontWeight="SemiBold"
+                                      ElementStyle="{StaticResource Cell.RightAligned}"
+                                      Width="100" />
+                  <DataGridTextColumn Header="Gross Wt Date"
+                                      Binding="{Binding GrossWeightDateText}"
+                                      ElementStyle="{StaticResource Cell.Centered}"
+                                      Width="115" />
+                  <DataGridTextColumn Header="Gross Wt Time"
+                                      Binding="{Binding GrossWeightTimeText}"
+                                      ElementStyle="{StaticResource Cell.Centered}"
+                                      Width="105" />
+                  <DataGridTextColumn Header="Tare Wt Date"
+                                      Binding="{Binding TareWeightDateText}"
+                                      ElementStyle="{StaticResource Cell.Centered}"
+                                      Width="115" />
+                  <DataGridTextColumn Header="Tare Wt Time"
+                                      Binding="{Binding TareWeightTimeText}"
+                                      ElementStyle="{StaticResource Cell.Centered}"
+                                      Width="105" />
+                </DataGrid.Columns>
+              </DataGrid>
+
+              <!--  Empty State Overlay  -->
+              <Border Background="{DynamicResource Brush.Surface.Raised}"
+                      Opacity="0.95"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding HasAwaitingSecondWeight, Converter={StaticResource Converter.InverseBooleanToVisibility}}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                  <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.CheckCircle}" FontSize="28" Foreground="{DynamicResource Brush.Text.Muted}" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                  <TextBlock Text="No vehicles currently awaiting second weight."
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource Brush.Text.Muted}"
+                             HorizontalAlignment="Center" />
+                </StackPanel>
+              </Border>
+            </Grid>
           </Grid>
         </Border>
       </Grid>

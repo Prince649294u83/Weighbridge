@@ -132,9 +132,10 @@ public sealed class LoginDialogViewModel : ObservableObject
 
         ErrorMessage = string.Empty;
 
+        var cleanUsername = Username?.Trim() ?? string.Empty;
         var success = IsInitialSetup
             ? await CreateAdministratorAsync(submission).ConfigureAwait(true)
-            : await _authenticationService.AuthenticateAsync(Username, submission.Password).ConfigureAwait(true);
+            : await _authenticationService.AuthenticateAsync(cleanUsername, submission.Password).ConfigureAwait(true);
 
         if (success)
         {
@@ -145,7 +146,7 @@ public sealed class LoginDialogViewModel : ObservableObject
         {
             ErrorMessage = IsInitialSetup
                 ? "The administrator account could not be created."
-                : "Invalid username or password";
+                : (_authenticationService.LastFailureReason ?? "Invalid username or password");
         }
     }
 

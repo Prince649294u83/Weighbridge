@@ -119,6 +119,14 @@ public sealed class WindowsPrintService : IPrintService
             ? templateName
             : options.SlipTemplate;
 
+        if (options.PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(effectiveTemplateName, "Default", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(effectiveTemplateName, "Standard", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(effectiveTemplateName, "GenericAscii", StringComparison.OrdinalIgnoreCase)))
+        {
+            effectiveTemplateName = "DotMatrix";
+        }
+
         var targetPrinter = profile?.PrinterName ?? await GetDefaultPrinterAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(targetPrinter))
         {
@@ -177,6 +185,11 @@ public sealed class WindowsPrintService : IPrintService
                 : PrintResult.Failure("Report printing requires a canonical ReportDocument.");
         }
 
+        if (data.TryGetValue("PrintData", out var pd) && pd is WeighmentPrintData directPrintData)
+        {
+            return await PrintSlipAsync(directPrintData, documentKey, null, copies, cancellationToken);
+        }
+
         bool isDuplicate = data.TryGetValue("IsDuplicate", out var val) && val is bool b && b;
 
         var printData = new WeighmentPrintData(
@@ -194,9 +207,9 @@ public sealed class WindowsPrintService : IPrintService
             CustomField3: GetString(data, "CustomField3"),
             CustomField4: GetString(data, "CustomField4"),
             GrossWeightKg: GetDecimal(data, "GrossWeightKg"),
-            GrossCapturedAtLocal: null,
+            GrossCapturedAtLocal: GetDateTime(data, "GrossCapturedAtLocal"),
             TareWeightKg: GetDecimal(data, "TareWeightKg"),
-            TareCapturedAtLocal: null,
+            TareCapturedAtLocal: GetDateTime(data, "TareCapturedAtLocal"),
             NetWeightKg: GetDecimal(data, "NetWeightKg"),
             NumberOfBags: GetNullableInt(data, "NumberOfBags"),
             BagWeightKg: GetNullableDecimal(data, "BagWeightKg"),
@@ -204,10 +217,10 @@ public sealed class WindowsPrintService : IPrintService
             ActualWeightKg: GetNullableDecimal(data, "ActualWeightKg"),
             FirstCharges: GetDecimal(data, "FirstCharges"),
             SecondCharges: GetDecimal(data, "SecondCharges"),
-            TotalCharges: GetDecimal(data, "Charges"),
-            OpenedAtLocal: DateTime.Now,
-            CompletedAtLocal: DateTime.Now,
-            OperatorUsername: _permissions.CurrentOperator.UserName,
+            TotalCharges: data.ContainsKey("TotalCharges") ? GetDecimal(data, "TotalCharges") : GetDecimal(data, "Charges"),
+            OpenedAtLocal: GetDateTime(data, "OpenedAtLocal") ?? DateTime.Now,
+            CompletedAtLocal: GetDateTime(data, "CompletedAtLocal") ?? DateTime.Now,
+            OperatorUsername: GetString(data, "OperatorUsername") is { Length: > 0 } u && u != "-" ? u : _permissions.CurrentOperator.UserName,
             OperatorDisplayName: _permissions.CurrentOperator.DisplayName,
             Remarks: GetString(data, "Remarks"),
             IsDuplicate: isDuplicate,
@@ -218,7 +231,7 @@ public sealed class WindowsPrintService : IPrintService
         );
 
         string targetPrinter = printerName ?? await GetDefaultPrinterAsync(cancellationToken) ?? string.Empty;
-        var profile = PrinterProfile.DefaultGdi(targetPrinter);
+        var profile = string.IsNullOrWhiteSpace(targetPrinter) ? null : ResolveDefaultProfile(documentKey, targetPrinter);
 
         return await PrintSlipAsync(printData, documentKey, profile, copies, cancellationToken);
     }
@@ -289,18 +302,49 @@ public sealed class WindowsPrintService : IPrintService
         }
     }
 
-    private static PrinterProfile ResolveDefaultProfile(string templateName, string printerName)
+    private PrinterProfile ResolveDefaultProfile(string templateName, string printerName)
     {
-        if (string.Equals(templateName, "thermal", StringComparison.OrdinalIgnoreCase))
+        var options = CurrentPrinterOptions;
+        PrinterProfile profile;
+        if (string.Equals(templateName, "thermal", StringComparison.OrdinalIgnoreCase) ||
+            options.PrinterType.Contains("Label", StringComparison.OrdinalIgnoreCase) ||
+            options.PrinterType.Contains("Sticker", StringComparison.OrdinalIgnoreCase))
         {
-            return PrinterProfile.Thermal80mm(printerName);
+            profile = PrinterProfile.Thermal80mm(printerName);
         }
-        if (string.Equals(templateName, "dot", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(templateName, "dotmatrix", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(templateName, "dot", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(templateName, "dotmatrix", StringComparison.OrdinalIgnoreCase) ||
+                 options.PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase))
         {
-            return PrinterProfile.DotMatrix(printerName);
+            profile = PrinterProfile.DotMatrix(printerName);
         }
-        return PrinterProfile.DefaultGdi(printerName);
+        else
+        {
+            profile = PrinterProfile.DefaultGdi(printerName);
+        }
+
+        if (options.PaperSize.Contains("Half", StringComparison.OrdinalIgnoreCase) ||
+            options.PaperSize.Contains("A5", StringComparison.OrdinalIgnoreCase))
+        {
+            profile = profile with { PhysicalPaperProfile = "Half A4 / A5", PageHeightLines = 33 };
+        }
+
+        if (options.SideWisePrinting)
+        {
+            profile = profile with { SideWisePrinting = true };
+        }
+
+        return profile;
+    }
+
+    private static DateTime? GetDateTime(IReadOnlyDictionary<string, object?> data, string key)
+    {
+        if (data.TryGetValue(key, out var v) && v != null)
+        {
+            if (v is DateTime dt) return dt;
+            if (DateTime.TryParse(v.ToString(), out var parsed)) return parsed;
+        }
+        return null;
     }
 
     private PrinterProfile ResolveReportProfile(string printerName)

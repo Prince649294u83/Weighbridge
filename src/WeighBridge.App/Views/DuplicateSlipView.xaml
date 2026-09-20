@@ -15,6 +15,20 @@
     <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
     <converters:InverseBooleanToVisibilityConverter x:Key="Converter.InverseBooleanToVisibility" />
 
+    <Style x:Key="Cell.RightAligned" TargetType="TextBlock">
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="TextAlignment" Value="Right" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style x:Key="Cell.Centered" TargetType="TextBlock">
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="Cell.Truncated" TargetType="TextBlock">
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+    </Style>
+
     <Style x:Key="Field.Label"
            BasedOn="{StaticResource Text.Label}"
            TargetType="TextBlock">
@@ -39,9 +53,9 @@
     <!--  Main 3-Column Operational Layout (Screenshot 4 Parity)  -->
     <Grid Grid.Row="1" Margin="0,16,0,0">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="340" />
+        <ColumnDefinition Width="480" />
         <ColumnDefinition Width="16" />
-        <ColumnDefinition Width="380" />
+        <ColumnDefinition Width="400" />
         <ColumnDefinition Width="16" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
@@ -147,28 +161,101 @@
           </StackPanel>
 
           <!--  Completed Transactions Table  -->
-          <DataGrid Grid.Row="3"
-                    AutoGenerateColumns="False"
-                    CanUserAddRows="False"
-                    CanUserDeleteRows="False"
-                    IsReadOnly="True"
-                    ItemsSource="{Binding SearchResults}"
-                    SelectedItem="{Binding SelectedWeighment, Mode=TwoWay}"
-                    SelectionMode="Single"
-                    Style="{StaticResource DataGrid.Default}"
-                    Margin="0,0,0,8">
-            <DataGrid.Columns>
-              <DataGridTextColumn Header="Ticket"
-                                  Binding="{Binding SlipNumber}"
-                                  Width="90" />
-              <DataGridTextColumn Header="Vehicle"
-                                  Binding="{Binding VehicleNumber}"
-                                  Width="110" />
-              <DataGridTextColumn Header="Type"
-                                  Binding="{Binding VehicleTypeName}"
-                                  Width="*" />
-            </DataGrid.Columns>
-          </DataGrid>
+          <Grid Grid.Row="3" Margin="0,0,0,8">
+            <DataGrid AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserSortColumns="True"
+                      IsReadOnly="True"
+                      ItemsSource="{Binding SearchResults}"
+                      SelectedItem="{Binding SelectedWeighment, Mode=TwoWay}"
+                      SelectionMode="Single"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      AlternatingRowBackground="{DynamicResource Brush.Surface.Sunken}"
+                      Style="{StaticResource DataGrid.Default}">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Ticket No."
+                                    Binding="{Binding SlipNumber}"
+                                    FontWeight="SemiBold"
+                                    Width="95" />
+                <DataGridTextColumn Header="Vehicle No"
+                                    Binding="{Binding VehicleNumber}"
+                                    FontWeight="SemiBold"
+                                    Width="110" />
+                <DataGridTextColumn Header="Vehicle Type"
+                                    Binding="{Binding VehicleTypeName}"
+                                    ElementStyle="{StaticResource Cell.Truncated}"
+                                    Width="105" />
+                <DataGridTextColumn Header="Party Name"
+                                    Binding="{Binding PartyName}"
+                                    ElementStyle="{StaticResource Cell.Truncated}"
+                                    Width="135" />
+                <DataGridTextColumn Header="Charges 1st"
+                                    Binding="{Binding Charges, StringFormat='₹{0:N0}'}"
+                                    FontFamily="Consolas"
+                                    ElementStyle="{StaticResource Cell.RightAligned}"
+                                    Width="85" />
+                <DataGridTextColumn Header="Charges 2nd"
+                                    Binding="{Binding SecondCharges, StringFormat='₹{0:N0}'}"
+                                    FontFamily="Consolas"
+                                    ElementStyle="{StaticResource Cell.RightAligned}"
+                                    Width="85" />
+                <DataGridTextColumn Header="Material"
+                                    Binding="{Binding MaterialName}"
+                                    ElementStyle="{StaticResource Cell.Truncated}"
+                                    Width="105" />
+                <DataGridTextColumn Header="Gross Weight"
+                                    Binding="{Binding FormattedGrossKg}"
+                                    FontFamily="Consolas"
+                                    FontWeight="SemiBold"
+                                    ElementStyle="{StaticResource Cell.RightAligned}"
+                                    Width="100" />
+                <DataGridTextColumn Header="Tare Weight"
+                                    Binding="{Binding FormattedTareKg}"
+                                    FontFamily="Consolas"
+                                    FontWeight="SemiBold"
+                                    ElementStyle="{StaticResource Cell.RightAligned}"
+                                    Width="100" />
+                <DataGridTextColumn Header="Net Weight"
+                                    Binding="{Binding FormattedNetKg}"
+                                    FontFamily="Consolas"
+                                    FontWeight="SemiBold"
+                                    ElementStyle="{StaticResource Cell.RightAligned}"
+                                    Width="100" />
+                <DataGridTextColumn Header="Gross Wt Date"
+                                    Binding="{Binding GrossWeightDateText}"
+                                    ElementStyle="{StaticResource Cell.Centered}"
+                                    Width="110" />
+                <DataGridTextColumn Header="Gross Wt Time"
+                                    Binding="{Binding GrossWeightTimeText}"
+                                    ElementStyle="{StaticResource Cell.Centered}"
+                                    Width="105" />
+                <DataGridTextColumn Header="Tare Wt Date"
+                                    Binding="{Binding TareWeightDateText}"
+                                    ElementStyle="{StaticResource Cell.Centered}"
+                                    Width="110" />
+                <DataGridTextColumn Header="Tare Wt Time"
+                                    Binding="{Binding TareWeightTimeText}"
+                                    ElementStyle="{StaticResource Cell.Centered}"
+                                    Width="105" />
+              </DataGrid.Columns>
+            </DataGrid>
+
+            <!--  Empty State Overlay  -->
+            <Border Background="{DynamicResource Brush.Surface.Raised}"
+                    Opacity="0.95"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding HasSearchResults, Converter={StaticResource Converter.InverseBooleanToVisibility}}">
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Search}" FontSize="24" Foreground="{DynamicResource Brush.Text.Muted}" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                <TextBlock Text="No weighments found matching criteria."
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource Brush.Text.Muted}"
+                           HorizontalAlignment="Center" />
+              </StackPanel>
+            </Border>
+          </Grid>
 
           <!--  Bottom Row Actions  -->
           <Grid Grid.Row="4">
@@ -307,6 +394,20 @@
                        Text="{Binding SelectedWeighment.GrossKg, StringFormat='{}{0:N0} Kg', Mode=OneWay}" />
             </Grid>
 
+            <!--  Gross Date/Time  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Gross Date/Time" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.GrossWeightDateTimeText, Mode=OneWay}" />
+            </Grid>
+
             <!--  Tare Weight  -->
             <Grid Margin="0,0,0,6">
               <Grid.ColumnDefinitions>
@@ -321,6 +422,20 @@
                        Background="{DynamicResource Brush.Surface.Sunken}"
                        Style="{StaticResource TextBox.Default}"
                        Text="{Binding SelectedWeighment.TareKg, StringFormat='{}{0:N0} Kg', Mode=OneWay}" />
+            </Grid>
+
+            <!--  Tare Date/Time  -->
+            <Grid Margin="0,0,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Tare Date/Time" />
+              <TextBox Grid.Column="1"
+                       IsReadOnly="True"
+                       Background="{DynamicResource Brush.Surface.Sunken}"
+                       Style="{StaticResource TextBox.Default}"
+                       Text="{Binding SelectedWeighment.TareWeightDateTimeText, Mode=OneWay}" />
             </Grid>
 
             <!--  Net Weight  -->
@@ -367,6 +482,21 @@
                      Background="{DynamicResource Brush.Surface.Sunken}"
                      Style="{StaticResource TextBox.Default}"
                      Text="{Binding SelectedWeighment.SecondCharges, StringFormat='₹{0:N0}', Mode=OneWay}" />
+          </Grid>
+
+          <!--  Total Charges  -->
+          <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="120" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Total Charges" />
+            <TextBox Grid.Column="1"
+                     IsReadOnly="True"
+                     FontWeight="Bold"
+                     Background="{DynamicResource Brush.Surface.Sunken}"
+                     Style="{StaticResource TextBox.Default}"
+                     Text="{Binding SelectedWeighment.TotalCharges, StringFormat='₹{0:N0}', Mode=OneWay}" />
           </Grid>
 
           <!--  Username  -->

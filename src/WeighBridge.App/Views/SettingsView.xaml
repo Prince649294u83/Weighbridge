@@ -13,6 +13,7 @@
 
   <UserControl.Resources>
     <BooleanToVisibilityConverter x:Key="Settings.BoolToVisibility" />
+    <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
     <converters:InverseBooleanConverter x:Key="InverseBoolConverter" />
     <converters:BooleanToRadioButtonConverter x:Key="BoolToRadioConverter" />
 
@@ -296,9 +297,28 @@
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="Default Printer Name" />
-              <TextBox Grid.Column="1" Text="{Binding DefaultPrinterName, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditConfiguration}" Style="{StaticResource Settings.Field}" />
+              <ComboBox Grid.Column="1"
+                        ItemsSource="{Binding AvailablePrinters}"
+                        Text="{Binding DefaultPrinterName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        IsEditable="True"
+                        IsEnabled="{Binding CanEditConfiguration}"
+                        Style="{StaticResource Settings.Choice}" />
+              <Button Grid.Column="2"
+                      Command="{Binding RefreshPrintersCommand}"
+                      IsEnabled="{Binding CanEditConfiguration}"
+                      Style="{StaticResource Button.Secondary}"
+                      Height="32"
+                      Padding="10,0"
+                      Margin="8,0,0,0"
+                      ToolTip="Scan and refresh installed printers">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Refresh}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+                  <TextBlock Text="Refresh" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
             </Grid>
 
             <Grid Style="{StaticResource Settings.Row}">
@@ -851,33 +871,6 @@
               <TextBlock Style="{StaticResource Settings.Label}" Text="Weighbridge Address 2" />
               <TextBox Grid.Column="1" Text="{Binding WeighbridgeAddress2, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditConfiguration}" Style="{StaticResource Settings.Field}" Width="360" />
             </Grid>
-
-            <Grid Style="{StaticResource Settings.Row}">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Style="{StaticResource Settings.Label}" Text="Phone" />
-              <TextBox Grid.Column="1" Text="{Binding CompanyPhone, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditConfiguration}" Style="{StaticResource Settings.Field}" Width="360" />
-            </Grid>
-
-            <Grid Style="{StaticResource Settings.Row}">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Style="{StaticResource Settings.Label}" Text="Email" />
-              <TextBox Grid.Column="1" Text="{Binding CompanyEmail, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditConfiguration}" Style="{StaticResource Settings.Field}" Width="360" />
-            </Grid>
-
-            <Grid Style="{StaticResource Settings.Row}">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Style="{StaticResource Settings.Label}" Text="GSTIN / Tax ID" />
-              <TextBox Grid.Column="1" Text="{Binding CompanyTaxId, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditConfiguration}" Style="{StaticResource Settings.Field}" Width="360" />
-            </Grid>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
@@ -929,6 +922,509 @@
             </Grid>
           </StackPanel>
         </ScrollViewer>
+      </TabItem>
+
+      <!--  ============================================================
+            11. SIGNAL DIAGNOSTIC (BRAY'S TERMINAL) TAB
+            ============================================================  -->
+      <!--  ============================================================
+            11. SIGNAL DIAGNOSTIC (SERIAL MONITOR & BRAY'S COMPANION) TAB
+            ============================================================  -->
+      <TabItem Header="Signal Diagnostic" Style="{StaticResource Settings.TabItem}">
+        <Grid Margin="16">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+
+          <!-- Top Status / Diagnostic Banner -->
+          <Border Grid.Row="0"
+                  Background="{DynamicResource Brush.Surface.Raised}"
+                  BorderBrush="{DynamicResource Brush.Border.Default}"
+                  BorderThickness="1"
+                  CornerRadius="{StaticResource Radius.MD}"
+                  Padding="16,10"
+                  Margin="0,0,0,14">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+
+              <!-- Status Text and Icon -->
+              <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Style="{StaticResource Text.Icon}"
+                           Text="{StaticResource Icon.Settings}"
+                           FontSize="16"
+                           Foreground="{DynamicResource Brush.Accent.Default}"
+                           Margin="0,0,10,0"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TerminalStatusMessage}"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource Brush.Text.Primary}"
+                           VerticalAlignment="Center" />
+              </StackPanel>
+
+              <!-- Quick Status Badges -->
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                        BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,4"
+                        Margin="0,0,10,0">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Rx: " Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Brush.Text.Secondary}" />
+                    <TextBlock Text="{Binding DiagnosticBytesReceivedCount, StringFormat='{}{0:N0} bytes'}" Style="{StaticResource Text.Caption}" FontWeight="Bold" Foreground="{DynamicResource Brush.Text.Primary}" />
+                  </StackPanel>
+                </Border>
+
+                <!-- Hardware Pin Indicator Badges (CTS, DSR, CD) -->
+                <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                        BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="6,4">
+                  <StackPanel Orientation="Horizontal">
+                    <!-- CTS -->
+                    <Border CornerRadius="3" Padding="6,2" Margin="0,0,4,0">
+                      <Border.Style>
+                        <Style TargetType="Border">
+                          <Setter Property="Background" Value="#1E293B" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCtsHigh}" Value="True">
+                              <Setter Property="Background" Value="#15803D" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Border.Style>
+                      <TextBlock Text="CTS" FontSize="11" FontWeight="Bold" Foreground="White" />
+                    </Border>
+                    <!-- DSR -->
+                    <Border CornerRadius="3" Padding="6,2" Margin="0,0,4,0">
+                      <Border.Style>
+                        <Style TargetType="Border">
+                          <Setter Property="Background" Value="#1E293B" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDsrHigh}" Value="True">
+                              <Setter Property="Background" Value="#15803D" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Border.Style>
+                      <TextBlock Text="DSR" FontSize="11" FontWeight="Bold" Foreground="White" />
+                    </Border>
+                    <!-- CD -->
+                    <Border CornerRadius="3" Padding="6,2">
+                      <Border.Style>
+                        <Style TargetType="Border">
+                          <Setter Property="Background" Value="#1E293B" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCdHigh}" Value="True">
+                              <Setter Property="Background" Value="#15803D" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Border.Style>
+                      <TextBlock Text="CD" FontSize="11" FontWeight="Bold" Foreground="White" />
+                    </Border>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- Main Diagnostic Area: Left = Native Serial Monitor, Right = Bray's Terminal Companion -->
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" MinWidth="520" />
+              <ColumnDefinition Width="380" />
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: Native Real-time Serial Signal Console -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource Brush.Surface.Raised}"
+                    BorderBrush="{DynamicResource Brush.Border.Default}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource Radius.MD}"
+                    Margin="0,0,16,0"
+                    Padding="16">
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />  <!-- Toolbar / Port Config -->
+                  <RowDefinition Height="*" />     <!-- Console Terminal View -->
+                  <RowDefinition Height="Auto" />  <!-- Tx / Command Send Bar -->
+                </Grid.RowDefinitions>
+
+                <!-- 1. Serial Port Config & Action Toolbar -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+
+                  <!-- Port & Baud Controls -->
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Port:" Style="{StaticResource Settings.Label}" Margin="0,0,6,0" />
+                    <ComboBox ItemsSource="{Binding AvailablePorts}"
+                              SelectedItem="{Binding DiagnosticPort}"
+                              Width="100"
+                              Height="32"
+                              Margin="0,0,12,0"
+                              IsEnabled="{Binding IsDiagnosticMonitoring, Converter={StaticResource InverseBoolConverter}}" />
+
+                    <TextBlock Text="Baud:" Style="{StaticResource Settings.Label}" Margin="0,0,6,0" />
+                    <ComboBox ItemsSource="{Binding BaudRates}"
+                              SelectedItem="{Binding DiagnosticBaudRate}"
+                              Width="90"
+                              Height="32"
+                              Margin="0,0,14,0"
+                              IsEnabled="{Binding IsDiagnosticMonitoring, Converter={StaticResource InverseBoolConverter}}" />
+
+                    <!-- Start / Stop Monitoring Buttons -->
+                    <Button Command="{Binding StartDiagnosticMonitoringCommand}"
+                            Visibility="{Binding IsDiagnosticMonitoring, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                            Style="{StaticResource Button.Primary}"
+                            Height="32"
+                            Padding="12,0"
+                            Margin="0,0,8,0">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Refresh}" FontSize="13" Margin="0,0,6,0" />
+                        <TextBlock Text="Start Monitor" FontWeight="SemiBold" FontSize="12" />
+                      </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding StopDiagnosticMonitoringCommand}"
+                            Visibility="{Binding IsDiagnosticMonitoring, Converter={StaticResource Settings.BoolToVisibility}}"
+                            Style="{StaticResource Button.Secondary}"
+                            Height="32"
+                            Padding="12,0"
+                            Margin="0,0,8,0">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Close}" FontSize="13" Margin="0,0,6,0" />
+                        <TextBlock Text="Stop" FontWeight="SemiBold" FontSize="12" />
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+
+                  <!-- View Mode & Utility Controls (Right-aligned) -->
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <!-- ASCII / HEX Mode Switcher -->
+                    <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                            BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="2"
+                            Margin="0,0,10,0">
+                      <StackPanel Orientation="Horizontal">
+                        <Button Command="{Binding SetAsciiDisplayModeCommand}"
+                                Height="26"
+                                Padding="10,0"
+                                BorderThickness="0"
+                                Cursor="Hand">
+                          <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource Button.Base}">
+                              <Setter Property="Background" Value="Transparent" />
+                              <Setter Property="BorderThickness" Value="0" />
+                              <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+                              <Setter Property="MinWidth" Value="0" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAsciiDisplayMode}" Value="True">
+                                  <Setter Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
+                                  <Setter Property="Foreground" Value="White" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Button.Style>
+                          <TextBlock Text="ASCII" FontWeight="Bold" FontSize="11" />
+                        </Button>
+
+                        <Button Command="{Binding SetHexDisplayModeCommand}"
+                                Height="26"
+                                Padding="10,0"
+                                BorderThickness="0"
+                                Cursor="Hand">
+                          <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource Button.Base}">
+                              <Setter Property="Background" Value="Transparent" />
+                              <Setter Property="BorderThickness" Value="0" />
+                              <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+                              <Setter Property="MinWidth" Value="0" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsHexDisplayMode}" Value="True">
+                                  <Setter Property="Background" Value="{DynamicResource Brush.Accent.Default}" />
+                                  <Setter Property="Foreground" Value="White" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Button.Style>
+                          <TextBlock Text="HEX" FontWeight="Bold" FontSize="11" />
+                        </Button>
+                      </StackPanel>
+                    </Border>
+
+                    <!-- Auto-scroll checkbox -->
+                    <CheckBox IsChecked="{Binding DiagnosticAutoScroll}"
+                              Content="Auto-scroll"
+                              VerticalAlignment="Center"
+                              Margin="0,0,10,0"
+                              Style="{StaticResource CheckBox.Default}" />
+
+                    <!-- Copy Button -->
+                    <Button Command="{Binding CopyDiagnosticLogCommand}"
+                            Style="{StaticResource Button.Icon}"
+                            Content="{StaticResource Icon.Copy}"
+                            ToolTip="Copy live log to clipboard"
+                            Width="32"
+                            Height="32"
+                            Margin="0,0,4,0" />
+
+                    <!-- Clear Button -->
+                    <Button Command="{Binding ClearDiagnosticLogCommand}"
+                            Style="{StaticResource Button.Icon}"
+                            Content="{StaticResource Icon.Delete}"
+                            ToolTip="Clear monitor buffer"
+                            Width="32"
+                            Height="32" />
+                  </StackPanel>
+                </Grid>
+
+                <!-- 2. Dark Console Terminal Window -->
+                <Border Grid.Row="1"
+                        Background="#0B1120"
+                        BorderBrush="#1E293B"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        ClipToBounds="True"
+                        MinHeight="380">
+                  <Grid>
+                    <!-- ASCII Log Display -->
+                    <TextBox x:Name="AsciiConsoleTextBox"
+                             Text="{Binding DiagnosticAsciiLog, Mode=OneWay}"
+                             Visibility="{Binding IsAsciiDisplayMode, Converter={StaticResource Settings.BoolToVisibility}}"
+                             FontFamily="Consolas, Cascadia Code, Courier New"
+                             FontSize="12"
+                             Foreground="#38BDF8"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             TextWrapping="NoWrap"
+                             AcceptsReturn="True"
+                             Padding="12"
+                             TextChanged="DiagnosticConsole_TextChanged" />
+
+                    <!-- HEX Log Display -->
+                    <TextBox x:Name="HexConsoleTextBox"
+                             Text="{Binding DiagnosticHexLog, Mode=OneWay}"
+                             Visibility="{Binding IsHexDisplayMode, Converter={StaticResource Settings.BoolToVisibility}}"
+                             FontFamily="Consolas, Cascadia Code, Courier New"
+                             FontSize="12"
+                             Foreground="#4ADE80"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             TextWrapping="NoWrap"
+                             AcceptsReturn="True"
+                             Padding="12"
+                             TextChanged="DiagnosticConsole_TextChanged" />
+
+                    <!-- Empty State / Idle Indicator Overlay -->
+                    <Border Background="#CC0B1120"
+                            Visibility="{Binding IsDiagnosticMonitoring, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Settings}" FontSize="32" Foreground="#64748B" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                        <TextBlock Text="Serial Signal Monitor Paused" FontWeight="SemiBold" FontSize="14" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                        <TextBlock Text="Select COM port and Baud Rate, then click 'Start Monitor' to inspect the live hardware stream."
+                                   FontSize="12" Foreground="#64748B" HorizontalAlignment="Center" MaxWidth="380" TextAlignment="Center" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <!-- 3. Command / Transmit Bar -->
+                <Border Grid.Row="2"
+                        Margin="0,12,0,0"
+                        Background="{DynamicResource Brush.Surface.Sunken}"
+                        BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="8">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="Tx:" FontWeight="Bold" Foreground="{DynamicResource Brush.Text.Secondary}" VerticalAlignment="Center" Margin="6,0,10,0" />
+
+                    <TextBox Grid.Column="1"
+                             Text="{Binding DiagnosticTransmitText, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TextBox.Default}"
+                             Height="32"
+                             Margin="0,0,8,0"
+                             ToolTip="Enter ASCII string or HEX pairs (e.g. 02 57 0D)" />
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                      <Button Command="{Binding SendDiagnosticTextCommand}"
+                              IsEnabled="{Binding IsDiagnosticMonitoring}"
+                              Style="{StaticResource Button.Secondary}"
+                              Height="32"
+                              Padding="10,0"
+                              Margin="0,0,6,0">
+                        <TextBlock Text="Send ASCII" FontSize="11" FontWeight="SemiBold" />
+                      </Button>
+
+                      <Button Command="{Binding SendDiagnosticHexCommand}"
+                              IsEnabled="{Binding IsDiagnosticMonitoring}"
+                              Style="{StaticResource Button.Secondary}"
+                              Height="32"
+                              Padding="10,0">
+                        <TextBlock Text="Send HEX" FontSize="11" FontWeight="SemiBold" />
+                      </Button>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </Grid>
+            </Border>
+
+            <!-- RIGHT: Standalone Bray's Terminal Companion Card -->
+            <Border Grid.Column="1"
+                    Background="{DynamicResource Brush.Surface.Raised}"
+                    BorderBrush="{DynamicResource Brush.Border.Default}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource Radius.MD}"
+                    Padding="20">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                  <!-- Header with Icon -->
+                  <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                    <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource Brush.Surface.Sunken}" Margin="0,0,12,0">
+                      <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Settings}" FontSize="18" Foreground="{DynamicResource Brush.Accent.Default}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Text="Bray's Terminal v1.9b" Style="{StaticResource Text.H3}" Margin="0,0,0,2" />
+                      <TextBlock Text="Dedicated Desktop Companion" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Brush.Text.Secondary}" />
+                    </StackPanel>
+                  </StackPanel>
+
+                  <TextBlock Text="Run the classic Bray's Terminal utility as an independent top-level Windows desktop window for specialized diagnostics, custom transmit macros, loopback tests, and multi-monitor setups."
+                             Style="{StaticResource Text.Secondary}"
+                             FontSize="12"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,16" />
+
+                  <!-- Mutual Exclusion Information Card -->
+                  <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                          BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                          BorderThickness="1"
+                          CornerRadius="{StaticResource Radius.SM}"
+                          Padding="12"
+                          Margin="0,0,0,16">
+                    <StackPanel>
+                      <TextBlock Text="Automated COM Port Management:" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Brush.Text.Primary}" Margin="0,0,0,6" />
+                      <TextBlock Text="When launched, the background scale polling service instantly disconnects to grant Bray's Terminal exclusive serial access. When closed, WeighBridge scale connection is automatically restored."
+                                 FontSize="11"
+                                 Foreground="{DynamicResource Brush.Text.Secondary}"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+
+                  <!-- Companion Status Indicator -->
+                  <Border CornerRadius="6" Padding="12,10" Margin="0,0,0,20">
+                    <Border.Style>
+                      <Style TargetType="Border">
+                        <Setter Property="Background" Value="{DynamicResource Brush.Surface.Sunken}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsBraysTerminalRunning}" Value="True">
+                            <Setter Property="Background" Value="#052E16" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Border.Style>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <Ellipse Width="10" Height="10" Margin="0,0,10,0" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                          <Style TargetType="Ellipse">
+                            <Setter Property="Fill" Value="#64748B" />
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding IsBraysTerminalRunning}" Value="True">
+                                <Setter Property="Fill" Value="#22C55E" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Ellipse.Style>
+                      </Ellipse>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="{Binding IsBraysTerminalRunning, Converter={x:Null}}" FontWeight="Bold" FontSize="12">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                              <Setter Property="Text" Value="Bray's Terminal is Idle" />
+                              <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsBraysTerminalRunning}" Value="True">
+                                  <Setter Property="Text" Value="Bray's Terminal is Running" />
+                                  <Setter Property="Foreground" Value="#86EFAC" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="Dedicated Win32 Process (Native UI)" FontSize="11" Foreground="{DynamicResource Brush.Text.Muted}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+
+                  <!-- Launch Button -->
+                  <Button Command="{Binding LaunchBraysTerminalCommand}"
+                          Visibility="{Binding IsBraysTerminalRunning, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                          Style="{StaticResource Button.Primary}"
+                          Height="42"
+                          Margin="0,0,0,10"
+                          ToolTip="Launch Bray's Terminal as standalone window">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Refresh}" Margin="0,0,8,0" FontSize="14" />
+                      <TextBlock Text="Launch Bray's Terminal" FontWeight="Bold" FontSize="13" />
+                    </StackPanel>
+                  </Button>
+
+                  <!-- Stop & Reconnect Button -->
+                  <Button Command="{Binding StopBraysTerminalCommand}"
+                          Visibility="{Binding IsBraysTerminalRunning, Converter={StaticResource Settings.BoolToVisibility}}"
+                          Style="{StaticResource Button.Secondary}"
+                          Height="42"
+                          Margin="0,0,0,10"
+                          ToolTip="Terminate Bray's Terminal and reconnect scale indicator">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Close}" Margin="0,0,8,0" FontSize="14" />
+                      <TextBlock Text="Stop &amp; Reconnect Scale" FontWeight="SemiBold" FontSize="13" />
+                    </StackPanel>
+                  </Button>
+
+                  <!-- Backward Compatibility Action for PopOut / Focus -->
+                  <Button Command="{Binding ToggleTerminalPopOutCommand}"
+                          Visibility="{Binding IsBraysTerminalRunning, Converter={StaticResource Settings.BoolToVisibility}}"
+                          Style="{StaticResource Button.Text}"
+                          Height="34"
+                          ToolTip="Bring Bray's Terminal window to front">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Export}" Margin="0,0,6,0" FontSize="12" />
+                      <TextBlock Text="{Binding PopOutButtonText}" FontSize="12" />
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </Grid>
       </TabItem>
 
     </TabControl>

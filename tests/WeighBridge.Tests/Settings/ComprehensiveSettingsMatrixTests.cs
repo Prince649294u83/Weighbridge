@@ -42,6 +42,7 @@ internal sealed class StubDialogService : IDialogService
     public Task ShowLoadingAsync(string message, Func<Task> operation) => operation();
     public Task ShowProgressAsync(string title, Func<IProgressReporter, Task> operation, bool isCancellable = false) => Task.CompletedTask;
     public Task<bool> ShowLoginAsync() => Task.FromResult(true);
+    public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, string filter, string? initialDirectory = null) => Task.FromResult<string?>(null);
 }
 
 internal sealed class StubPortScanner : IIndicatorPortScanner

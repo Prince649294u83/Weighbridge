@@ -61,6 +61,33 @@ public sealed class WindowsGdiPrintOutput(
                     return PrintResult.Failure($"Printer '{profile.PrinterName}' is not valid or accessible.");
                 }
 
+                bool isHalfA4 = profile.PhysicalPaperProfile.Contains("Half", StringComparison.OrdinalIgnoreCase) ||
+                                profile.PhysicalPaperProfile.Contains("A5", StringComparison.OrdinalIgnoreCase) ||
+                                profile.PageHeightLines <= 33;
+
+                foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
+                {
+                    if (isHalfA4 && (ps.Kind == PaperKind.A5 || ps.PaperName.Contains("A5", StringComparison.OrdinalIgnoreCase) || ps.PaperName.Contains("Half", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        printDoc.DefaultPageSettings.PaperSize = ps;
+                        break;
+                    }
+                    else if (!isHalfA4 && (ps.Kind == PaperKind.A4 || ps.PaperName.Contains("A4", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        printDoc.DefaultPageSettings.PaperSize = ps;
+                        break;
+                    }
+                }
+
+                if (printDoc.DefaultPageSettings.PaperSize == null && isHalfA4)
+                {
+                    printDoc.DefaultPageSettings.PaperSize = new PaperSize("Half A4 / A5", 583, 827);
+                }
+
+                printDoc.DefaultPageSettings.Margins = isHalfA4
+                    ? new Margins(25, 25, 25, 25)
+                    : new Margins(40, 40, 40, 40);
+
                 using var reader = new StringReader(renderedText);
 
                 printDoc.PrintPage += (s, e) =>
@@ -68,8 +95,8 @@ public sealed class WindowsGdiPrintOutput(
                     if (e.Graphics is null) return;
 
                     // Audit-clean resource allocation: all fonts, brushes and pens scoped in using blocks
-                    using var font = new Font("Courier New", 10, FontStyle.Regular);
-                    using var boldFont = new Font("Courier New", 10, FontStyle.Bold);
+                    using var font = new Font("Courier New", isHalfA4 ? 9.5f : 10f, FontStyle.Regular);
+                    using var boldFont = new Font("Courier New", isHalfA4 ? 9.5f : 10f, FontStyle.Bold);
                     using var brush = new SolidBrush(Color.Black);
 
                     float lineHeight = font.GetHeight(e.Graphics);
@@ -83,7 +110,17 @@ public sealed class WindowsGdiPrintOutput(
                         y += lineHeight;
                     }
 
-                    e.HasMorePages = reader.Peek() != -1;
+                    bool hasMore = false;
+                    string? peek;
+                    while ((peek = reader.ReadLine()) is not null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(peek))
+                        {
+                            hasMore = true;
+                            break;
+                        }
+                    }
+                    e.HasMorePages = hasMore;
                 };
 
                 _logger.LogInformation("Sending GDI print job '{DocumentTitle}' to '{PrinterName}' ({Copies} copies)",
@@ -145,13 +182,39 @@ public sealed class WindowsGdiPrintOutput(
                     return PrintResult.Failure($"Printer '{profile.PrinterName}' is not valid or accessible.");
                 }
 
+                bool isHalfA4 = profile.PageHeightLines <= 33;
+
+                foreach (PaperSize ps in printDoc.PrinterSettings.PaperSizes)
+                {
+                    if (isHalfA4 && (ps.Kind == PaperKind.A5 || ps.PaperName.Contains("A5", StringComparison.OrdinalIgnoreCase) || ps.PaperName.Contains("Half", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        printDoc.DefaultPageSettings.PaperSize = ps;
+                        break;
+                    }
+                    else if (!isHalfA4 && (ps.Kind == PaperKind.A4 || ps.PaperName.Contains("A4", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        printDoc.DefaultPageSettings.PaperSize = ps;
+                        break;
+                    }
+                }
+
+                if (printDoc.DefaultPageSettings.PaperSize == null && isHalfA4)
+                {
+                    printDoc.DefaultPageSettings.PaperSize = new PaperSize("Half A4 / A5", 583, 827);
+                }
+
+                printDoc.DefaultPageSettings.Margins = isHalfA4
+                    ? new Margins(25, 25, 25, 25)
+                    : new Margins(40, 40, 40, 40);
+
                 using var reader = new StringReader(renderedText);
 
                 printDoc.PrintPage += (s, e) =>
                 {
                     if (e.Graphics is null) return;
 
-                    using var font = new Font("Courier New", 8.5f, FontStyle.Regular);
+                    float fontSize = isHalfA4 ? 9.5f : 10.0f;
+                    using var font = new Font("Courier New", fontSize, FontStyle.Regular);
                     using var brush = new SolidBrush(Color.Black);
 
                     float lineHeight = font.GetHeight(e.Graphics);
@@ -165,7 +228,17 @@ public sealed class WindowsGdiPrintOutput(
                         y += lineHeight;
                     }
 
-                    e.HasMorePages = reader.Peek() != -1;
+                    bool hasMore = false;
+                    string? peek;
+                    while ((peek = reader.ReadLine()) is not null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(peek))
+                        {
+                            hasMore = true;
+                            break;
+                        }
+                    }
+                    e.HasMorePages = hasMore;
                 };
 
                 _logger.LogInformation("Sending GDI text print job '{DocumentTitle}' to '{PrinterName}' ({Copies} copies)",

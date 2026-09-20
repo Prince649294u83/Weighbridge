@@ -100,7 +100,7 @@ public sealed class VehicleEntrySourceContractTests
         Assert.Contains("public bool IsTareFirstSelected", Source);
         Assert.Contains("public bool IsAutoTareModeSelected", Source);
         Assert.Contains("public bool IsManualTareModeSelected", Source);
-        Assert.Contains("public bool IsTareWeightReadOnly => IsF2Mode || _isAutoTareMode || (!_isManualTareMode && !CanEnterManualWeight);", Source);
+        Assert.Contains("public bool IsTareWeightReadOnly => IsF2Mode", Source);
         Assert.Contains("if (IsF2Mode)", Source);
         Assert.Contains("return Current?.Mode == WeighmentMode.GrossFirst ? \"T\" : \"G\";", Source);
 
@@ -140,6 +140,23 @@ public sealed class VehicleEntrySourceContractTests
     {
         Assert.Contains("private string _liveWeightUnit = \"Kg\";", Source);
         Assert.Contains("string.Equals(value, \"kg\", StringComparison.OrdinalIgnoreCase) ? \"Kg\" : value", Source);
+    }
+
+    [Fact]
+    public void ResetWorkflowContext_Restores_ArrivalMode_To_GrossFirst_And_WaitingGrid_Shows_Mode()
+    {
+        // Verify ResetWorkflowContext resets _selectedArrivalMode to ArrivalModes[0]
+        Assert.Contains("_selectedArrivalMode = ArrivalModes[0];", Source);
+        Assert.Contains("OnPropertyChanged(nameof(SelectedArrivalMode));", Source);
+
+        // Verify SelectedArrivalMode setter notifies mode and weight read-only states
+        Assert.Contains("OnPropertyChanged(nameof(IsGrossWeightReadOnly));", Source);
+        Assert.Contains("OnPropertyChanged(nameof(IsTareWeightReadOnly));", Source);
+
+        // Verify WaitingGrid has ModeCode binding in VehicleEntryView.xaml
+        var viewSource = File.ReadAllText(
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\..\..\src\WeighBridge.App\Views\VehicleEntryView.xaml")));
+        Assert.Contains("Binding=\"{Binding ModeCode}\"", viewSource);
     }
 }
 

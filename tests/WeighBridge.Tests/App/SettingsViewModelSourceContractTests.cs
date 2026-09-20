@@ -74,4 +74,18 @@ public sealed class SettingsViewModelSourceContractTests
         Assert.DoesNotContain("\"Continuous\"", ViewModelSource);
         Assert.DoesNotContain("\"POS\"", ViewModelSource);
     }
+
+    [Fact]
+    public void SettingsViewModel_Exposes_AutoDetectedPrinters_And_RefreshCommand()
+    {
+        Assert.Contains("public ObservableCollection<string> AvailablePrinters { get; } = [];", ViewModelSource);
+        Assert.Contains("public ICommand RefreshPrintersCommand { get; }", ViewModelSource);
+        Assert.Contains("public void RefreshAvailablePrinters(string? explicitPrinterToSelect = null)", ViewModelSource);
+        Assert.Contains("var targetPrinter = explicitPrinterToSelect ?? DefaultPrinterName;", ViewModelSource);
+        Assert.Contains("DefaultPrinterName = targetPrinter;", ViewModelSource);
+
+        Assert.Contains("ItemsSource=\"{Binding AvailablePrinters}\"", ViewSource);
+        Assert.Contains("Text=\"{Binding DefaultPrinterName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}\"", ViewSource);
+        Assert.Contains("Command=\"{Binding RefreshPrintersCommand}\"", ViewSource);
+    }
 }

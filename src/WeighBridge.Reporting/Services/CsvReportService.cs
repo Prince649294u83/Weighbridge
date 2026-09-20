@@ -123,9 +123,10 @@ public sealed class CsvReportService(
                 GrossWeightKg: grossKg,
                 TareWeightKg: tareKg,
                 NetWeightKg: netKg,
-                GrossCapturedAtLocal: w.FirstWeight?.CapturedAtUtc.ToLocalTime() ?? w.CreatedAtUtc.ToLocalTime(),
+                GrossCapturedAtLocal: w.Gross?.CapturedAtUtc.ToLocalTime() ?? w.FirstWeight?.CapturedAtUtc.ToLocalTime() ?? w.CreatedAtUtc.ToLocalTime(),
                 CompletedAtLocal: w.CompletedAtUtc?.ToLocalTime(),
-                Status: w.Status.ToString()
+                Status: w.Status.ToString(),
+                TareCapturedAtLocal: w.Tare?.CapturedAtUtc.ToLocalTime()
             ));
         }
 
@@ -136,7 +137,9 @@ public sealed class CsvReportService(
             endDateLocal: endLocal,
             rows: rows,
             isRowLimited: isLimited,
-            maxRows: maxRows);
+            maxRows: maxRows,
+            addressLine1: _companyOptions.AddressLine1 ?? string.Empty,
+            addressLine2: _companyOptions.AddressLine2 ?? string.Empty);
     }
 
     public async Task<ReportResult> ExportAsync(
@@ -155,24 +158,33 @@ public sealed class CsvReportService(
 
         try
         {
-            var dir = string.IsNullOrWhiteSpace(_options.OutputDirectory)
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WeighBridge", "Reports")
-                : _options.OutputDirectory;
-
-            Directory.CreateDirectory(dir);
-
-            var ext = format switch
+            string finalPath;
+            if (!string.IsNullOrWhiteSpace(outputPath))
             {
-                ReportFormat.Excel => "xlsx",
-                ReportFormat.Pdf => "pdf",
-                _ => "csv"
-            };
+                finalPath = Path.GetFullPath(outputPath);
+                var targetDir = Path.GetDirectoryName(finalPath);
+                if (!string.IsNullOrEmpty(targetDir))
+                {
+                    Directory.CreateDirectory(targetDir);
+                }
+            }
+            else
+            {
+                var dir = string.IsNullOrWhiteSpace(_options.OutputDirectory)
+                    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WeighBridge", "Reports")
+                    : _options.OutputDirectory;
 
-            var fileName = string.IsNullOrEmpty(outputPath)
-                ? $"Report_{DateTime.Now:yyyyMMdd_HHmmss}.{ext}"
-                : Path.GetFileName(outputPath);
+                Directory.CreateDirectory(dir);
 
-            var finalPath = Path.Combine(dir, fileName);
+                var ext = format switch
+                {
+                    ReportFormat.Excel => "xlsx",
+                    ReportFormat.Pdf => "pdf",
+                    _ => "csv"
+                };
+
+                finalPath = Path.Combine(dir, $"Report_{DateTime.Now:yyyyMMdd_HHmmss}.{ext}");
+            }
 
             switch (format)
             {

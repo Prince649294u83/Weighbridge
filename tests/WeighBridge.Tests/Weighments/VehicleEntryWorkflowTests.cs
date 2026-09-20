@@ -432,5 +432,21 @@ public sealed class VehicleEntryWorkflowTests : IDisposable
         Assert.Contains("SearchPendingSecondEntryAsync", ViewModelSource);
     }
 
+    [Fact]
+    public void VehicleEntry_ViewModel_AutoPromotesTypedTare_And_PermitsF2TareEntry()
+    {
+        // Invariant: Typed tare in F1 auto-activates manual tare mode and is never silently discarded
+        Assert.Contains("_manualTareKg = parsed;", ViewModelSource);
+        Assert.Contains("_isManualTareMode = true;", ViewModelSource);
+
+        // F2 mode live weight reflection
+        Assert.Contains("if (IsF2Mode && Current?.Mode == WeighmentMode.GrossFirst && !string.IsNullOrWhiteSpace(WeightInput))", ViewModelSource);
+        Assert.Contains("if (IsF2Mode && Current?.Mode == WeighmentMode.TareFirst && !string.IsNullOrWhiteSpace(WeightInput))", ViewModelSource);
+
+        // F2 mode unlocked tare entry when CanEnterManualWeight is true
+        Assert.Contains("public bool IsTareWeightReadOnly => IsF2Mode", ViewModelSource);
+        Assert.Contains("Current?.Mode == WeighmentMode.TareFirst || !CanEnterManualWeight", ViewModelSource);
+    }
+
     #endregion
 }

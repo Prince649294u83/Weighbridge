@@ -31,9 +31,11 @@ public sealed class SlipTemplateEngine : ITemplateEngine
         ["gweight"] = "GrossWeightKg",
         ["gdate"] = "GrossDate",
         ["gtime"] = "GrossTime",
+        ["gdatetime"] = "GrossDateTime",
         ["tweight"] = "TareWeightKg",
         ["tdate"] = "TareDate",
         ["ttime"] = "TareTime",
+        ["tdatetime"] = "TareDateTime",
         ["nweight"] = "NetWeightKg",
         ["bags"] = "NumberOfBags",
         ["field2"] = "NumberOfBags",
@@ -175,7 +177,14 @@ public sealed class SlipTemplateEngine : ITemplateEngine
                 }
 
                 // Check token whitelist
-                if (!CanonicalTokenMap.ContainsKey(tagContent))
+                string tokenBase = tagContent;
+                int commaIndex = tagContent.IndexOf(',');
+                if (commaIndex != -1)
+                {
+                    tokenBase = tagContent[..commaIndex].Trim();
+                }
+
+                if (!CanonicalTokenMap.ContainsKey(tokenBase))
                 {
                     errors.Add(new TemplateValidationError(
                         TemplateErrorCategory.UnknownToken,
@@ -240,8 +249,8 @@ public sealed class SlipTemplateEngine : ITemplateEngine
                 nodes.Add(new TextNode(templateContent[currentIndex..openBracket]));
             }
 
-            int nextOpenBracket = templateContent.IndexOf('<', openBracket + 1);
             int closeBracket = templateContent.IndexOf('>', openBracket);
+            int nextOpenBracket = templateContent.IndexOf('<', openBracket + 1);
 
             if (closeBracket == -1 || (nextOpenBracket != -1 && nextOpenBracket < closeBracket))
             {
@@ -303,14 +312,29 @@ public sealed class SlipTemplateEngine : ITemplateEngine
                 }
             }
             // Token Whitelist
-            else if (CanonicalTokenMap.TryGetValue(tagContent, out var canonicalField))
-            {
-                nodes.Add(new TokenNode(tagContent, canonicalField));
-            }
             else
             {
-                // Unknown tag fallback to literal text
-                nodes.Add(new TextNode($"<{tagContent}>"));
+                string tokenBase = tagContent;
+                int? width = null;
+                int commaIdx = tagContent.IndexOf(',');
+                if (commaIdx != -1)
+                {
+                    tokenBase = tagContent[..commaIdx].Trim();
+                    if (int.TryParse(tagContent[(commaIdx + 1)..].Trim(), out int parsedWidth))
+                    {
+                        width = parsedWidth;
+                    }
+                }
+
+                if (CanonicalTokenMap.TryGetValue(tokenBase, out var canonicalField))
+                {
+                    nodes.Add(new TokenNode(tagContent, canonicalField, width));
+                }
+                else
+                {
+                    // Unknown tag fallback to literal text
+                    nodes.Add(new TextNode($"<{tagContent}>"));
+                }
             }
         }
 
@@ -340,12 +364,37 @@ public sealed class SlipTemplateEngine : ITemplateEngine
                     break;
 
                 case TokenNode token:
-                    sb.Append(ResolveTokenValue(token.CanonicalField, data));
+                    sb.Append(ResolveTokenValue(token, data));
                     break;
 
                 case FormattingDirectiveNode formatting:
-                    // In plain text rendering, unwrap inner children
-                    RenderNodesToText(formatting.Children, data, profile, sb);
+                    if (formatting.DirectiveType == FormattingDirectiveType.Header)
+                    {
+                        var headerSb = new StringBuilder();
+                        RenderNodesToText(formatting.Children, data, profile, headerSb);
+                        string headerText = headerSb.ToString();
+                        using var reader = new StringReader(headerText);
+                        string? line;
+                        int width = Math.Max(40, profile.PageWidthColumns);
+                        while ((line = reader.ReadLine()) is not null)
+                        {
+                            string trimmed = line.Trim();
+                            if (trimmed.Length == 0)
+                            {
+                                sb.AppendLine();
+                            }
+                            else
+                            {
+                                int pad = Math.Max(0, (width - trimmed.Length) / 2);
+                                sb.AppendLine(new string(' ', pad) + trimmed);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // In plain text rendering, unwrap inner children
+                        RenderNodesToText(formatting.Children, data, profile, sb);
+                    }
                     break;
 
                 case PrinterControlDirectiveNode control:
@@ -399,7 +448,7 @@ public sealed class SlipTemplateEngine : ITemplateEngine
                     break;
 
                 case TokenNode token:
-                    string value = ResolveTokenValue(token.CanonicalField, data);
+                    string value = ResolveTokenValue(token, data);
                     WriteEncodedString(ms, value, encoding);
                     break;
 
@@ -411,6 +460,36 @@ public sealed class SlipTemplateEngine : ITemplateEngine
                         RenderNodesToByteStream(formatting.Children, data, profile, encoding, ms);
                         // ESC E 0 (Bold OFF)
                         ms.Write([0x1B, 0x45, 0x00], 0, 3);
+                    }
+                    else if (formatting.DirectiveType == FormattingDirectiveType.Nameset)
+                    {
+                        // ESC W 1 (Double-width ON)
+                        ms.Write([0x1B, 0x57, 0x01], 0, 3);
+                        RenderNodesToByteStream(formatting.Children, data, profile, encoding, ms);
+                        // ESC W 0 (Double-width OFF)
+                        ms.Write([0x1B, 0x57, 0x00], 0, 3);
+                    }
+                    else if (formatting.DirectiveType == FormattingDirectiveType.Header)
+                    {
+                        var headerSb = new StringBuilder();
+                        RenderNodesToText(formatting.Children, data, profile, headerSb);
+                        string headerText = headerSb.ToString();
+                        using var reader = new StringReader(headerText);
+                        string? line;
+                        int width = Math.Max(40, profile.PageWidthColumns);
+                        while ((line = reader.ReadLine()) is not null)
+                        {
+                            string trimmed = line.Trim();
+                            if (trimmed.Length == 0)
+                            {
+                                WriteEncodedString(ms, "\r\n", encoding);
+                            }
+                            else
+                            {
+                                int pad = Math.Max(0, (width - trimmed.Length) / 2);
+                                WriteEncodedString(ms, new string(' ', pad) + trimmed + "\r\n", encoding);
+                            }
+                        }
                     }
                     else
                     {
@@ -454,9 +533,9 @@ public sealed class SlipTemplateEngine : ITemplateEngine
         ms.Write(bytes, 0, bytes.Length);
     }
 
-    private static string ResolveTokenValue(string canonicalField, WeighmentPrintData data)
+    private static string ResolveTokenValue(TokenNode token, WeighmentPrintData data)
     {
-        return canonicalField switch
+        string raw = token.CanonicalField switch
         {
             "CompanyName" => data.CompanyName,
             "AddressLine1" => data.AddressLine1,
@@ -467,14 +546,24 @@ public sealed class SlipTemplateEngine : ITemplateEngine
             "VehicleNumber" => string.IsNullOrWhiteSpace(data.VehicleNumber) ? "-" : data.VehicleNumber,
             "VehicleTypeName" => string.IsNullOrWhiteSpace(data.VehicleTypeName) ? "-" : data.VehicleTypeName,
             "MaterialName" => string.IsNullOrWhiteSpace(data.MaterialName) ? "-" : data.MaterialName,
-            "TotalCharges" => data.TotalCharges.ToString("0.00"),
-            "GrossWeightKg" => data.GrossWeightKg > 0 ? data.GrossWeightKg.ToString("F1") : "-",
+            "TotalCharges" => token.Width.HasValue && token.Width.Value == 0
+                ? (data.TotalCharges % 1 == 0 ? data.TotalCharges.ToString("0") : data.TotalCharges.ToString("0.00"))
+                : data.TotalCharges.ToString("0.00"),
+            "GrossWeightKg" => token.Width.HasValue
+                ? (data.GrossWeightKg > 0 ? ((long)Math.Round(data.GrossWeightKg)).ToString().PadLeft(token.Width.Value) : new string(' ', token.Width.Value))
+                : (data.GrossWeightKg > 0 ? data.GrossWeightKg.ToString("F1") : "-"),
             "GrossDate" => data.GrossCapturedAtLocal?.ToString("dd/MM/yyyy") ?? "-",
             "GrossTime" => data.GrossCapturedAtLocal?.ToString("HH:mm:ss") ?? "-",
-            "TareWeightKg" => data.TareWeightKg > 0 ? data.TareWeightKg.ToString("F1") : "-",
+            "GrossDateTime" => data.GrossCapturedAtLocal.HasValue ? data.GrossCapturedAtLocal.Value.ToString("dd/MM/yyyy hh:mm:ss tt") : string.Empty,
+            "TareWeightKg" => token.Width.HasValue
+                ? (data.TareWeightKg > 0 ? ((long)Math.Round(data.TareWeightKg)).ToString().PadLeft(token.Width.Value) : new string(' ', token.Width.Value))
+                : (data.TareWeightKg > 0 ? data.TareWeightKg.ToString("F1") : "-"),
             "TareDate" => data.TareCapturedAtLocal?.ToString("dd/MM/yyyy") ?? "-",
             "TareTime" => data.TareCapturedAtLocal?.ToString("HH:mm:ss") ?? "-",
-            "NetWeightKg" => data.NetWeightKg > 0 ? data.NetWeightKg.ToString("F1") : "-",
+            "TareDateTime" => data.TareCapturedAtLocal.HasValue ? data.TareCapturedAtLocal.Value.ToString("dd/MM/yyyy hh:mm:ss tt") : string.Empty,
+            "NetWeightKg" => token.Width.HasValue
+                ? (data.NetWeightKg > 0 ? ((long)Math.Round(data.NetWeightKg)).ToString().PadLeft(token.Width.Value) : new string(' ', token.Width.Value))
+                : (data.NetWeightKg > 0 ? data.NetWeightKg.ToString("F1") : "-"),
             "NumberOfBags" => data.NumberOfBags.HasValue ? data.NumberOfBags.Value.ToString() : "-",
             "BagWeightKg" => data.BagWeightKg.HasValue ? data.BagWeightKg.Value.ToString("F2") : "-",
             "TotalBagWeightKg" => data.TotalBagWeightKg.HasValue ? data.TotalBagWeightKg.Value.ToString("F2") : "-",
@@ -491,5 +580,16 @@ public sealed class SlipTemplateEngine : ITemplateEngine
             "Remarks" => string.IsNullOrWhiteSpace(data.Remarks) ? "-" : data.Remarks,
             _ => "-"
         };
+
+        if (token.Width.HasValue && token.Width.Value > 0 &&
+            token.CanonicalField is not "GrossWeightKg" and not "TareWeightKg" and not "NetWeightKg" and not "TotalCharges")
+        {
+            return raw.PadRight(token.Width.Value);
+        }
+
+        return raw;
     }
+
+    private static string ResolveTokenValue(string canonicalField, WeighmentPrintData data)
+        => ResolveTokenValue(new TokenNode(canonicalField, canonicalField), data);
 }

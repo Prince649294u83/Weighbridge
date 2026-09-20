@@ -23,6 +23,11 @@ public interface IAuthenticationService
     Task<bool> AuthenticateAsync(string username, string password);
 
     /// <summary>
+    /// Describes the specific failure reason of the most recent authentication attempt, if any.
+    /// </summary>
+    string? LastFailureReason => null;
+
+    /// <summary>
     /// Signs the current operator out, leaving the terminal unauthenticated.
     /// </summary>
     /// <remarks>

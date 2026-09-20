@@ -1,6 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Drawing.Printing;
 using System.Globalization;
 using System.IO;
+using System.IO.Ports;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
 using Microsoft.Extensions.Configuration;
@@ -65,6 +69,11 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private AppTheme _selectedTheme;
     private bool _isNavigationCollapsed;
+
+    // Diagnostic Terminal
+    private bool _isTerminalActive;
+    private bool _isTerminalPoppedOut;
+    private string _terminalStatusMessage = "Diagnostic Terminal ready. Launch terminal to release the COM port for raw signal testing.";
 
     // Weight Indicator
     private bool _indicatorEnabled;
@@ -176,6 +185,31 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private int _selectedTabIndex = 0;
 
+    // Signal Diagnostic & Monitor
+    private readonly DiagnosticSerialMonitor _diagnosticMonitor = new();
+    private readonly StringBuilder _asciiLogBuilder = new();
+    private readonly StringBuilder _hexLogBuilder = new();
+    private const int MaxLogCharacters = 8000;
+    private Process? _braysTerminalProcess;
+
+    private string _diagnosticPort = "COM3";
+    private int _diagnosticBaudRate = 2400;
+    private int _diagnosticDataBits = 8;
+    private string _diagnosticParity = "None";
+    private string _diagnosticStopBits = "One";
+    private bool _isDiagnosticMonitoring;
+    private string _diagnosticDisplayMode = "ASCII";
+    private string _diagnosticAsciiLog = string.Empty;
+    private string _diagnosticHexLog = string.Empty;
+    private string _diagnosticTransmitText = string.Empty;
+    private bool _diagnosticAutoScroll = true;
+    private long _diagnosticBytesReceivedCount;
+    private string _diagnosticStatus = "Ready to monitor signal stream or launch Bray's Terminal.";
+    private bool _isCtsHigh;
+    private bool _isDsrHigh;
+    private bool _isCdHigh;
+    private bool _isBraysTerminalRunning;
+
     public SettingsViewModel(
         ISettingsService settingsService,
         IThemeService themeService,
@@ -243,9 +277,77 @@ public sealed class SettingsViewModel : ViewModelBase
         TestEmailCommand = _testEmail;
         ImportLegacyDataCommand = _importLegacyData;
         RefreshPortsCommand = new RelayCommand(() => RefreshPorts());
+        RefreshPrintersCommand = new RelayCommand(() => RefreshAvailablePrinters());
         DiscardConfigurationCommand = new RelayCommand(LoadFromOptions);
+        StartTerminalCommand = new AsyncRelayCommand(LaunchBraysTerminalAsync, () => !IsBraysTerminalRunning);
+        LaunchBraysTerminalCommand = StartTerminalCommand;
+        StopTerminalCommand = new AsyncRelayCommand(StopBraysTerminalAsync, () => IsBraysTerminalRunning);
+        StopBraysTerminalCommand = StopTerminalCommand;
+        ToggleTerminalPopOutCommand = new RelayCommand(ToggleTerminalPopOut);
+
+        StartDiagnosticMonitoringCommand = new AsyncRelayCommand(StartDiagnosticMonitoringAsync, () => !IsDiagnosticMonitoring);
+        StopDiagnosticMonitoringCommand = new AsyncRelayCommand(StopDiagnosticMonitoringAsync, () => IsDiagnosticMonitoring);
+        ClearDiagnosticLogCommand = new RelayCommand(ClearDiagnosticLog);
+        CopyDiagnosticLogCommand = new RelayCommand(CopyDiagnosticLog);
+        SendDiagnosticTextCommand = new RelayCommand(SendDiagnosticText);
+        SendDiagnosticHexCommand = new RelayCommand(SendDiagnosticHex);
+        SetAsciiDisplayModeCommand = new RelayCommand(() => DiagnosticDisplayMode = "ASCII");
+        SetHexDisplayModeCommand = new RelayCommand(() => DiagnosticDisplayMode = "HEX");
+
+        _diagnosticMonitor.DataReceived += (s, chunk) =>
+        {
+            void Update()
+            {
+                if (_asciiLogBuilder.Length > MaxLogCharacters)
+                {
+                    _asciiLogBuilder.Remove(0, _asciiLogBuilder.Length - (MaxLogCharacters / 2));
+                }
+                if (_hexLogBuilder.Length > MaxLogCharacters)
+                {
+                    _hexLogBuilder.Remove(0, _hexLogBuilder.Length - (MaxLogCharacters / 2));
+                }
+
+                _asciiLogBuilder.Append(chunk.AsciiRepresentation);
+                _hexLogBuilder.Append(chunk.HexRepresentation);
+
+                DiagnosticAsciiLog = _asciiLogBuilder.ToString();
+                DiagnosticHexLog = _hexLogBuilder.ToString();
+                DiagnosticBytesReceivedCount += chunk.RawBytes.Length;
+
+                IsCtsHigh = chunk.CtsHolding;
+                IsDsrHigh = chunk.DsrHolding;
+                IsCdHigh = chunk.CdHolding;
+            }
+
+            if (System.Windows.Application.Current?.Dispatcher != null)
+            {
+                System.Windows.Application.Current.Dispatcher.InvokeAsync(Update);
+            }
+            else
+            {
+                Update();
+            }
+        };
+
+        _diagnosticMonitor.ErrorOccurred += (s, err) =>
+        {
+            void UpdateErr()
+            {
+                DiagnosticStatus = $"Monitor error: {err}";
+            }
+
+            if (System.Windows.Application.Current?.Dispatcher != null)
+            {
+                System.Windows.Application.Current.Dispatcher.InvokeAsync(UpdateErr);
+            }
+            else
+            {
+                UpdateErr();
+            }
+        };
 
         RefreshPorts();
+        RefreshAvailablePrinters();
     }
 
     public HardwareOptions Hardware { get; }
@@ -515,6 +617,9 @@ public sealed class SettingsViewModel : ViewModelBase
         get => _paperSize;
         set => SetProperty(ref _paperSize, value);
     }
+
+    public ObservableCollection<string> AvailablePrinters { get; } = [];
+    public ICommand RefreshPrintersCommand { get; }
 
     #endregion
 
@@ -1022,6 +1127,183 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand ImportLegacyDataCommand { get; }
     public ICommand RefreshPortsCommand { get; }
     public ICommand DiscardConfigurationCommand { get; }
+    public ICommand StartTerminalCommand { get; }
+    public ICommand ToggleTerminalPopOutCommand { get; }
+    public ICommand StopTerminalCommand { get; }
+
+    public bool IsTerminalActive
+    {
+        get => _isTerminalActive;
+        set
+        {
+            if (SetProperty(ref _isTerminalActive, value))
+            {
+                (StartTerminalCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (StopTerminalCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (ToggleTerminalPopOutCommand as RelayCommand)?.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsTerminalPoppedOut
+    {
+        get => _isTerminalPoppedOut;
+        set
+        {
+            if (SetProperty(ref _isTerminalPoppedOut, value))
+            {
+                OnPropertyChanged(nameof(PopOutButtonText));
+            }
+        }
+    }
+
+    public string PopOutButtonText => IsTerminalPoppedOut ? "Dock Back" : "Pop Out";
+
+    public string TerminalStatusMessage
+    {
+        get => _terminalStatusMessage;
+        set => SetProperty(ref _terminalStatusMessage, value);
+    }
+
+    public ICommand LaunchBraysTerminalCommand { get; }
+    public ICommand StopBraysTerminalCommand { get; }
+    public ICommand StartDiagnosticMonitoringCommand { get; }
+    public ICommand StopDiagnosticMonitoringCommand { get; }
+    public ICommand ClearDiagnosticLogCommand { get; }
+    public ICommand CopyDiagnosticLogCommand { get; }
+    public ICommand SendDiagnosticTextCommand { get; }
+    public ICommand SendDiagnosticHexCommand { get; }
+    public ICommand SetAsciiDisplayModeCommand { get; }
+    public ICommand SetHexDisplayModeCommand { get; }
+
+    public bool IsBraysTerminalRunning
+    {
+        get => _isBraysTerminalRunning;
+        private set
+        {
+            if (SetProperty(ref _isBraysTerminalRunning, value))
+            {
+                IsTerminalActive = value;
+                (StartTerminalCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (StopTerminalCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (LaunchBraysTerminalCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (StopBraysTerminalCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public string DiagnosticPort
+    {
+        get => _diagnosticPort;
+        set => SetProperty(ref _diagnosticPort, value);
+    }
+
+    public int DiagnosticBaudRate
+    {
+        get => _diagnosticBaudRate;
+        set => SetProperty(ref _diagnosticBaudRate, value);
+    }
+
+    public int DiagnosticDataBits
+    {
+        get => _diagnosticDataBits;
+        set => SetProperty(ref _diagnosticDataBits, value);
+    }
+
+    public string DiagnosticParity
+    {
+        get => _diagnosticParity;
+        set => SetProperty(ref _diagnosticParity, value);
+    }
+
+    public string DiagnosticStopBits
+    {
+        get => _diagnosticStopBits;
+        set => SetProperty(ref _diagnosticStopBits, value);
+    }
+
+    public bool IsDiagnosticMonitoring
+    {
+        get => _isDiagnosticMonitoring;
+        private set
+        {
+            if (SetProperty(ref _isDiagnosticMonitoring, value))
+            {
+                (StartDiagnosticMonitoringCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (StopDiagnosticMonitoringCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public string DiagnosticDisplayMode
+    {
+        get => _diagnosticDisplayMode;
+        set
+        {
+            if (SetProperty(ref _diagnosticDisplayMode, value))
+            {
+                OnPropertyChanged(nameof(IsAsciiDisplayMode));
+                OnPropertyChanged(nameof(IsHexDisplayMode));
+            }
+        }
+    }
+
+    public bool IsAsciiDisplayMode => DiagnosticDisplayMode == "ASCII";
+    public bool IsHexDisplayMode => DiagnosticDisplayMode == "HEX";
+
+    public string DiagnosticAsciiLog
+    {
+        get => _diagnosticAsciiLog;
+        private set => SetProperty(ref _diagnosticAsciiLog, value);
+    }
+
+    public string DiagnosticHexLog
+    {
+        get => _diagnosticHexLog;
+        private set => SetProperty(ref _diagnosticHexLog, value);
+    }
+
+    public string DiagnosticTransmitText
+    {
+        get => _diagnosticTransmitText;
+        set => SetProperty(ref _diagnosticTransmitText, value);
+    }
+
+    public bool DiagnosticAutoScroll
+    {
+        get => _diagnosticAutoScroll;
+        set => SetProperty(ref _diagnosticAutoScroll, value);
+    }
+
+    public long DiagnosticBytesReceivedCount
+    {
+        get => _diagnosticBytesReceivedCount;
+        private set => SetProperty(ref _diagnosticBytesReceivedCount, value);
+    }
+
+    public string DiagnosticStatus
+    {
+        get => _diagnosticStatus;
+        private set => SetProperty(ref _diagnosticStatus, value);
+    }
+
+    public bool IsCtsHigh
+    {
+        get => _isCtsHigh;
+        private set => SetProperty(ref _isCtsHigh, value);
+    }
+
+    public bool IsDsrHigh
+    {
+        get => _isDsrHigh;
+        private set => SetProperty(ref _isDsrHigh, value);
+    }
+
+    public bool IsCdHigh
+    {
+        get => _isCdHigh;
+        private set => SetProperty(ref _isCdHigh, value);
+    }
 
     public string LegacyImportFilePath
     {
@@ -1075,6 +1357,50 @@ public sealed class SettingsViewModel : ViewModelBase
         PortName = targetPort;
     }
 
+    public void RefreshAvailablePrinters(string? explicitPrinterToSelect = null)
+    {
+        var targetPrinter = explicitPrinterToSelect ?? DefaultPrinterName;
+        AvailablePrinters.Clear();
+
+        try
+        {
+            foreach (string printer in PrinterSettings.InstalledPrinters)
+            {
+                if (!string.IsNullOrWhiteSpace(printer) && !AvailablePrinters.Contains(printer))
+                {
+                    AvailablePrinters.Add(printer);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to enumerate installed printers");
+        }
+
+        if (!string.IsNullOrWhiteSpace(targetPrinter) && !AvailablePrinters.Contains(targetPrinter))
+        {
+            AvailablePrinters.Add(targetPrinter);
+        }
+
+        if (string.IsNullOrWhiteSpace(targetPrinter) && AvailablePrinters.Count > 0)
+        {
+            try
+            {
+                using var printDoc = new PrintDocument();
+                string defaultSys = printDoc.PrinterSettings.PrinterName;
+                targetPrinter = !string.IsNullOrWhiteSpace(defaultSys) && AvailablePrinters.Contains(defaultSys)
+                    ? defaultSys
+                    : AvailablePrinters[0];
+            }
+            catch
+            {
+                targetPrinter = AvailablePrinters[0];
+            }
+        }
+
+        DefaultPrinterName = targetPrinter;
+    }
+
     private void LoadFromOptions()
     {
         var indicator = Hardware.WeightIndicator;
@@ -1117,6 +1443,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _defaultPrinterName = Printer.DefaultPrinterName;
         _copyCount = Printer.CopyCount;
         _paperSize = Printer.PaperSize ?? "A4";
+        RefreshAvailablePrinters(_defaultPrinterName);
 
         _unitBagsWeightColumn = Weighment.UnitBagsWeightColumn;
         _manualTareEntry = Weighment.ManualTareEntry;
@@ -1718,4 +2045,262 @@ public sealed class SettingsViewModel : ViewModelBase
             IsImportingLegacyData = false;
         }
     }
+
+    #region Signal Diagnostic & Terminal Control
+
+    public async Task StartTerminalAsync()
+    {
+        await LaunchBraysTerminalAsync();
+    }
+
+    public async Task LaunchBraysTerminalAsync()
+    {
+        try
+        {
+            if (IsDiagnosticMonitoring)
+            {
+                await StopDiagnosticMonitoringAsync();
+            }
+
+            TerminalStatusMessage = $"Releasing serial port {PortName} for Bray's Terminal...";
+            await _indicator.DisconnectAsync();
+
+            var exePath = ResolveTerminalExecutablePath();
+            if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+            {
+                TerminalStatusMessage = "Bray's Terminal.exe could not be found on disk.";
+                await _indicator.ConnectAsync();
+                return;
+            }
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = exePath,
+                WorkingDirectory = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory,
+                UseShellExecute = true
+            };
+
+            _braysTerminalProcess = Process.Start(startInfo);
+            if (_braysTerminalProcess == null)
+            {
+                TerminalStatusMessage = "Failed to launch Terminal.exe.";
+                await _indicator.ConnectAsync();
+                return;
+            }
+
+            _braysTerminalProcess.EnableRaisingEvents = true;
+            _braysTerminalProcess.Exited += (s, e) =>
+            {
+                void HandleExit()
+                {
+                    IsTerminalActive = false;
+                    IsBraysTerminalRunning = false;
+                    TerminalStatusMessage = $"Bray's Terminal closed. Restoring live scale indicator on {PortName}...";
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _indicator.ConnectAsync();
+                            TerminalStatusMessage = $"Port {PortName} restored. Normal scale indicator streaming resumed.";
+                        }
+                        catch (Exception ex)
+                        {
+                            TerminalStatusMessage = $"Port reconnect failed: {ex.Message}";
+                        }
+                    });
+                }
+
+                if (System.Windows.Application.Current?.Dispatcher != null)
+                {
+                    System.Windows.Application.Current.Dispatcher.InvokeAsync(HandleExit);
+                }
+                else
+                {
+                    HandleExit();
+                }
+            };
+
+            IsTerminalActive = true;
+            IsBraysTerminalRunning = true;
+            TerminalStatusMessage = $"Serial port {PortName} released. Bray's Terminal is active in standalone window.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to launch Bray's Terminal");
+            TerminalStatusMessage = $"Failed to launch terminal: {ex.Message}";
+            try { await _indicator.ConnectAsync(); } catch { }
+        }
+    }
+
+    private void ToggleTerminalPopOut()
+    {
+        // Standalone mode is always a clean native window
+    }
+
+    public async Task StopTerminalAsync()
+    {
+        await StopBraysTerminalAsync();
+    }
+
+    public async Task StopBraysTerminalAsync()
+    {
+        try
+        {
+            if (_braysTerminalProcess != null && !_braysTerminalProcess.HasExited)
+            {
+                try
+                {
+                    _braysTerminalProcess.CloseMainWindow();
+                    if (!_braysTerminalProcess.WaitForExit(500))
+                    {
+                        _braysTerminalProcess.Kill();
+                    }
+                }
+                catch { }
+                finally
+                {
+                    _braysTerminalProcess.Dispose();
+                    _braysTerminalProcess = null;
+                }
+            }
+
+            IsTerminalActive = false;
+            IsBraysTerminalRunning = false;
+            TerminalStatusMessage = $"Stopping terminal and reconnecting {PortName}...";
+            await _indicator.ConnectAsync();
+            TerminalStatusMessage = $"Terminal stopped. Normal scale indicator streaming resumed on {PortName}.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to stop terminal or reconnect indicator");
+            TerminalStatusMessage = $"Terminal stopped, but indicator reconnect failed: {ex.Message}";
+        }
+    }
+
+    private async Task StartDiagnosticMonitoringAsync()
+    {
+        try
+        {
+            DiagnosticStatus = $"Connecting to {DiagnosticPort}...";
+
+            if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
+            {
+                await _indicator.DisconnectAsync();
+            }
+
+            var parity = Enum.TryParse<System.IO.Ports.Parity>(DiagnosticParity, true, out var p) ? p : System.IO.Ports.Parity.None;
+            var stopBits = DiagnosticStopBits switch
+            {
+                "1.5" => System.IO.Ports.StopBits.OnePointFive,
+                "OnePointFive" => System.IO.Ports.StopBits.OnePointFive,
+                "2" => System.IO.Ports.StopBits.Two,
+                "Two" => System.IO.Ports.StopBits.Two,
+                _ => System.IO.Ports.StopBits.One
+            };
+
+            var ok = await _diagnosticMonitor.StartAsync(
+                DiagnosticPort,
+                DiagnosticBaudRate,
+                DiagnosticDataBits,
+                parity,
+                stopBits);
+
+            if (ok)
+            {
+                IsDiagnosticMonitoring = true;
+                DiagnosticStatus = $"Monitoring active on {DiagnosticPort} @ {DiagnosticBaudRate} bps";
+            }
+            else
+            {
+                DiagnosticStatus = $"Could not open {DiagnosticPort}. Make sure it is not in use.";
+                if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
+                {
+                    await _indicator.ConnectAsync();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticStatus = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task StopDiagnosticMonitoringAsync()
+    {
+        await _diagnosticMonitor.StopAsync();
+        IsDiagnosticMonitoring = false;
+        DiagnosticStatus = "Monitoring stopped.";
+
+        if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
+        {
+            try { await _indicator.ConnectAsync(); } catch { }
+        }
+    }
+
+    private void ClearDiagnosticLog()
+    {
+        _asciiLogBuilder.Clear();
+        _hexLogBuilder.Clear();
+        DiagnosticAsciiLog = string.Empty;
+        DiagnosticHexLog = string.Empty;
+        DiagnosticBytesReceivedCount = 0;
+    }
+
+    private void CopyDiagnosticLog()
+    {
+        try
+        {
+            var text = IsHexDisplayMode ? DiagnosticHexLog : DiagnosticAsciiLog;
+            if (!string.IsNullOrEmpty(text))
+            {
+                System.Windows.Clipboard.SetText(text);
+            }
+        }
+        catch { }
+    }
+
+    private void SendDiagnosticText()
+    {
+        if (string.IsNullOrWhiteSpace(DiagnosticTransmitText)) return;
+        _diagnosticMonitor.Send(DiagnosticTransmitText, appendCrLf: true);
+    }
+
+    private void SendDiagnosticHex()
+    {
+        if (string.IsNullOrWhiteSpace(DiagnosticTransmitText)) return;
+        _diagnosticMonitor.SendHex(DiagnosticTransmitText);
+    }
+
+    private static string? ResolveTerminalExecutablePath()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Tools", "Terminal.exe"),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Terminal.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "WeighBridge Modern", "Tools", "Terminal.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "WeighBridge Modern", "Terminal.exe"),
+            Path.Combine(Environment.CurrentDirectory, "src", "WeighBridge.App", "Tools", "Terminal.exe"),
+            Path.Combine(Environment.CurrentDirectory, "tools", "Terminal.exe"),
+            @"E:\Projects\Weighbridge Entry Dongle 2025\Weighbridge Entry Dongle\Terminal.exe"
+        };
+
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    public override async Task OnNavigatedFromAsync()
+    {
+        if (IsDiagnosticMonitoring)
+        {
+            await StopDiagnosticMonitoringAsync();
+        }
+
+        if (IsTerminalActive)
+        {
+            await StopTerminalAsync();
+        }
+
+        await base.OnNavigatedFromAsync();
+    }
+
+    #endregion
 }

@@ -232,6 +232,29 @@ public sealed class DatabaseInitializer(
                 await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("Seeded {Count} sample vehicles successfully", defaultVehicles.Length);
             }
+
+            var userSet = context.Set<Domain.Security.User>();
+            if (!await userSet.AnyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                _logger.LogInformation("Seeding default administrator and operator accounts...");
+                var defaultUsers = new[]
+                {
+                    Domain.Security.User.Create(
+                        "admin",
+                        "System Administrator",
+                        Core.Security.PasswordHasher.HashPassword("admin123"),
+                        Core.Security.Roles.Administrator.Name),
+                    Domain.Security.User.Create(
+                        "operator",
+                        "Weighbridge Operator",
+                        Core.Security.PasswordHasher.HashPassword("operator123"),
+                        Core.Security.Roles.Operator.Name)
+                };
+
+                await userSet.AddRangeAsync(defaultUsers, cancellationToken).ConfigureAwait(false);
+                await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                _logger.LogInformation("Seeded default administrator and operator accounts successfully");
+            }
         }
         catch (Exception ex)
         {

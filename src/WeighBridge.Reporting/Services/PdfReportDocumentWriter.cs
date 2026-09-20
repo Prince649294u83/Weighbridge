@@ -6,76 +6,74 @@ namespace WeighBridge.Reporting.Services;
 
 /// <summary>
 /// Writes standard ISO 32000-1 / PDF 1.4 compliant binary PDF documents for weighbridge reports
-/// with automatic pagination, table grid rendering, headers, footers, and summary totals.
+/// in a classic monospaced text layout matching legacy dot-matrix / typewriter styling.
 /// </summary>
 public static class PdfReportDocumentWriter
 {
     private const double PageWidth = 841.89; // A4 Landscape width in points
     private const double PageHeight = 595.28; // A4 Landscape height in points
-    private const double MarginLeft = 36.0; // 0.5 inch margin
-    private const double MarginRight = 36.0;
-    private const double MarginTop = 36.0;
-    private const double MarginBottom = 36.0;
+    private const double MarginTop = 40.0;
+    private const double MarginBottom = 40.0;
+    private const double FontSize = 9.0;
+    private const double LineHeight = 13.0;
+    private const double CharWidth = 5.4; // In Courier Type 1, char width is 0.6 * FontSize (0.6 * 9.0 = 5.4 pt)
+    private const int ReportWidthChars = 131;
 
-    private const double UsableWidth = PageWidth - MarginLeft - MarginRight; // 769.89 pt
-    private const double RowHeight = 16.0;
-    private const double HeaderRowHeight = 20.0;
-    private const double TitleBlockHeight = 60.0;
-    private const double FooterHeight = 20.0;
+    private static readonly double MarginLeft = Math.Max(20.0, (PageWidth - (ReportWidthChars * CharWidth)) / 2.0);
 
-    // Column widths in points (total = 769.89 pt)
-    private static readonly (string Header, double Width, bool AlignRight)[] Columns =
-    [
-        ("Sr", 30, false),
-        ("Slip No", 65, false),
-        ("Vehicle No", 80, false),
-        ("Type", 55, false),
-        ("Party Name", 125, false),
-        ("Material", 90, false),
-        ("Charges", 55, true),
-        ("Gross (kg)", 55, true),
-        ("Tare (kg)", 55, true),
-        ("Net (kg)", 55, true),
-        ("Date", 65, false),
-        ("Status", 40, false)
-    ];
+    public const string HeaderLine = "S.No   Vehicle No.    Vehicle Type   Party Name    Material        Chg1 Chg2  G Wt.  T Wt.  N Wt.  GWt Date/Time     TWt Date/Time ";
+    public static readonly string DividerLine = new('-', ReportWidthChars);
 
     public static byte[] GeneratePdf(ReportDocument doc)
     {
+        ArgumentNullException.ThrowIfNull(doc);
+
         var rows = doc.Rows;
         var totalRows = rows.Count;
 
-        // Calculate rows per page
-        var usableHeightPage1 = PageHeight - MarginTop - TitleBlockHeight - HeaderRowHeight - FooterHeight - MarginBottom;
-        var maxRowsPage1 = Math.Max(1, (int)(usableHeightPage1 / RowHeight));
+        var companyLines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(doc.CompanyName)) companyLines.Add(doc.CompanyName.Trim());
+        if (!string.IsNullOrWhiteSpace(doc.AddressLine1)) companyLines.Add(doc.AddressLine1.Trim());
+        if (!string.IsNullOrWhiteSpace(doc.AddressLine2)) companyLines.Add(doc.AddressLine2.Trim());
+        if (companyLines.Count == 0) companyLines.Add(string.Empty);
 
-        var usableHeightSubsequent = PageHeight - MarginTop - HeaderRowHeight - FooterHeight - MarginBottom;
-        var maxRowsSubsequent = Math.Max(1, (int)(usableHeightSubsequent / RowHeight));
+        // Calculate available line capacity per page
+        var usableHeight = PageHeight - MarginTop - MarginBottom;
+        var maxLinesPerPage = Math.Max(10, (int)(usableHeight / LineHeight));
+
+        var page1HeaderLineCount = companyLines.Count + 1 + 1 + 1 + 1 + 1 + 1; // company + blank + subheader + blank + div + hdr + div
+        var footerLineCount = 1 + 3; // div + 3 summary lines
+
+        var usableLinesPage1Single = maxLinesPerPage - page1HeaderLineCount - footerLineCount;
+        var usableLinesPage1Multi = maxLinesPerPage - page1HeaderLineCount;
+        var usableLinesSubsequentMulti = maxLinesPerPage - 2; // hdr + div
+        var usableLinesSubsequentLast = maxLinesPerPage - 2 - footerLineCount;
 
         var pages = new List<List<ReportDocumentRow>>();
-        if (totalRows == 0)
+        if (totalRows <= usableLinesPage1Single)
         {
-            pages.Add([]);
+            pages.Add(rows.ToList());
         }
         else
         {
-            var currentIndex = 0;
-            // Page 1
-            var page1Count = Math.Min(totalRows, maxRowsPage1);
-            pages.Add(rows.Take(page1Count).ToList());
-            currentIndex += page1Count;
+            pages.Add(rows.Take(usableLinesPage1Multi).ToList());
+            var currentIndex = usableLinesPage1Multi;
 
-            // Subsequent pages
             while (currentIndex < totalRows)
             {
-                var count = Math.Min(totalRows - currentIndex, maxRowsSubsequent);
-                pages.Add(rows.Skip(currentIndex).Take(count).ToList());
-                currentIndex += count;
+                var remaining = totalRows - currentIndex;
+                if (remaining <= usableLinesSubsequentLast)
+                {
+                    pages.Add(rows.Skip(currentIndex).Take(remaining).ToList());
+                    break;
+                }
+
+                pages.Add(rows.Skip(currentIndex).Take(usableLinesSubsequentMulti).ToList());
+                currentIndex += usableLinesSubsequentMulti;
             }
         }
 
         var totalPages = pages.Count;
-
         var pageObjectIndices = new List<int>();
         var contentObjectIndices = new List<int>();
 
@@ -88,7 +86,7 @@ public static class PdfReportDocumentWriter
 
         var offsets = new List<long>();
 
-        // 1. Header
+        // 1. PDF Header
         var headerBytes = Encoding.ASCII.GetBytes("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
         using var ms = new MemoryStream();
         ms.Write(headerBytes, 0, headerBytes.Length);
@@ -111,11 +109,11 @@ public static class PdfReportDocumentWriter
         var kidsStr = string.Join(" ", pageObjectIndices.Select(i => $"{i} 0 R"));
         WriteObject(3, $"<< /Type /Pages /Kids [{kidsStr}] /Count {totalPages} >>");
 
-        // Obj 4: Font Helvetica
-        WriteObject(4, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+        // Obj 4: Font Courier
+        WriteObject(4, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
 
-        // Obj 5: Font Helvetica-Bold
-        WriteObject(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+        // Obj 5: Font Courier-Bold
+        WriteObject(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>");
 
         // Build Pages and Content Streams
         for (var pageIdx = 0; pageIdx < totalPages; pageIdx++)
@@ -123,9 +121,8 @@ public static class PdfReportDocumentWriter
             var pageRows = pages[pageIdx];
             var isFirstPage = pageIdx == 0;
             var isLastPage = pageIdx == totalPages - 1;
-            var pageNum = pageIdx + 1;
 
-            var streamContent = GeneratePageStreamContent(doc, pageRows, isFirstPage, isLastPage, pageNum, totalPages);
+            var streamContent = GeneratePageStreamContent(doc, pageRows, companyLines, isFirstPage, isLastPage);
             var streamBytes = Encoding.ASCII.GetBytes(streamContent);
 
             // Page Object
@@ -176,188 +173,113 @@ public static class PdfReportDocumentWriter
     private static string GeneratePageStreamContent(
         ReportDocument doc,
         List<ReportDocumentRow> pageRows,
+        List<string> companyLines,
         bool isFirstPage,
-        bool isLastPage,
-        int pageNum,
-        int totalPages)
+        bool isLastPage)
     {
-        var cb = new StringBuilder();
+        var lines = new List<string>();
 
-        var currentY = PageHeight - MarginTop;
-
-        // 1. Title Block (Page 1 only)
         if (isFirstPage)
         {
-            // Company Name
-            cb.AppendLine("BT /F2 14 Tf 0.1 0.1 0.1 rg");
-            var company = EscapePdfString(doc.CompanyName);
-            cb.AppendLine($"{MarginLeft:F2} {currentY - 14:F2} Td ({company}) Tj ET");
-
-            // Report Title
-            cb.AppendLine("BT /F2 11 Tf 0.2 0.2 0.2 rg");
-            var title = EscapePdfString(doc.Title);
-            cb.AppendLine($"{MarginLeft:F2} {currentY - 30:F2} Td ({title}) Tj ET");
-
-            // Metadata: Period & Generated Time
-            cb.AppendLine("BT /F1 8.5 Tf 0.4 0.4 0.4 rg");
-            var period = $"Period: {doc.StartDateLocal:dd-MM-yyyy} to {doc.EndDateLocal:dd-MM-yyyy}    |    Generated: {DateTime.Now:dd-MM-yyyy HH:mm}";
-            cb.AppendLine($"{MarginLeft:F2} {currentY - 44:F2} Td ({EscapePdfString(period)}) Tj ET");
-
-            // Separator line
-            cb.AppendLine("0.8 0.8 0.8 RG 0.75 w");
-            cb.AppendLine($"{MarginLeft:F2} {currentY - 52:F2} m {PageWidth - MarginRight:F2} {currentY - 52:F2} l S");
-
-            currentY -= TitleBlockHeight;
-        }
-
-        // 2. Table Column Headers
-        var tableTopY = currentY;
-        var tableBottomY = currentY - HeaderRowHeight - (pageRows.Count * RowHeight) - (isLastPage ? RowHeight : 0);
-
-        // Header Background
-        cb.AppendLine("0.93 0.94 0.96 rg"); // Light slate #ECEEF2
-        cb.AppendLine($"{MarginLeft:F2} {currentY - HeaderRowHeight:F2} {UsableWidth:F2} {HeaderRowHeight:F2} re f");
-
-        // Header Text
-        cb.AppendLine("0.1 0.1 0.1 rg");
-        var curX = MarginLeft;
-        foreach (var (header, width, alignRight) in Columns)
-        {
-            cb.AppendLine("BT /F2 8.5 Tf");
-            var textX = alignRight ? curX + width - 4.0 : curX + 4.0;
-            if (alignRight)
+            foreach (var c in companyLines)
             {
-                var estLen = header.Length * 4.5;
-                textX = curX + width - estLen - 4.0;
+                lines.Add(CenterText(c, ReportWidthChars));
             }
-            cb.AppendLine($"{textX:F2} {currentY - 14:F2} Td ({EscapePdfString(header)}) Tj ET");
-            curX += width;
+
+            lines.Add(string.Empty);
+            lines.Add($"Report From Date - {doc.StartDateLocal:M/d/yyyy} To Date - {doc.EndDateLocal:M/d/yyyy}");
+            lines.Add(string.Empty);
+            lines.Add(DividerLine);
+            lines.Add(HeaderLine);
+            lines.Add(DividerLine);
+        }
+        else
+        {
+            lines.Add(HeaderLine);
+            lines.Add(DividerLine);
         }
 
-        currentY -= HeaderRowHeight;
-
-        // 3. Table Rows
-        var rowIdx = 0;
         foreach (var r in pageRows)
         {
-            var rowY = currentY - RowHeight;
-
-            // Alternating row background
-            if (rowIdx % 2 == 1)
-            {
-                cb.AppendLine("0.98 0.98 0.99 rg");
-                cb.AppendLine($"{MarginLeft:F2} {rowY:F2} {UsableWidth:F2} {RowHeight:F2} re f");
-            }
-
-            // Cell Data
-            string[] cellValues =
-            [
-                r.SerialNumber.ToString(CultureInfo.InvariantCulture),
-                r.SlipNumber ?? string.Empty,
-                r.VehicleNumber ?? string.Empty,
-                r.VehicleTypeName ?? string.Empty,
-                r.PartyName ?? string.Empty,
-                r.MaterialName ?? string.Empty,
-                r.TotalCharges > 0 ? r.TotalCharges.ToString("N0", CultureInfo.InvariantCulture) : "0",
-                r.GrossWeightKg.ToString("N0", CultureInfo.InvariantCulture),
-                r.TareWeightKg.ToString("N0", CultureInfo.InvariantCulture),
-                r.NetWeightKg.ToString("N0", CultureInfo.InvariantCulture),
-                r.GrossCapturedAtLocal?.ToString("dd-MM-yyyy") ?? string.Empty,
-                r.Status ?? string.Empty
-            ];
-
-            curX = MarginLeft;
-            for (var c = 0; c < Columns.Length; c++)
-            {
-                var (hdr, width, alignRight) = Columns[c];
-                var val = cellValues[c];
-
-                var maxChars = (int)(width / 4.8);
-                if (val.Length > maxChars && maxChars > 3)
-                {
-                    val = val[..(maxChars - 2)] + "..";
-                }
-
-                cb.AppendLine("BT /F1 8 Tf 0.15 0.15 0.15 rg");
-                var textX = curX + 4.0;
-                if (alignRight)
-                {
-                    var estLen = val.Length * 4.2;
-                    textX = Math.Max(curX + 2.0, curX + width - estLen - 4.0);
-                }
-                cb.AppendLine($"{textX:F2} {rowY + 4.5:F2} Td ({EscapePdfString(val)}) Tj ET");
-                curX += width;
-            }
-
-            // Row Bottom Border
-            cb.AppendLine("0.9 0.9 0.9 RG 0.5 w");
-            cb.AppendLine($"{MarginLeft:F2} {rowY:F2} m {PageWidth - MarginRight:F2} {rowY:F2} l S");
-
-            currentY -= RowHeight;
-            rowIdx++;
+            lines.Add(FormatDataRow(r));
         }
 
-        // 4. Totals Row (Last Page only)
         if (isLastPage)
         {
-            var rowY = currentY - RowHeight;
-            cb.AppendLine("0.90 0.92 0.96 rg");
-            cb.AppendLine($"{MarginLeft:F2} {rowY:F2} {UsableWidth:F2} {RowHeight:F2} re f");
-
-            // Total label
-            cb.AppendLine("BT /F2 8.5 Tf 0.1 0.1 0.1 rg");
-            var totalLabel = $"Total ({doc.TotalRecordCount} Records)";
-            cb.AppendLine($"{MarginLeft + 4.0:F2} {rowY + 4.5:F2} Td ({EscapePdfString(totalLabel)}) Tj ET");
-
-            // Total Charges
-            var chargesColX = MarginLeft + Columns.Take(6).Sum(c => c.Width);
-            var chargesWidth = Columns[6].Width;
-            var chargesStr = doc.TotalCharges.ToString("N0", CultureInfo.InvariantCulture);
-            var chargesEstLen = chargesStr.Length * 4.5;
-            cb.AppendLine("BT /F2 8.5 Tf 0.1 0.1 0.1 rg");
-            cb.AppendLine($"{chargesColX + chargesWidth - chargesEstLen - 4.0:F2} {rowY + 4.5:F2} Td ({EscapePdfString(chargesStr)}) Tj ET");
-
-            // Total Net Weight
-            var netColX = MarginLeft + Columns.Take(9).Sum(c => c.Width);
-            var netWidth = Columns[9].Width;
-            var netStr = doc.TotalNetWeightKg.ToString("N0", CultureInfo.InvariantCulture);
-            var netEstLen = netStr.Length * 4.5;
-            cb.AppendLine("BT /F2 8.5 Tf 0.1 0.1 0.1 rg");
-            cb.AppendLine($"{netColX + netWidth - netEstLen - 4.0:F2} {rowY + 4.5:F2} Td ({EscapePdfString(netStr)}) Tj ET");
-
-            // Total row border
-            cb.AppendLine("0.6 0.6 0.6 RG 0.75 w");
-            cb.AppendLine($"{MarginLeft:F2} {rowY:F2} m {PageWidth - MarginRight:F2} {rowY:F2} l S");
-
-            currentY -= RowHeight;
+            lines.Add(DividerLine);
+            lines.Add("Total No of Records".PadRight(20) + ": " + doc.TotalRecordCount);
+            var netWeightStr = doc.TotalNetWeightKg.ToString("0", CultureInfo.InvariantCulture);
+            lines.Add("Total Net Weight".PadRight(20) + ": " + netWeightStr + " Kg.");
+            var chargesStr = doc.TotalCharges.ToString("0", CultureInfo.InvariantCulture);
+            lines.Add("Total Charges".PadRight(20) + ": " + chargesStr + " /-");
         }
 
-        // Table Outer & Vertical Grid Lines
-        cb.AppendLine("0.8 0.8 0.8 RG 0.5 w");
-        // Outer border
-        cb.AppendLine($"{MarginLeft:F2} {tableBottomY:F2} {UsableWidth:F2} {tableTopY - tableBottomY:F2} re S");
+        var cb = new StringBuilder();
+        var currentY = PageHeight - MarginTop - LineHeight;
 
-        // Vertical dividers
-        curX = MarginLeft;
-        for (var i = 0; i < Columns.Length - 1; i++)
+        foreach (var line in lines)
         {
-            curX += Columns[i].Width;
-            cb.AppendLine($"{curX:F2} {tableBottomY:F2} m {curX:F2} {tableTopY:F2} l S");
+            if (!string.IsNullOrEmpty(line))
+            {
+                var escaped = EscapePdfString(line);
+                cb.AppendLine($"BT /F1 {FontSize:F1} Tf 0 0 0 rg");
+                cb.AppendLine($"{MarginLeft:F2} {currentY:F2} Td ({escaped}) Tj ET");
+            }
+
+            currentY -= LineHeight;
         }
-
-        // 5. Page Footer
-        cb.AppendLine("0.7 0.7 0.7 RG 0.5 w");
-        cb.AppendLine($"{MarginLeft:F2} {MarginBottom + 12:F2} m {PageWidth - MarginRight:F2} {MarginBottom + 12:F2} l S");
-
-        cb.AppendLine("BT /F1 8 Tf 0.45 0.45 0.45 rg");
-        var appFooter = "WeighBridge Modern - Authoritative Report Output";
-        cb.AppendLine($"{MarginLeft:F2} {MarginBottom + 2:F2} Td ({EscapePdfString(appFooter)}) Tj ET");
-
-        var pageStr = $"Page {pageNum} of {totalPages}";
-        cb.AppendLine("BT /F1 8 Tf 0.45 0.45 0.45 rg");
-        cb.AppendLine($"{PageWidth - MarginRight - 50:F2} {MarginBottom + 2:F2} Td ({EscapePdfString(pageStr)}) Tj ET");
 
         return cb.ToString();
+    }
+
+    public static string FormatDataRow(ReportDocumentRow r)
+    {
+        var veh = TruncateOrPad(r.VehicleNumber, 11, false);
+        var type = TruncateOrPad(r.VehicleTypeName, 12, false);
+        var party = TruncateOrPad(r.PartyName, 10, false);
+        var mat = TruncateOrPad(r.MaterialName, 8, false);
+
+        var chg1Str = r.Charges1 > 0 ? r.Charges1.ToString("0", CultureInfo.InvariantCulture) : "0";
+        var chg2Str = r.Charges2 > 0 ? r.Charges2.ToString("0", CultureInfo.InvariantCulture) : "0";
+        var chg1 = TruncateOrPad(chg1Str, 4, true);
+        var chg2 = TruncateOrPad(chg2Str, 4, true);
+
+        var gwtStr = r.GrossWeightKg > 0 ? r.GrossWeightKg.ToString("0", CultureInfo.InvariantCulture) : "0";
+        var twtStr = r.TareWeightKg > 0 ? r.TareWeightKg.ToString("0", CultureInfo.InvariantCulture) : "0";
+        var nwtStr = r.NetWeightKg > 0 ? r.NetWeightKg.ToString("0", CultureInfo.InvariantCulture) : "0";
+
+        var gwt = TruncateOrPad(gwtStr, 5, true);
+        var twt = TruncateOrPad(twtStr, 5, true);
+        var nwt = TruncateOrPad(nwtStr, 5, true);
+
+        var gDateStr = r.GrossCapturedAtLocal?.ToString("dd/MM/yy HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+        var tDateStr = r.TareCapturedAtLocal?.ToString("dd/MM/yy HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+
+        var gDate = TruncateOrPad(gDateStr, 14, false);
+        var tDate = TruncateOrPad(tDateStr, 14, false);
+
+        var sno = TruncateOrPad(r.SerialNumber.ToString(CultureInfo.InvariantCulture), 4, true);
+
+        return $"{sno}   {veh}    {type}   {party}    {mat}        {chg1} {chg2}  {gwt}  {twt}  {nwt}  {gDate}    {tDate}";
+    }
+
+    public static string CenterText(string? text, int width)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        var trimmed = text.Trim();
+        if (trimmed.Length >= width) return trimmed[..width];
+        var leftPadding = (width - trimmed.Length) / 2;
+        return new string(' ', leftPadding) + trimmed;
+    }
+
+    private static string TruncateOrPad(string? text, int width, bool alignRight)
+    {
+        var s = text ?? string.Empty;
+        if (s.Length > width)
+        {
+            s = s[..width];
+        }
+        return alignRight ? s.PadLeft(width) : s.PadRight(width);
     }
 
     private static string EscapePdfString(string? text)
@@ -374,23 +296,23 @@ public static class PdfReportDocumentWriter
                 case '\r': break;
                 case '\n': sb.Append(' '); break;
                 default:
-                    if (c < 32 || c > 126)
+                    if (c >= 32 && c <= 126)
+                    {
+                        sb.Append(c);
+                    }
+                    else
                     {
                         sb.Append(c switch
                         {
                             '₹' => "Rs.",
                             '—' => "-",
                             '–' => "-",
-                            '\u201C' => "\"", // Left double quotation mark
-                            '\u201D' => "\"", // Right double quotation mark
-                            '\u2018' => "'",  // Left single quotation mark
-                            '\u2019' => "'",  // Right single quotation mark
+                            '\u201C' => "\"",
+                            '\u201D' => "\"",
+                            '\u2018' => "'",
+                            '\u2019' => "'",
                             _ => ' '
                         });
-                    }
-                    else
-                    {
-                        sb.Append(c);
                     }
                     break;
             }

@@ -16,7 +16,8 @@ public sealed record TextNode(string Content) : TemplateNode;
 /// </summary>
 /// <param name="RawToken">The raw token string, e.g. "ticket", "gatepass", "acualwt".</param>
 /// <param name="CanonicalField">The normalized canonical property name.</param>
-public sealed record TokenNode(string RawToken, string CanonicalField) : TemplateNode;
+/// <param name="Width">Optional alignment/formatting width parameter, e.g. 15 in &lt;ticket,15&gt;.</param>
+public sealed record TokenNode(string RawToken, string CanonicalField, int? Width = null) : TemplateNode;
 
 /// <summary>
 /// Formatting directive category.

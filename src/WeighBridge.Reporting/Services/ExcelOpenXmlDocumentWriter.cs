@@ -168,22 +168,20 @@ public static class ExcelOpenXmlDocumentWriter
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
         sb.AppendLine("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
 
-        // Column widths
+        // Column widths (12 columns)
         sb.AppendLine("  <cols>");
-        sb.AppendLine("    <col min=\"1\" max=\"1\" width=\"8\" customWidth=\"1\"/>");   // Sr
-        sb.AppendLine("    <col min=\"2\" max=\"2\" width=\"16\" customWidth=\"1\"/>");  // Slip
-        sb.AppendLine("    <col min=\"3\" max=\"3\" width=\"18\" customWidth=\"1\"/>");  // Vehicle
-        sb.AppendLine("    <col min=\"4\" max=\"4\" width=\"14\" customWidth=\"1\"/>");  // Type
-        sb.AppendLine("    <col min=\"5\" max=\"5\" width=\"28\" customWidth=\"1\"/>");  // Party
-        sb.AppendLine("    <col min=\"6\" max=\"6\" width=\"20\" customWidth=\"1\"/>");  // Material
-        sb.AppendLine("    <col min=\"7\" max=\"7\" width=\"14\" customWidth=\"1\"/>");  // Charges 1
-        sb.AppendLine("    <col min=\"8\" max=\"8\" width=\"14\" customWidth=\"1\"/>");  // Charges 2
-        sb.AppendLine("    <col min=\"9\" max=\"9\" width=\"16\" customWidth=\"1\"/>");  // Total Charges
-        sb.AppendLine("    <col min=\"10\" max=\"10\" width=\"14\" customWidth=\"1\"/>"); // Gross
-        sb.AppendLine("    <col min=\"11\" max=\"11\" width=\"14\" customWidth=\"1\"/>"); // Tare
-        sb.AppendLine("    <col min=\"12\" max=\"12\" width=\"14\" customWidth=\"1\"/>"); // Net
-        sb.AppendLine("    <col min=\"13\" max=\"13\" width=\"20\" customWidth=\"1\"/>"); // Date
-        sb.AppendLine("    <col min=\"14\" max=\"14\" width=\"14\" customWidth=\"1\"/>"); // Status
+        sb.AppendLine("    <col min=\"1\" max=\"1\" width=\"8\" customWidth=\"1\"/>");   // S.No
+        sb.AppendLine("    <col min=\"2\" max=\"2\" width=\"18\" customWidth=\"1\"/>");  // Vehicle No.
+        sb.AppendLine("    <col min=\"3\" max=\"3\" width=\"16\" customWidth=\"1\"/>");  // Vehicle Type
+        sb.AppendLine("    <col min=\"4\" max=\"4\" width=\"28\" customWidth=\"1\"/>");  // Party Name
+        sb.AppendLine("    <col min=\"5\" max=\"5\" width=\"20\" customWidth=\"1\"/>");  // Material
+        sb.AppendLine("    <col min=\"6\" max=\"6\" width=\"12\" customWidth=\"1\"/>");  // Chg1
+        sb.AppendLine("    <col min=\"7\" max=\"7\" width=\"12\" customWidth=\"1\"/>");  // Chg2
+        sb.AppendLine("    <col min=\"8\" max=\"8\" width=\"14\" customWidth=\"1\"/>");  // G Wt.
+        sb.AppendLine("    <col min=\"9\" max=\"9\" width=\"14\" customWidth=\"1\"/>");  // T Wt.
+        sb.AppendLine("    <col min=\"10\" max=\"10\" width=\"14\" customWidth=\"1\"/>"); // N Wt.
+        sb.AppendLine("    <col min=\"11\" max=\"11\" width=\"20\" customWidth=\"1\"/>"); // GWt Date/Time
+        sb.AppendLine("    <col min=\"12\" max=\"12\" width=\"20\" customWidth=\"1\"/>"); // TWt Date/Time
         sb.AppendLine("  </cols>");
 
         sb.AppendLine("  <sheetData>");
@@ -192,19 +190,30 @@ public static class ExcelOpenXmlDocumentWriter
 
         // Row 1: Company Title
         sb.AppendLine($"    <row r=\"{rowNum}\">");
-        sb.AppendLine($"      <c r=\"A{rowNum}\" t=\"inlineStr\"><is><t>{EscapeXml(doc.CompanyName)} - {EscapeXml(doc.Title)}</t></is></c>");
+        sb.AppendLine($"      <c r=\"A{rowNum}\" t=\"inlineStr\"><is><t>{EscapeXml(doc.CompanyName)}</t></is></c>");
         sb.AppendLine("    </row>");
         rowNum++;
 
-        // Row 2: Filter Period
+        // Row 2: Address (if present)
+        var addrParts = new[] { doc.AddressLine1, doc.AddressLine2 }.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        if (addrParts.Length > 0)
+        {
+            var addr = string.Join(", ", addrParts);
+            sb.AppendLine($"    <row r=\"{rowNum}\">");
+            sb.AppendLine($"      <c r=\"A{rowNum}\" t=\"inlineStr\"><is><t>{EscapeXml(addr)}</t></is></c>");
+            sb.AppendLine("    </row>");
+            rowNum++;
+        }
+
+        // Row: Filter Period
         sb.AppendLine($"    <row r=\"{rowNum}\">");
-        sb.AppendLine($"      <c r=\"A{rowNum}\" t=\"inlineStr\"><is><t>Period: {doc.StartDateLocal:dd-MM-yyyy} to {doc.EndDateLocal:dd-MM-yyyy} | Generated: {DateTime.Now:dd-MM-yyyy HH:mm}</t></is></c>");
+        sb.AppendLine($"      <c r=\"A{rowNum}\" t=\"inlineStr\"><is><t>Report From Date - {doc.StartDateLocal:M/d/yyyy} To Date - {doc.EndDateLocal:M/d/yyyy}</t></is></c>");
         sb.AppendLine("    </row>");
         rowNum++;
 
-        // Row 3: Header Row
+        // Header Row (12 columns)
         sb.AppendLine($"    <row r=\"{rowNum}\">");
-        string[] headers = ["Sr", "Slip No", "Vehicle No", "Type", "Party Name", "Material", "Charges 1st", "Charges 2nd", "Total Charges", "Gross (kg)", "Tare (kg)", "Net (kg)", "Date & Time", "Status"];
+        string[] headers = ["S.No", "Vehicle No.", "Vehicle Type", "Party Name", "Material", "Chg1", "Chg2", "G Wt.", "T Wt.", "N Wt.", "GWt Date/Time", "TWt Date/Time"];
         for (var c = 0; c < headers.Length; c++)
         {
             var colLetter = GetColumnLetter(c + 1);
@@ -218,19 +227,17 @@ public static class ExcelOpenXmlDocumentWriter
         {
             sb.AppendLine($"    <row r=\"{rowNum}\">");
             sb.AppendLine($"      <c r=\"A{rowNum}\" s=\"3\"><v>{r.SerialNumber}</v></c>");
-            sb.AppendLine($"      <c r=\"B{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.SlipNumber)}</t></is></c>");
-            sb.AppendLine($"      <c r=\"C{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.VehicleNumber)}</t></is></c>");
-            sb.AppendLine($"      <c r=\"D{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.VehicleTypeName)}</t></is></c>");
-            sb.AppendLine($"      <c r=\"E{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.PartyName)}</t></is></c>");
-            sb.AppendLine($"      <c r=\"F{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.MaterialName)}</t></is></c>");
-            sb.AppendLine($"      <c r=\"G{rowNum}\" s=\"3\"><v>{r.Charges1.ToString(CultureInfo.InvariantCulture)}</v></c>");
-            sb.AppendLine($"      <c r=\"H{rowNum}\" s=\"3\"><v>{r.Charges2.ToString(CultureInfo.InvariantCulture)}</v></c>");
-            sb.AppendLine($"      <c r=\"I{rowNum}\" s=\"3\"><v>{r.TotalCharges.ToString(CultureInfo.InvariantCulture)}</v></c>");
-            sb.AppendLine($"      <c r=\"J{rowNum}\" s=\"3\"><v>{r.GrossWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
-            sb.AppendLine($"      <c r=\"K{rowNum}\" s=\"3\"><v>{r.TareWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
-            sb.AppendLine($"      <c r=\"L{rowNum}\" s=\"3\"><v>{r.NetWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
-            sb.AppendLine($"      <c r=\"M{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.GrossCapturedAtLocal?.ToString("yyyy-MM-dd HH:mm:ss") ?? "")}</t></is></c>");
-            sb.AppendLine($"      <c r=\"N{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.Status)}</t></is></c>");
+            sb.AppendLine($"      <c r=\"B{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.VehicleNumber)}</t></is></c>");
+            sb.AppendLine($"      <c r=\"C{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.VehicleTypeName)}</t></is></c>");
+            sb.AppendLine($"      <c r=\"D{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.PartyName)}</t></is></c>");
+            sb.AppendLine($"      <c r=\"E{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.MaterialName)}</t></is></c>");
+            sb.AppendLine($"      <c r=\"F{rowNum}\" s=\"3\"><v>{r.Charges1.ToString(CultureInfo.InvariantCulture)}</v></c>");
+            sb.AppendLine($"      <c r=\"G{rowNum}\" s=\"3\"><v>{r.Charges2.ToString(CultureInfo.InvariantCulture)}</v></c>");
+            sb.AppendLine($"      <c r=\"H{rowNum}\" s=\"3\"><v>{r.GrossWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
+            sb.AppendLine($"      <c r=\"I{rowNum}\" s=\"3\"><v>{r.TareWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
+            sb.AppendLine($"      <c r=\"J{rowNum}\" s=\"3\"><v>{r.NetWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
+            sb.AppendLine($"      <c r=\"K{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.GrossCapturedAtLocal?.ToString("yyyy-MM-dd HH:mm:ss") ?? "")}</t></is></c>");
+            sb.AppendLine($"      <c r=\"L{rowNum}\" s=\"0\" t=\"inlineStr\"><is><t>{EscapeXml(r.TareCapturedAtLocal?.ToString("yyyy-MM-dd HH:mm:ss") ?? "")}</t></is></c>");
             sb.AppendLine("    </row>");
             rowNum++;
         }
@@ -242,15 +249,13 @@ public static class ExcelOpenXmlDocumentWriter
         sb.AppendLine($"      <c r=\"C{rowNum}\" s=\"2\"/>");
         sb.AppendLine($"      <c r=\"D{rowNum}\" s=\"2\"/>");
         sb.AppendLine($"      <c r=\"E{rowNum}\" s=\"2\"/>");
-        sb.AppendLine($"      <c r=\"F{rowNum}\" s=\"2\"/>");
+        sb.AppendLine($"      <c r=\"F{rowNum}\" s=\"4\"><v>{doc.TotalCharges.ToString(CultureInfo.InvariantCulture)}</v></c>");
         sb.AppendLine($"      <c r=\"G{rowNum}\" s=\"2\"/>");
         sb.AppendLine($"      <c r=\"H{rowNum}\" s=\"2\"/>");
-        sb.AppendLine($"      <c r=\"I{rowNum}\" s=\"4\"><v>{doc.TotalCharges.ToString(CultureInfo.InvariantCulture)}</v></c>");
-        sb.AppendLine($"      <c r=\"J{rowNum}\" s=\"2\"/>");
+        sb.AppendLine($"      <c r=\"I{rowNum}\" s=\"2\"/>");
+        sb.AppendLine($"      <c r=\"J{rowNum}\" s=\"4\"><v>{doc.TotalNetWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
         sb.AppendLine($"      <c r=\"K{rowNum}\" s=\"2\"/>");
-        sb.AppendLine($"      <c r=\"L{rowNum}\" s=\"4\"><v>{doc.TotalNetWeightKg.ToString(CultureInfo.InvariantCulture)}</v></c>");
-        sb.AppendLine($"      <c r=\"M{rowNum}\" s=\"2\"/>");
-        sb.AppendLine($"      <c r=\"N{rowNum}\" s=\"2\"/>");
+        sb.AppendLine($"      <c r=\"L{rowNum}\" s=\"2\"/>");
         sb.AppendLine("    </row>");
 
         sb.AppendLine("  </sheetData>");

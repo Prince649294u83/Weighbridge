@@ -1,3 +1,5 @@
+using WeighBridge.Core.Printing;
+
 namespace WeighBridge.Core.Abstractions;
 
 /// <summary>
@@ -40,4 +42,15 @@ public interface IPrintService : IHealthCheck
         string? printerName = null,
         int copies = 1,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Prints a weighment slip using canonical print data, resolving the template and printer profile.
+    /// </summary>
+    Task<PrintResult> PrintSlipAsync(
+        WeighmentPrintData data,
+        string? templateName = null,
+        PrinterProfile? profile = null,
+        int copies = 1,
+        CancellationToken cancellationToken = default)
+        => PrintAsync(templateName ?? "Standard", new Dictionary<string, object?> { ["PrintData"] = data }, profile?.PrinterName, copies, cancellationToken);
 }

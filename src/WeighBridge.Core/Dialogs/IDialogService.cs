@@ -44,4 +44,18 @@ public interface IDialogService
     /// Shows a modal login dialog. Returns true if the user authenticated successfully.
     /// </summary>
     Task<bool> ShowLoginAsync();
+
+    /// <summary>
+    /// Prompts the operator to choose a destination file path.
+    /// </summary>
+    /// <param name="title">Dialog window title.</param>
+    /// <param name="defaultFileName">Default suggested file name.</param>
+    /// <param name="filter">File type filter (e.g. "Excel Workbook (*.xlsx)|*.xlsx|All Files (*.*)|*.*").</param>
+    /// <param name="initialDirectory">Optional initial directory.</param>
+    /// <returns>The full file path chosen by the user, or <c>null</c> if cancelled.</returns>
+    Task<string?> ShowSaveFileDialogAsync(
+        string title,
+        string defaultFileName,
+        string filter,
+        string? initialDirectory = null);
 }

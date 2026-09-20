@@ -7,6 +7,7 @@ using WeighBridge.Core.Commands;
 using WeighBridge.Core.Dialogs;
 using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Reporting;
+using WeighBridge.Reporting.Services;
 
 namespace WeighBridge.App.ViewModels;
 
@@ -58,51 +59,50 @@ public sealed class ReportPreviewViewModel : ViewModelBase
         CloseCommand = new RelayCommand(() => RequestClose?.Invoke());
     }
 
-    private static string FormatDocumentToText(ReportDocument doc)
+    public static string FormatDocumentToText(ReportDocument doc)
     {
         var sb = new StringBuilder();
-        var divider = "------------------------------------------------------------------------------------------------------------------------";
+        const int reportWidth = 131;
+        var divider = PdfReportDocumentWriter.DividerLine;
 
-        sb.AppendLine(CenterText(doc.CompanyName, 120));
-        sb.AppendLine(CenterText(doc.Title, 120));
-        sb.AppendLine($" Period: {doc.StartDateLocal:dd/MM/yyyy} to {doc.EndDateLocal:dd/MM/yyyy}".PadRight(120));
-        sb.AppendLine(divider);
+        if (!string.IsNullOrWhiteSpace(doc.CompanyName))
+        {
+            sb.AppendLine(PdfReportDocumentWriter.CenterText(doc.CompanyName, reportWidth));
+        }
+        if (!string.IsNullOrWhiteSpace(doc.AddressLine1))
+        {
+            sb.AppendLine(PdfReportDocumentWriter.CenterText(doc.AddressLine1, reportWidth));
+        }
+        if (!string.IsNullOrWhiteSpace(doc.AddressLine2))
+        {
+            sb.AppendLine(PdfReportDocumentWriter.CenterText(doc.AddressLine2, reportWidth));
+        }
+
+        sb.AppendLine();
         sb.AppendLine(string.Format(
             CultureInfo.InvariantCulture,
-            " {0,-5} {1,-10} {2,-13} {3,-10} {4,-20} {5,8} {6,-12} {7,10} {8,10} {9,10} {10,-18}",
-            "Sr.No", "Slip No.", "Vehicle No.", "Type", "Party Name", "Chg 1st", "Material", "Gross Wt.", "Tare Wt.", "Net Wt.", "Date & Time"));
+            "Report From Date - {0:M/d/yyyy} To Date - {1:M/d/yyyy}",
+            doc.StartDateLocal,
+            doc.EndDateLocal));
+        sb.AppendLine();
+
+        sb.AppendLine(divider);
+        sb.AppendLine(PdfReportDocumentWriter.HeaderLine);
         sb.AppendLine(divider);
 
         foreach (var r in doc.Rows)
         {
-            var party = r.PartyName.Length > 20 ? r.PartyName[..20] : r.PartyName;
-            var mat = r.MaterialName.Length > 12 ? r.MaterialName[..12] : r.MaterialName;
-            var veh = r.VehicleNumber.Length > 13 ? r.VehicleNumber[..13] : r.VehicleNumber;
-            var type = r.VehicleTypeName.Length > 10 ? r.VehicleTypeName[..10] : r.VehicleTypeName;
-            var dateStr = r.GrossCapturedAtLocal?.ToString("dd/MM/yy HH:mm", CultureInfo.InvariantCulture) ?? "";
-
-            sb.AppendLine(string.Format(
-                CultureInfo.InvariantCulture,
-                " {0,-5} {1,-10} {2,-13} {3,-10} {4,-20} {5,8:N0} {6,-12} {7,10:N0} {8,10:N0} {9,10:N0} {10,-18}",
-                r.SerialNumber, r.SlipNumber, veh, type, party, r.Charges1, mat, r.GrossWeightKg, r.TareWeightKg, r.NetWeightKg, dateStr));
+            sb.AppendLine(PdfReportDocumentWriter.FormatDataRow(r));
         }
 
         sb.AppendLine(divider);
-        sb.AppendLine(string.Format(
-            CultureInfo.InvariantCulture,
-            " Total No of Records : {0,-10} | Total Net Weight : {1:N0} Kg. | Total Charges : Rs. {2:N0} /-",
-            doc.TotalRecordCount, doc.TotalNetWeightKg, doc.TotalCharges));
-        sb.AppendLine(divider);
+        sb.AppendLine("Total No of Records".PadRight(20) + ": " + doc.TotalRecordCount);
+        var netWeightStr = doc.TotalNetWeightKg.ToString("0", CultureInfo.InvariantCulture);
+        sb.AppendLine("Total Net Weight".PadRight(20) + ": " + netWeightStr + " Kg.");
+        var chargesStr = doc.TotalCharges.ToString("0", CultureInfo.InvariantCulture);
+        sb.AppendLine("Total Charges".PadRight(20) + ": " + chargesStr + " /-");
 
         return sb.ToString();
-    }
-
-    private static string CenterText(string text, int width)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
-        if (text.Length >= width) return text;
-        int leftPadding = (width - text.Length) / 2;
-        return text.PadLeft(leftPadding + text.Length);
     }
 
     private async Task PrintAsync()
@@ -162,7 +162,12 @@ public sealed class ReportPreviewViewModel : ViewModelBase
     {
         try
         {
-            var result = await _reportService.ExportAsync(Document, ReportFormat.Excel);
+            var defaultFileName = $"Weighment_Report_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            var filter = "Excel Workbook (*.xlsx)|*.xlsx|All Files (*.*)|*.*";
+            var chosenPath = await _dialogs.ShowSaveFileDialogAsync("Save Excel Report", defaultFileName, filter);
+            if (string.IsNullOrWhiteSpace(chosenPath)) return;
+
+            var result = await _reportService.ExportAsync(Document, ReportFormat.Excel, chosenPath);
             if (result.Succeeded)
             {
                 await _dialogs.ShowSuccessAsync("Excel Export Complete", $"File saved to:\n{result.OutputPath}");
@@ -183,7 +188,12 @@ public sealed class ReportPreviewViewModel : ViewModelBase
     {
         try
         {
-            var result = await _reportService.ExportAsync(Document, ReportFormat.Pdf);
+            var defaultFileName = $"Weighment_Report_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            var filter = "PDF Document (*.pdf)|*.pdf|All Files (*.*)|*.*";
+            var chosenPath = await _dialogs.ShowSaveFileDialogAsync("Save PDF Report", defaultFileName, filter);
+            if (string.IsNullOrWhiteSpace(chosenPath)) return;
+
+            var result = await _reportService.ExportAsync(Document, ReportFormat.Pdf, chosenPath);
             if (result.Succeeded)
             {
                 await _dialogs.ShowSuccessAsync("PDF Export Complete", $"File saved to:\n{result.OutputPath}");

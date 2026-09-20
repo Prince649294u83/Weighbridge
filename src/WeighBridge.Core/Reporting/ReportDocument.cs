@@ -29,7 +29,9 @@ public sealed record ReportDocument(
     decimal TotalNetWeightKg,
     decimal TotalCharges,
     bool IsRowLimited = false,
-    int? MaxRows = null)
+    int? MaxRows = null,
+    string AddressLine1 = "",
+    string AddressLine2 = "")
 {
     public static ReportDocument Create(
         string title,
@@ -38,7 +40,9 @@ public sealed record ReportDocument(
         DateTime endDateLocal,
         IReadOnlyList<ReportDocumentRow> rows,
         bool isRowLimited = false,
-        int? maxRows = null)
+        int? maxRows = null,
+        string addressLine1 = "",
+        string addressLine2 = "")
     {
         var totalRecords = rows.Count;
         var totalNetWeight = rows.Sum(r => r.NetWeightKg);
@@ -54,7 +58,9 @@ public sealed record ReportDocument(
             totalNetWeight,
             totalCharges,
             isRowLimited,
-            maxRows);
+            maxRows,
+            addressLine1,
+            addressLine2);
     }
 }
 
@@ -76,4 +82,5 @@ public sealed record ReportDocumentRow(
     decimal NetWeightKg,
     DateTime? GrossCapturedAtLocal,
     DateTime? CompletedAtLocal,
-    string Status);
+    string Status,
+    DateTime? TareCapturedAtLocal = null);

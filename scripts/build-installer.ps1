@@ -27,25 +27,50 @@ if (-not $SkipPublish) {
 $isccPaths = @(
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
     "C:\Program Files\Inno Setup 6\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
     (Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue)
 ) | Where-Object { $_ -and (Test-Path $_) }
 
 if ($isccPaths.Count -eq 0) {
+    Say "Inno Setup Compiler (ISCC.exe) was not detected. Attempting to install via winget..."
+    try {
+        winget install --id JRSoftware.InnoSetup -e --silent --accept-source-agreements --accept-package-agreements
+        $isccPaths = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe",
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+        ) | Where-Object { $_ -and (Test-Path $_) }
+    } catch {
+        # Fall through
+    }
+}
+
+if ($isccPaths.Count -eq 0) {
     Say "Inno Setup Compiler (ISCC.exe) was not detected on this machine."
     Say "To compile the final .exe setup installer:"
-    Say "  1. Download and install Inno Setup 6 from https://jrsoftware.org/isdl.php"
+    Say "  1. Download and install Inno Setup 6 from https://jrsoftware.org/isdl.php or run: winget install JRSoftware.InnoSetup"
     Say "  2. Run: ISCC.exe '$issFile'"
     Say "The published payload files are ready under 'publish/modern-win-x64' and 'publish/legacy-win-x86'."
     exit 0
 }
 
-$iscc = $isccPaths[0]
+$iscc = @($isccPaths) | Select-Object -First 1
 Say "Compiling installer using $iscc..."
-& $iscc $issFile
+& "$iscc" $issFile
+
 
 if ($LASTEXITCODE -eq 0) {
     Say "Installer successfully compiled to 'publish\installer'!"
+    $setupFiles = Get-ChildItem -Path (Join-Path $projectRoot 'publish\installer') -Filter "*.exe" -ErrorAction SilentlyContinue
+    foreach ($setup in $setupFiles) {
+        $sizeMB = [math]::Round($setup.Length / 1MB, 2)
+        $hash = (Get-FileHash -Path $setup.FullName -Algorithm SHA256).Hash
+        Say "Generated Setup: $($setup.FullName)"
+        Say "  File Size: $sizeMB MB"
+        Say "  SHA256:    $hash"
+    }
 } else {
     Write-Error "Installer compilation failed."
     exit $LASTEXITCODE
 }
+

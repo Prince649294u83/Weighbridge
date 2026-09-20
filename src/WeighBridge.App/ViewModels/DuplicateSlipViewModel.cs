@@ -15,6 +15,7 @@ using WeighBridge.Core.Security;
 using WeighBridge.Domain.Enums;
 using WeighBridge.Domain.Weighments;
 using WeighBridge.Printing.Services;
+using WeighBridge.Printing.Template;
 
 namespace WeighBridge.App.ViewModels;
 
@@ -26,6 +27,7 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
 {
     private readonly IRepository<Weighment> _weighments;
     private readonly IPrintService _printService;
+    private readonly ITemplateEngine _templateEngine;
     private readonly IServerConnectivityService? _serverConnectivity;
     private static readonly HashSet<long> SyncedWeighmentIds = [];
     private readonly IPermissionService _permissions;
@@ -58,10 +60,12 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
         IServerConnectivityService? serverConnectivity = null,
         IOptionsMonitor<CompanyOptions>? companyOptionsMonitor = null,
         IEmailService? emailService = null,
-        IOptionsMonitor<EmailOptions>? emailOptionsMonitor = null)
+        IOptionsMonitor<EmailOptions>? emailOptionsMonitor = null,
+        ITemplateEngine? templateEngine = null)
     {
         _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
         _printService = printService ?? throw new ArgumentNullException(nameof(printService));
+        _templateEngine = templateEngine ?? new SlipTemplateEngine();
         _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
         _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
         _companyOptions = companyOptions ?? throw new ArgumentNullException(nameof(companyOptions));
@@ -95,9 +99,12 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
                 (PushToServerCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
             }
         };
+
+        SearchResults.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSearchResults));
     }
 
     public ObservableCollection<WeighmentSummary> SearchResults { get; } = [];
+    public bool HasSearchResults => SearchResults.Count > 0;
 
     public long? ActiveWeighmentId => _activeWeighmentId;
     public Guid? ActiveVersion => _activeVersion;
@@ -347,6 +354,8 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
             }
 
             var printData = WeighmentPrintDataFactory.Create(weighment, _companyOptions.Value, isDuplicate: true);
+            var doc = _templateEngine.Parse(BuiltInTemplates.DotMatrix);
+            var renderedSlip = _templateEngine.RenderToText(doc, printData, PrinterProfile.DotMatrix());
             await _dialogs.ShowInformationAsync("Duplicate Slip Preview",
                 $"Preview for Ticket: {printData.SlipNumber}\n" +
                 $"Vehicle: {printData.VehicleNumber}\n" +
@@ -355,7 +364,8 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
                 $"Gross Weight: {printData.GrossWeightKg:N0} kg\n" +
                 $"Tare Weight: {printData.TareWeightKg:N0} kg\n" +
                 $"Net Weight: {printData.NetWeightKg:N0} kg\n" +
-                $"Charges: Rs.{printData.TotalCharges:N0}");
+                $"Charges: Rs.{printData.TotalCharges:N0}",
+                renderedSlip);
         }
         catch (Exception ex)
         {
@@ -386,22 +396,7 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
             }
 
             var printData = WeighmentPrintDataFactory.Create(weighment, _companyOptions.Value, isDuplicate: true);
-            var data = new Dictionary<string, object?>
-            {
-                { "SlipNumber", printData.SlipNumber },
-                { "VehicleNumber", printData.VehicleNumber },
-                { "PartyName", printData.PartyName },
-                { "MaterialName", printData.MaterialName },
-                { "GrossWeightKg", printData.GrossWeightKg },
-                { "TareWeightKg", printData.TareWeightKg },
-                { "NetWeightKg", printData.NetWeightKg },
-                { "FirstCharges", printData.FirstCharges },
-                { "SecondCharges", printData.SecondCharges },
-                { "TotalCharges", printData.TotalCharges },
-                { "IsDuplicate", true }
-            };
-
-            var result = await _printService.PrintAsync("GenericAscii", data).ConfigureAwait(true);
+            var result = await _printService.PrintSlipAsync(printData).ConfigureAwait(true);
 
             if (result.Succeeded)
             {

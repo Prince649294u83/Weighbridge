@@ -40,6 +40,7 @@
     <sys:String x:Key="Icon.Error">&#xEA39;</sys:String>
     <sys:String x:Key="Icon.Question">&#xE9CE;</sys:String>
     <sys:String x:Key="Icon.CheckMark">&#xE73E;</sys:String>
+    <sys:String x:Key="Icon.CheckCircle">&#xE930;</sys:String>
 
     <!--  ===== General purpose =====  -->
     <sys:String x:Key="Icon.Search">&#xE721;</sys:String>

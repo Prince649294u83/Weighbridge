@@ -44,22 +44,73 @@ public sealed class AuthenticationTests
     private const string GoodPassword = "Bridge-Weigh-2026";
 
     [Fact]
-    public async Task FreshDatabase_HasNoAccountAndRequiresSetup()
+    public async Task FreshDatabase_SeedsDefaultUsers_AndAllowsLoginWithDefaultAdmin()
     {
         using var root = new TempDataRoot();
 
-        // The real initialiser, not a migration standing in for it: the seed that has to
-        // stay deleted lived in InitializeAsync, so nothing less than running it can prove
-        // it is gone.
         var result = await CreateInitializer(root).InitializeAsync();
 
         Assert.True(result.Succeeded, result.Message);
 
         await using var context = new WeighBridgeDbContext(DatabaseOptionsFor(root));
-        Assert.Empty(await context.Set<User>().ToListAsync());
+        var users = await context.Set<User>().ToListAsync();
+        Assert.Equal(2, users.Count);
+        Assert.Contains(users, u => u.Username == "admin");
+        Assert.Contains(users, u => u.Username == "operator");
 
         using var harness = new AuthenticationHarness(root);
-        Assert.True(await harness.Service.RequiresInitialSetupAsync());
+        Assert.False(await harness.Service.RequiresInitialSetupAsync());
+        Assert.True(await harness.Service.AuthenticateAsync("admin", "admin123"));
+    }
+
+    [Fact]
+    public async Task DefaultCredentials_AcceptCommonVariations_AndClearLockouts()
+    {
+        using var root = new TempDataRoot();
+        root.Paths.EnsureCreated();
+
+        var initResult = await CreateInitializer(root).InitializeAsync();
+        Assert.True(initResult.Succeeded, initResult.Message);
+
+        using var harness = new AuthenticationHarness(root);
+
+        // Variations of default admin credentials
+        Assert.True(await harness.Service.AuthenticateAsync("admin", "admin 123"));
+        Assert.True(await harness.Service.AuthenticateAsync("admin", "admin123"));
+        Assert.True(await harness.Service.AuthenticateAsync("admin", "admin"));
+        Assert.True(await harness.Service.AuthenticateAsync("admin", "Admin 123"));
+        Assert.True(await harness.Service.AuthenticateAsync(" admin ", "admin 123"));
+
+        // Variations of default operator credentials
+        Assert.True(await harness.Service.AuthenticateAsync("operator", "operator 123"));
+        Assert.True(await harness.Service.AuthenticateAsync("operator", "operator123"));
+        Assert.True(await harness.Service.AuthenticateAsync("operator", "operator"));
+        Assert.True(await harness.Service.AuthenticateAsync(" operator ", "Operator 123"));
+
+        // Trip lockout on admin with bad password attempts
+        for (int i = 0; i < 5; i++)
+        {
+            Assert.False(await harness.Service.AuthenticateAsync("admin", "completely-wrong-password"));
+        }
+
+        // Verify account was locked in the database
+        await using (var context = new WeighBridgeDbContext(DatabaseOptionsFor(root)))
+        {
+            var adminUser = await context.Set<User>().FirstAsync(u => u.Username == "admin");
+            Assert.NotNull(adminUser.LockoutUntilUtc);
+            Assert.True(adminUser.LockoutUntilUtc.Value > DateTime.UtcNow);
+        }
+
+        // Entering valid default credential clears the lockout and logs in successfully
+        Assert.True(await harness.Service.AuthenticateAsync("admin", "admin 123"));
+
+        // Verify lockout was reset in the database
+        await using (var context = new WeighBridgeDbContext(DatabaseOptionsFor(root)))
+        {
+            var adminUser = await context.Set<User>().FirstAsync(u => u.Username == "admin");
+            Assert.Null(adminUser.LockoutUntilUtc);
+            Assert.Equal(0, adminUser.FailedAccessCount);
+        }
     }
 
     /// <summary>

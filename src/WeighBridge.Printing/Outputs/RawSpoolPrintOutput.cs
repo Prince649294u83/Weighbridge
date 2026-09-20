@@ -43,6 +43,14 @@ public sealed class RawSpoolPrintOutput(
         {
             byte[] rawBytes = _templateEngine.RenderToBytes(document, data, profile);
 
+            if (profile.PageHeightLines == 33)
+            {
+                // ESC C 33 (0x1B, 0x43, 0x21) sets page length to 33 lines for continuous tractor-feed half-A4 paper
+                byte[] initCommands = [0x1B, 0x43, 33];
+                byte[] trailing = rawBytes.Length > 0 && rawBytes[^1] == 0x0C ? [] : [0x0C];
+                rawBytes = [..initCommands, ..rawBytes, ..trailing];
+            }
+
             return await Task.Run(() =>
             {
                 int effectiveCopies = Math.Max(1, copies);
@@ -88,6 +96,14 @@ public sealed class RawSpoolPrintOutput(
         try
         {
             byte[] rawBytes = profile.Encoding.GetBytes(renderedText);
+
+            if (profile.PageHeightLines == 33)
+            {
+                // ESC C 33 (0x1B, 0x43, 0x21) sets page length to 33 lines for continuous tractor-feed half-A4 paper
+                byte[] initCommands = [0x1B, 0x43, 33];
+                byte[] trailing = rawBytes.Length > 0 && rawBytes[^1] == 0x0C ? [] : [0x0C];
+                rawBytes = [..initCommands, ..rawBytes, ..trailing];
+            }
 
             return await Task.Run(() =>
             {
