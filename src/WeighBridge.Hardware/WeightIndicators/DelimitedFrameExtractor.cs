@@ -21,6 +21,7 @@ public sealed class DelimitedFrameExtractor : IFrameExtractor
 
     private const byte Stx = 0x02;
     private const byte Etx = 0x03;
+    private const byte Quote = 0x22;        // '"'
     private const byte BracketStart = 0x5B; // '['
     private const byte BracketEnd = 0x5D;   // ']'
     private const byte NullTerminator = 0x00;
@@ -40,6 +41,28 @@ public sealed class DelimitedFrameExtractor : IFrameExtractor
         int bracketIndex = buffer.IndexOf(BracketStart);
         int stxIndex = buffer.IndexOf(Stx);
         int lfIndex = buffer.IndexOf(Lf);
+        int quoteIndex = buffer.IndexOf(Quote);
+
+        // Quote-delimited indicator format: '"' (0x22) payload '"' (e.g. "  66315  ")
+        if (quoteIndex >= 0 && (bracketIndex < 0 || quoteIndex < bracketIndex) && (stxIndex < 0 || quoteIndex < stxIndex) && (lfIndex < 0 || quoteIndex < lfIndex))
+        {
+            int relativeClosingQuote = buffer.Slice(quoteIndex + 1).IndexOf(Quote);
+            if (relativeClosingQuote >= 0)
+            {
+                int closingQuoteIndex = quoteIndex + 1 + relativeClosingQuote;
+                frame = buffer.Slice(quoteIndex + 1, relativeClosingQuote);
+                bytesConsumed = closingQuoteIndex + 1;
+                return true;
+            }
+
+            // Unterminated quote frame: discard preceding junk if any
+            if (quoteIndex > 0)
+            {
+                bytesConsumed = quoteIndex;
+            }
+
+            return false;
+        }
 
         // Bracket-framed indicator format: '[' (0x5B) followed by payload and terminated by \0, \r, \n, or ']'
         if (bracketIndex >= 0 && (stxIndex < 0 || bracketIndex < stxIndex) && (lfIndex < 0 || bracketIndex < lfIndex))
@@ -94,6 +117,30 @@ public sealed class DelimitedFrameExtractor : IFrameExtractor
                 return true;
             }
 
+            // Support continuous STX-prefixed frames where each frame begins with STX
+            // and has no ETX (e.g. STX " 390 STX " 975 STX ...)
+            int relativeNextStx = buffer.Slice(stxIndex + 1).IndexOf(Stx);
+            if (relativeNextStx >= 0)
+            {
+                frame = buffer.Slice(stxIndex + 1, relativeNextStx);
+                bytesConsumed = stxIndex + 1 + relativeNextStx;
+                return true;
+            }
+
+            // STX frames terminated by newline
+            int relativeLf = buffer.Slice(stxIndex + 1).IndexOf(Lf);
+            if (relativeLf >= 0)
+            {
+                int end = relativeLf;
+                if (end > 0 && buffer[stxIndex + 1 + end - 1] == Cr)
+                {
+                    end--;
+                }
+                frame = buffer.Slice(stxIndex + 1, end);
+                bytesConsumed = stxIndex + 1 + relativeLf + 1;
+                return true;
+            }
+
             // Unterminated STX frame. Junk accumulated ahead of it is dropped so the
             // buffer cannot grow without bound while the payload is still arriving.
             if (stxIndex > 0)
@@ -101,7 +148,7 @@ public sealed class DelimitedFrameExtractor : IFrameExtractor
                 bytesConsumed = stxIndex;
             }
 
-            // Otherwise: waiting for ETX.
+            // Otherwise: waiting for ETX, next STX, or line ending.
             return false;
         }
 

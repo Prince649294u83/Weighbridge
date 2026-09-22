@@ -180,6 +180,7 @@ namespace DesktopAutomationHost
                     };
                     psi.EnvironmentVariables["WEIGHBRIDGE_Hardware__WeightIndicator__DriverType"] = "Simulator";
                     psi.EnvironmentVariables["WEIGHBRIDGE_Hardware__Camera__Enabled"] = "false";
+                    psi.EnvironmentVariables["WEIGHBRIDGE_AUTOMATION_ACTIVE"] = "1";
 
                     currentAppProcess = Process.Start(psi);
 
@@ -1050,17 +1051,24 @@ namespace DesktopAutomationHost
                         if (submitBtn.Patterns.Invoke.IsSupported) submitBtn.Patterns.Invoke.Pattern.Invoke();
                         else submitBtn.Click();
 
-                        // 4. Wait for state transition
+                        // 4. Wait for state transition (queued status or print modal appearing)
                         bool transitioned = false;
                         for (int i = 0; i < 15; i++)
                         {
                             Thread.Sleep(500);
                             var state = ExtractVehicleEntryState(mainWin);
                             string statusText = state.GetValueOrDefault("StatusMessage")?.ToString() ?? "";
+                            var cancelPrintBtn = mainWin.FindFirstDescendant(cf => cf.ByName("Cancel Print"));
+                            var confirmPrintBtn = mainWin.FindFirstDescendant(cf => cf.ByName("Confirm Print"));
+                            bool isPrintModalVisible = (cancelPrintBtn != null && !cancelPrintBtn.IsOffscreen) ||
+                                                       (confirmPrintBtn != null && !confirmPrintBtn.IsOffscreen);
+
                             if (statusText.Contains("queued for second weight", StringComparison.OrdinalIgnoreCase) ||
-                                statusText.Contains("First weight", StringComparison.OrdinalIgnoreCase))
+                                statusText.Contains("First weight", StringComparison.OrdinalIgnoreCase) ||
+                                isPrintModalVisible)
                             {
                                 transitioned = true;
+                                state["PrintModalOpen"] = isPrintModalVisible;
                                 response.Data["ResultState"] = state;
                                 break;
                             }
@@ -1153,17 +1161,24 @@ namespace DesktopAutomationHost
                         if (submitBtn.Patterns.Invoke.IsSupported) submitBtn.Patterns.Invoke.Pattern.Invoke();
                         else submitBtn.Click();
 
-                        // 6. Wait for completed state
+                        // 6. Wait for completed state (completed status or print modal appearing)
                         bool completed = false;
                         for (int i = 0; i < 15; i++)
                         {
                             Thread.Sleep(500);
                             var state = ExtractVehicleEntryState(mainWin);
                             string statusText = state.GetValueOrDefault("StatusMessage")?.ToString() ?? "";
+                            var cancelPrintBtn = mainWin.FindFirstDescendant(cf => cf.ByName("Cancel Print"));
+                            var confirmPrintBtn = mainWin.FindFirstDescendant(cf => cf.ByName("Confirm Print"));
+                            bool isPrintModalVisible = (cancelPrintBtn != null && !cancelPrintBtn.IsOffscreen) ||
+                                                       (confirmPrintBtn != null && !confirmPrintBtn.IsOffscreen);
+
                             if (statusText.Contains("completed", StringComparison.OrdinalIgnoreCase) ||
-                                statusText.Contains("Net", StringComparison.OrdinalIgnoreCase))
+                                statusText.Contains("Net", StringComparison.OrdinalIgnoreCase) ||
+                                isPrintModalVisible)
                             {
                                 completed = true;
+                                state["PrintModalOpen"] = isPrintModalVisible;
                                 response.Data["ResultState"] = state;
                                 break;
                             }
@@ -1366,6 +1381,12 @@ namespace DesktopAutomationHost
 
             return response;
         }
+
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsIconic(IntPtr hWnd);
 
         [DllImport("user32.dll")]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -1831,6 +1852,18 @@ namespace DesktopAutomationHost
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(fullPath) ?? "");
+                try
+                {
+                    IntPtr hWnd = new IntPtr(window.Properties.NativeWindowHandle.ValueOrDefault);
+                    if (hWnd != IntPtr.Zero && IsIconic(hWnd))
+                    {
+                        ShowWindow(hWnd, 9); // SW_RESTORE only when window is minimized
+                        SetForegroundWindow(hWnd);
+                        Thread.Sleep(150);
+                    }
+                }
+                catch { }
+
                 using (var img = window.Capture())
                 {
                     img.Save(fullPath);

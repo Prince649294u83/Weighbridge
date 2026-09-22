@@ -35,7 +35,8 @@
         MinHeight="{StaticResource Size.MinWindowHeight}"
         Style="{StaticResource Window.Base}"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="None">
+        WindowStyle="None"
+        Icon="Assets/app.ico">
 
   <WindowChrome.WindowChrome>
     <WindowChrome CaptionHeight="{StaticResource Size.TitleBarHeight}"
@@ -130,9 +131,11 @@
     <Border.Style>
       <Style TargetType="Border">
         <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="0" />
         <Style.Triggers>
           <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
           </DataTrigger>
         </Style.Triggers>
       </Style>
@@ -142,6 +145,7 @@
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
 
@@ -185,13 +189,16 @@
                          Foreground="{DynamicResource Brush.Border.Strong}"
                          Style="{StaticResource Text.Body}"
                          Text="/" />
-              <TextBlock Style="{StaticResource TitleBar.Text}" Text="{Binding SiteName}" />
+              <TextBlock Style="{StaticResource TitleBar.Text}"
+                         Text="{Binding SiteName}"
+                         MaxWidth="160"
+                         TextTrimming="CharacterEllipsis" />
             </StackPanel>
           </StackPanel>
 
           <!--  History commands  -->
           <StackPanel Grid.Column="1"
-                      Margin="20,0,0,0"
+                      Margin="16,0,0,0"
                       VerticalAlignment="Center"
                       Orientation="Horizontal"
                       WindowChrome.IsHitTestVisibleInChrome="True">
@@ -227,7 +234,9 @@
             <TextBlock Style="{StaticResource TitleBar.Glyph}" Text="{StaticResource Icon.User}" />
             <TextBlock Margin="0,0,16,0"
                        Style="{StaticResource TitleBar.Text}"
-                       Text="{Binding CurrentUserName}" />
+                       Text="{Binding CurrentUserName}"
+                       MaxWidth="120"
+                       TextTrimming="CharacterEllipsis" />
 
             <TextBlock Style="{StaticResource TitleBar.Glyph}" Text="{StaticResource Icon.Calendar}" />
             <TextBlock Margin="0,0,16,0"
@@ -276,125 +285,47 @@
       </Border>
 
       <!--  ============================================================
-            Body: navigation panel and content area
+            Body: full-width content area
             ============================================================  -->
-      <Grid Grid.Row="1">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+      <navigation:NavigationHost x:Name="ContentHost"
+                                 Grid.Row="1"
+                                 ViewModel="{Binding CurrentViewModel}" />
 
-        <Border Grid.Column="0"
-                Background="{DynamicResource Brush.Surface.Navigation}"
-                BorderBrush="{DynamicResource Brush.Border.Subtle}"
-                BorderThickness="0,0,1,0">
-          <!--
-            The width is animated rather than set, so collapsing reads as a movement
-            instead of a jump. The animation holds its end value, which is why the
-            Setter below only supplies the expanded starting width.
-          -->
-          <Border.Style>
-            <Style TargetType="Border">
-              <Setter Property="Width" Value="{StaticResource Size.NavigationWidth}" />
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding IsNavigationCollapsed}" Value="True">
-                  <DataTrigger.EnterActions>
-                    <BeginStoryboard>
-                      <Storyboard>
-                        <DoubleAnimation Storyboard.TargetProperty="Width"
-                                         To="{StaticResource Size.NavigationCollapsedWidth}"
-                                         Duration="{StaticResource Duration.Normal}">
-                          <DoubleAnimation.EasingFunction>
-                            <CubicEase EasingMode="EaseOut" />
-                          </DoubleAnimation.EasingFunction>
-                        </DoubleAnimation>
-                      </Storyboard>
-                    </BeginStoryboard>
-                  </DataTrigger.EnterActions>
-                  <DataTrigger.ExitActions>
-                    <BeginStoryboard>
-                      <Storyboard>
-                        <DoubleAnimation Storyboard.TargetProperty="Width"
-                                         To="{StaticResource Size.NavigationWidth}"
-                                         Duration="{StaticResource Duration.Normal}">
-                          <DoubleAnimation.EasingFunction>
-                            <CubicEase EasingMode="EaseOut" />
-                          </DoubleAnimation.EasingFunction>
-                        </DoubleAnimation>
-                      </Storyboard>
-                    </BeginStoryboard>
-                  </DataTrigger.ExitActions>
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Border.Style>
-
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="*" />
-              <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-
-            <Button Grid.Row="0"
-                    Margin="10,10,0,6"
-                    HorizontalAlignment="Left"
-                    AutomationProperties.Name="Expand or collapse the navigation panel"
-                    Command="{Binding ToggleNavigationCommand}"
-                    Content="{StaticResource Icon.Menu}"
-                    Style="{StaticResource Button.Icon}"
-                    ToolTip="Expand or collapse the navigation panel" />
-
-            <ScrollViewer Grid.Row="1"
-                          Style="{StaticResource ScrollViewer.Default}"
-                          VerticalScrollBarVisibility="Auto">
-              <ItemsControl Focusable="False" ItemsSource="{Binding NavigationItems}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate DataType="{x:Type viewModels:ShellNavigationItem}">
-                    <!--
-                      GroupName gives the panel mutual exclusion regardless of how the
-                      items are containerised; IsChecked is still two-way bound so the
-                      highlight follows Back and Forward, not only clicks.
-                    -->
-                    <!--
-                      The name has to be set explicitly: the icon is a glyph and the
-                      label is hidden entirely on the collapsed rail, so without this a
-                      screen reader announces an unnamed radio button.
-                    -->
-                    <controls:NavigationItem AutomationProperties.Name="{Binding Label}"
-                                             Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                             CommandParameter="{Binding}"
-                                             GroupName="ShellNavigation"
-                                             Icon="{Binding IconKey, Converter={StaticResource Converter.ResourceKey}}"
-                                             IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                             IsCollapsed="{Binding DataContext.IsNavigationCollapsed, RelativeSource={RelativeSource AncestorType=Window}}"
-                                             Label="{Binding Label}"
-                                             ToolTip="{Binding Label}" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
-
-            <StackPanel Grid.Row="2" Margin="0,6,0,0">
-              <Separator Style="{StaticResource Separator.Horizontal}" />
-              <TextBlock Margin="14,10,14,10"
-                         Style="{StaticResource Text.Caption}"
-                         Text="{Binding DisplayVersion}"
-                         TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-          </Grid>
-        </Border>
-
-        <!--  The single place where a ViewModel becomes visual.  -->
-        <navigation:NavigationHost x:Name="ContentHost"
-                                   Grid.Column="1"
-                                   ViewModel="{Binding CurrentViewModel}" />
-      </Grid>
+      <!--  ============================================================
+            Bottom horizontal navigation bar
+            High-contrast, large touch targets with 26px icons and stacked labels
+            ============================================================  -->
+      <Border Grid.Row="2"
+              Height="{StaticResource Size.BottomNavigationHeight}"
+              Background="{DynamicResource Brush.Surface.Navigation}"
+              BorderBrush="{DynamicResource Brush.Border.Subtle}"
+              BorderThickness="0,1,0,0">
+        <ItemsControl Focusable="False" ItemsSource="{Binding NavigationItems}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Rows="1" Margin="6,0" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type viewModels:ShellNavigationItem}">
+              <controls:NavigationItem AutomationProperties.Name="{Binding Label}"
+                                       AutomationProperties.AutomationId="{Binding Label}"
+                                       Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                       CommandParameter="{Binding}"
+                                       GroupName="ShellNavigation"
+                                       Icon="{Binding IconKey, Converter={StaticResource Converter.ResourceKey}}"
+                                       IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                       Label="{Binding Label}"
+                                       ToolTip="{Binding Label}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
 
       <!--  ============================================================
             Status bar
             ============================================================  -->
-      <Border Grid.Row="2"
+      <Border Grid.Row="3"
               Height="{StaticResource Size.StatusBarHeight}"
               Background="{DynamicResource Brush.Surface.StatusBar}"
               BorderBrush="{DynamicResource Brush.Border.Subtle}"

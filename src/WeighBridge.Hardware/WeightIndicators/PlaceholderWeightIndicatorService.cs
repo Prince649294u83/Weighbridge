@@ -61,6 +61,13 @@ public sealed class PlaceholderWeightIndicatorService(
     public event EventHandler<ConnectionState>? StateChanged;
 
     /// <inheritdoc />
+    public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived
+    {
+        add { }
+        remove { }
+    }
+
+    /// <inheritdoc />
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (!_options.Enabled)

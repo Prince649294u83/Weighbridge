@@ -117,6 +117,9 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
     public event EventHandler<ConnectionState>? StateChanged;
 
     /// <inheritdoc />
+    public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
+
+    /// <inheritdoc />
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (!_options.Enabled)
@@ -226,6 +229,54 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
         }
     }
 
+    /// <inheritdoc />
+    public async Task<bool> SendAsync(string text, bool appendCrLf = true, CancellationToken cancellationToken = default)
+    {
+        if (!_transport.IsOpen) return false;
+        try
+        {
+            var data = appendCrLf ? text + "\r\n" : text;
+            var bytes = System.Text.Encoding.ASCII.GetBytes(data);
+            await _transport.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to transmit text to indicator: {Message}", ex.Message);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SendHexAsync(string hexString, CancellationToken cancellationToken = default)
+    {
+        if (!_transport.IsOpen) return false;
+        try
+        {
+            var parts = hexString.Split(new[] { ' ', ',', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            var bytes = new List<byte>();
+            foreach (var part in parts)
+            {
+                if (byte.TryParse(part, System.Globalization.NumberStyles.HexNumber, null, out var b))
+                {
+                    bytes.Add(b);
+                }
+            }
+
+            if (bytes.Count > 0)
+            {
+                await _transport.WriteAsync(bytes.ToArray(), cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to transmit hex to indicator: {Message}", ex.Message);
+            return false;
+        }
+    }
+
     private async Task RunWorkerLoopAsync(CancellationToken token)
     {
         var rawBuffer = new byte[4096];
@@ -268,6 +319,18 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
                         continue;
                     }
 
+                    // 1. Fan out raw telemetry to Terminal / Diagnostic observers
+                    try
+                    {
+                        var chunk = new DiagnosticDataChunk(memoryBuffer, bytesRead, _transport.CtsHolding, _transport.DsrHolding, _transport.CdHolding);
+                        RawTelemetryReceived?.Invoke(this, chunk);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Error dispatching raw telemetry to diagnostic observers");
+                    }
+
+                    // 2. Buffer and process frames for domain consumers (Vehicle Entry & Dashboard)
                     if (bufferOffset + bytesRead > rawBuffer.Length)
                     {
                         // Reset buffer on overflow

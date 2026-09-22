@@ -51,8 +51,9 @@ public sealed class WpfUiDispatcher : IUiDispatcher
 
         // BeginInvoke rather than Invoke: the contract is fire-and-forget, and a
         // blocking Invoke from a hardware polling thread would couple its cadence to
-        // however long the UI takes to become responsive.
-        _dispatcher.BeginInvoke(action, DispatcherPriority.Normal);
+        // however long the UI takes to become responsive. Using DataBind priority
+        // ensures rapid hardware updates do not starve user input or UI rendering.
+        _dispatcher.BeginInvoke(action, DispatcherPriority.DataBind);
     }
 
     /// <inheritdoc />

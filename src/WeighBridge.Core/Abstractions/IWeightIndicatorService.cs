@@ -42,6 +42,9 @@ public interface IWeightIndicatorService : IHealthCheck, IAsyncDisposable
     /// <summary>Current connection state of the indicator.</summary>
     ConnectionState State { get; }
 
+    /// <summary>Whether the indicator is currently connected.</summary>
+    bool IsConnected => State == ConnectionState.Connected;
+
     /// <summary>The most recent reading, or <see cref="WeightReading.Empty"/>.</summary>
     WeightReading CurrentReading { get; }
 
@@ -59,4 +62,13 @@ public interface IWeightIndicatorService : IHealthCheck, IAsyncDisposable
 
     /// <summary>Requests a single reading on demand.</summary>
     Task<WeightReading> ReadAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Raised whenever raw telemetry bytes arrive on the underlying hardware transport.</summary>
+    event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
+
+    /// <summary>Transmits text commands to the active indicator port (for polling, zeroing, or calibration).</summary>
+    Task<bool> SendAsync(string text, bool appendCrLf = true, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    /// <summary>Transmits raw hexadecimal bytes to the active indicator port.</summary>
+    Task<bool> SendHexAsync(string hexString, CancellationToken cancellationToken = default) => Task.FromResult(false);
 }

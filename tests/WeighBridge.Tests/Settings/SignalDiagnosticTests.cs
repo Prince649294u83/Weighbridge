@@ -2,7 +2,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using WeighBridge.App.Services;
 using WeighBridge.App.ViewModels;
+using WeighBridge.Core.Abstractions;
+using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Configuration;
+using WeighBridge.Domain.Enums;
 using WeighBridge.Settings.Configuration;
 using WeighBridge.Settings.Services;
 using WeighBridge.Tests.Infrastructure;
@@ -12,7 +15,7 @@ namespace WeighBridge.Tests.Settings;
 
 public sealed class SignalDiagnosticTests
 {
-    private static SettingsViewModel CreateViewModel(StubWeightIndicator? indicator = null)
+    private static SettingsViewModel CreateViewModel(IWeightIndicatorService? indicator = null)
     {
         var data = new TempDataRoot();
         data.Paths.EnsureCreated();
@@ -106,5 +109,78 @@ public sealed class SignalDiagnosticTests
         // Even with non-existent port, SendBytesAsync gracefully handles it without crashing
         Assert.False(monitor.IsMonitoring);
         monitor.Dispose();
+    }
+
+    [Fact]
+    public async Task SignalDiagnostic_ReceivesTelemetryFromIndicator_Directly()
+    {
+        var indicator = new TestableWeightIndicator();
+        var vm = CreateViewModel(indicator);
+
+        // Pre-set DiagnosticPort to match PortName and start diagnostic monitoring
+        vm.DiagnosticPort = vm.PortName;
+        await ((AsyncRelayCommand)vm.StartDiagnosticMonitoringCommand).ExecuteAsync();
+
+        byte[] sampleTelemetry = System.Text.Encoding.ASCII.GetBytes("ST,GS,+025400kg\r\n");
+        indicator.EmitTelemetry(sampleTelemetry);
+
+        Assert.Contains("ST,GS,+025400kg", vm.DiagnosticAsciiLog);
+        Assert.Equal(sampleTelemetry.Length, vm.DiagnosticBytesReceivedCount);
+        Assert.True(vm.IsCtsHigh);
+        Assert.True(vm.IsDsrHigh);
+        Assert.True(vm.IsCdHigh);
+    }
+
+    [Fact]
+    public async Task AdoptStreamAsLiveScale_UpdatesPortAndBaudRate_AndConnectsIndicator()
+    {
+        var indicator = new TestableWeightIndicator();
+        var vm = CreateViewModel(indicator);
+
+        vm.DiagnosticPort = "COM7";
+        vm.DiagnosticBaudRate = 9600;
+
+        await vm.AdoptStreamAsLiveScaleAsync();
+
+        Assert.Equal("COM7", vm.PortName);
+        Assert.Equal(9600, vm.BaudRate);
+        Assert.True(indicator.ConnectCalled);
+    }
+
+    private sealed class TestableWeightIndicator : IWeightIndicatorService
+    {
+#pragma warning disable CS0067
+        public ConnectionState State { get; set; } = ConnectionState.Connected;
+        public WeightReading CurrentReading { get; set; } = new(25400m, "kg", true, DateTime.UtcNow);
+        public event EventHandler<WeightReading>? ReadingReceived;
+        public event EventHandler<ConnectionState>? StateChanged;
+        public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
+#pragma warning restore CS0067
+        public bool ConnectCalled { get; private set; }
+        public bool DisconnectCalled { get; private set; }
+
+        public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+        {
+            ConnectCalled = true;
+            State = ConnectionState.Connected;
+            return Task.FromResult(true);
+        }
+
+        public Task DisconnectAsync()
+        {
+            DisconnectCalled = true;
+            State = ConnectionState.Disconnected;
+            return Task.CompletedTask;
+        }
+
+        public Task<WeightReading> ReadAsync(CancellationToken cancellationToken = default) => Task.FromResult(CurrentReading);
+        public string Name => "TestableIndicator";
+        public Task<HealthResult> CheckAsync(CancellationToken cancellationToken = default) => Task.FromResult(HealthResult.Healthy("OK"));
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+        public void EmitTelemetry(byte[] bytes)
+        {
+            RawTelemetryReceived?.Invoke(this, new DiagnosticDataChunk(bytes, bytes.Length, true, true, true));
+        }
     }
 }

@@ -67,13 +67,16 @@
     <sys:Double x:Key="Size.NavigationWidth">248</sys:Double>
     <sys:Double x:Key="Size.NavigationCollapsedWidth">56</sys:Double>
     <sys:Double x:Key="Size.NavigationItemHeight">44</sys:Double>
+    <sys:Double x:Key="Size.BottomNavigationHeight">74</sys:Double>
+    <sys:Double x:Key="Size.BottomNavigationItemHeight">68</sys:Double>
+    <sys:Double x:Key="Font.Size.NavigationIcon">26</sys:Double>
     <sys:Double x:Key="Size.ControlHeight">36</sys:Double>
     <sys:Double x:Key="Size.ControlHeightLarge">44</sys:Double>
     <sys:Double x:Key="Size.WindowButtonWidth">46</sys:Double>
     <sys:Double x:Key="Size.StatusDot">9</sys:Double>
     <sys:Double x:Key="Size.DataGridRowHeight">40</sys:Double>
-    <sys:Double x:Key="Size.MinWindowWidth">1024</sys:Double>
-    <sys:Double x:Key="Size.MinWindowHeight">640</sys:Double>
+    <sys:Double x:Key="Size.MinWindowWidth">800</sys:Double>
+    <sys:Double x:Key="Size.MinWindowHeight">480</sys:Double>
 
     <!--  ===== Animation durations =====  -->
     <Duration x:Key="Duration.Fast">0:0:0.12</Duration>

@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="System.IO.Ports" />
+    <PackageReference Include="Microsoft.Win32.Registry" />
   </ItemGroup>
 
 </Project>

@@ -22,7 +22,12 @@
          surface that moniker provides is exactly what is needed. -->
     <UseWindowsForms>false</UseWindowsForms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\**\*" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\WeighBridge.Core\WeighBridge.Core.csproj" />

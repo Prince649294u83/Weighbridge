@@ -756,6 +756,7 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                   <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" Style="{StaticResource Button.Secondary}" Margin="0,0,8,0" />
+                  <Button Content="Auto-Detect Scale" Command="{Binding AutoDetectScaleCommand}" Style="{StaticResource Button.Primary}" Margin="0,0,8,0" ToolTip="Scan all serial ports to identify indicator model and baud rate" />
                   <Button Content="Refresh Ports" Command="{Binding RefreshPortsCommand}" Style="{StaticResource Button.Text}" />
                 </StackPanel>
                 <TextBlock Text="{Binding ConnectionTestStatus}" Foreground="{DynamicResource Brush.Text.Secondary}" Margin="0,8,0,0" />
@@ -1103,6 +1104,32 @@
                       <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Close}" FontSize="13" Margin="0,0,6,0" />
                         <TextBlock Text="Stop" FontWeight="SemiBold" FontSize="12" />
+                      </StackPanel>
+                    </Button>
+
+                    <!-- Auto-Detect Scale Button -->
+                    <Button Command="{Binding AutoDetectScaleCommand}"
+                            Style="{StaticResource Button.Secondary}"
+                            Height="32"
+                            Padding="10,0"
+                            Margin="0,0,8,0"
+                            ToolTip="Automatically scan all COM ports and baud rates to detect indicator">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Search}" FontSize="13" Margin="0,0,6,0" />
+                        <TextBlock Text="Auto-Detect Scale" FontWeight="SemiBold" FontSize="12" />
+                      </StackPanel>
+                    </Button>
+
+                    <!-- Adopt as Live Scale Button -->
+                    <Button Command="{Binding AdoptStreamAsLiveScaleCommand}"
+                            Style="{StaticResource Button.Secondary}"
+                            Height="32"
+                            Padding="10,0"
+                            Margin="0,0,8,0"
+                            ToolTip="Adopt this stream as the live system scale indicator and update configuration">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Save}" FontSize="13" Margin="0,0,6,0" />
+                        <TextBlock Text="Adopt as Live Scale" FontWeight="SemiBold" FontSize="12" />
                       </StackPanel>
                     </Button>
                   </StackPanel>

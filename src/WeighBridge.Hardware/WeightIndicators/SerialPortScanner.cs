@@ -30,7 +30,7 @@ public sealed class SerialPortScanner : IIndicatorPortScanner
     /// Rates tried when the caller names none, after the configured rate. Ordered by how
     /// often industrial indicators ship set to them, so the usual case exits early.
     /// </summary>
-    private static readonly int[] StandardBaudRates = [9600, 4800, 19200, 2400, 38400, 57600, 115200];
+    private static readonly int[] StandardBaudRates = [9600, 4800, 2400, 1200, 19200, 38400, 57600, 115200];
 
     private static readonly TimeSpan DefaultListen = TimeSpan.FromMilliseconds(1500);
 
@@ -242,9 +242,21 @@ public sealed class SerialPortScanner : IIndicatorPortScanner
             }
         }
 
-        return _options.BaudRate > 0
-            ? [_options.BaudRate]
-            : [2400];
+        var rates = new List<int>();
+        if (_options.BaudRate > 0)
+        {
+            rates.Add(_options.BaudRate);
+        }
+
+        foreach (var standard in StandardBaudRates)
+        {
+            if (!rates.Contains(standard))
+            {
+                rates.Add(standard);
+            }
+        }
+
+        return [.. rates];
     }
 
     /// <summary>
@@ -260,49 +272,99 @@ public sealed class SerialPortScanner : IIndicatorPortScanner
         var stopBits = Enum.TryParse<StopBits>(_options.StopBits, true, out var s) ? s : StopBits.One;
         var handshake = Enum.TryParse<Handshake>(_options.Handshake, true, out var h) ? h : Handshake.None;
 
-        using var port = new SerialPort(portName, baudRate, parity, _options.DataBits, stopBits)
+        try
         {
-            ReadTimeout = 250,
-            WriteTimeout = 250,
-            DtrEnable = _options.DtrEnable,
-            RtsEnable = _options.RtsEnable,
-            Handshake = handshake,
-        };
-
-        port.Open();
-
-        var buffer = new byte[512];
-        var collected = new List<byte>(1024);
-        var deadline = DateTime.UtcNow + listen;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (port.BytesToRead == 0)
+            using var port = new SerialPort(portName, baudRate, parity, _options.DataBits, stopBits)
             {
-                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
-                continue;
+                ReadTimeout = 250,
+                WriteTimeout = 250,
+                DtrEnable = true,
+                RtsEnable = true,
+                Handshake = handshake,
+            };
+
+            port.Open();
+
+            var buffer = new byte[512];
+            var collected = new List<byte>(1024);
+            var deadline = DateTime.UtcNow + listen;
+
+            while (DateTime.UtcNow < deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (port.BytesToRead == 0)
+                {
+                    await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                var read = port.Read(buffer, 0, Math.Min(buffer.Length, port.BytesToRead));
+                if (read <= 0)
+                {
+                    continue;
+                }
+
+                collected.AddRange(buffer.AsSpan(0, read).ToArray());
+
+                // Enough for several frames from any indicator. Reading past this only delays
+                // the answer, and a device that has sent this much is not going to become
+                // decodable by sending more of the same.
+                if (collected.Count >= 512)
+                {
+                    break;
+                }
             }
 
-            var read = port.Read(buffer, 0, Math.Min(buffer.Length, port.BytesToRead));
-            if (read <= 0)
-            {
-                continue;
-            }
-
-            collected.AddRange(buffer.AsSpan(0, read).ToArray());
-
-            // Enough for several frames from any indicator. Reading past this only delays
-            // the answer, and a device that has sent this much is not going to become
-            // decodable by sending more of the same.
-            if (collected.Count >= 512)
-            {
-                break;
-            }
+            return [.. collected];
         }
+        catch (IOException ioEx) when (ioEx.HResult == unchecked((int)0x8007001F) || ioEx.Message.Contains("not functioning", StringComparison.OrdinalIgnoreCase))
+        {
+            // CH340 / USB-Serial direct stream fallback for scanner
+            return await ListenViaDirectStreamAsync(portName, listen, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
-        return [.. collected];
+    private async Task<byte[]> ListenViaDirectStreamAsync(
+        string portName,
+        TimeSpan listen,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var handle = SerialPortTransport.OpenRawHandle(portName, (int)listen.TotalMilliseconds, rts: true, dtr: true);
+            using var stream = new FileStream(handle, FileAccess.ReadWrite, 4096, isAsync: false);
+
+            var buffer = new byte[512];
+            var collected = new List<byte>(1024);
+            var deadline = DateTime.UtcNow + listen;
+
+            while (DateTime.UtcNow < deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                int read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                if (read <= 0)
+                {
+                    await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                collected.AddRange(buffer.AsSpan(0, read).ToArray());
+
+                if (collected.Count >= 512)
+                {
+                    break;
+                }
+            }
+
+            return [.. collected];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Direct stream probe on {PortName} failed", portName);
+            return [];
+        }
     }
 
     /// <summary>Renders undecodable bytes as printable text so the log shows what arrived.</summary>

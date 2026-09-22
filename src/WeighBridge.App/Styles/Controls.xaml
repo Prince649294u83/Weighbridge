@@ -251,12 +251,13 @@
 
   <!--  ===================================================================
         NavigationItem
-        Selection is shown by a filled surface plus a 3px accent bar on the leading
-        edge - colour alone is not enough for an operator on a washed-out screen.
+        Accessible bottom horizontal navigation item.
+        Stacked vertical layout with large 26px glyph, high-contrast label,
+        and top accent indicator bar for immediate visual recognition.
         ===================================================================  -->
   <Style x:Key="{x:Type controls:NavigationItem}" TargetType="controls:NavigationItem">
-    <Setter Property="Height" Value="{StaticResource Size.NavigationItemHeight}" />
-    <Setter Property="Margin" Value="8,2" />
+    <Setter Property="Height" Value="{StaticResource Size.BottomNavigationItemHeight}" />
+    <Setter Property="Margin" Value="3,2" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
     <Setter Property="FontFamily" Value="{StaticResource Font.Primary}" />
     <Setter Property="FontSize" Value="{StaticResource Font.Size.Body}" />
@@ -269,62 +270,68 @@
         <ControlTemplate TargetType="controls:NavigationItem">
           <Border x:Name="Root"
                   Background="Transparent"
-                  BorderBrush="{DynamicResource Brush.Border.Focus}"
-                  BorderThickness="0"
-                  CornerRadius="{StaticResource Radius.SM}">
+                  BorderBrush="Transparent"
+                  BorderThickness="1"
+                  CornerRadius="{StaticResource Radius.MD}">
             <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="4" />
+                <RowDefinition Height="*" />
+              </Grid.RowDefinitions>
 
+              <!-- Top Selection Indicator Bar -->
               <Border x:Name="SelectionBar"
-                      Grid.Column="0"
-                      Width="3"
-                      Height="20"
-                      Margin="0,0,9,0"
-                      HorizontalAlignment="Left"
-                      VerticalAlignment="Center"
+                      Grid.Row="0"
+                      Height="4"
+                      Margin="16,0,16,0"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Top"
                       Background="{DynamicResource Brush.Accent.Default}"
-                      CornerRadius="{StaticResource Radius.Pill}"
+                      CornerRadius="2"
                       Visibility="Hidden" />
 
-              <TextBlock x:Name="Glyph"
-                         Grid.Column="1"
-                         Width="20"
-                         Margin="8,0,0,0"
-                         HorizontalAlignment="Center"
-                         VerticalAlignment="Center"
-                         Style="{StaticResource Text.Icon}"
-                         Foreground="{TemplateBinding Foreground}"
-                         Text="{TemplateBinding Icon}"
-                         TextAlignment="Center" />
+              <!-- Main Content: Big Icon + Label Stack -->
+              <Grid Grid.Row="1" Margin="4,2,4,4">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Grid HorizontalAlignment="Center">
+                    <TextBlock x:Name="Glyph"
+                               FontSize="{StaticResource Font.Size.NavigationIcon}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Style="{StaticResource Text.Icon}"
+                               Foreground="{TemplateBinding Foreground}"
+                               Text="{TemplateBinding Icon}"
+                               TextAlignment="Center" />
 
-              <TextBlock x:Name="LabelText"
-                         Grid.Column="2"
-                         Margin="12,0,0,0"
-                         VerticalAlignment="Center"
-                         FontFamily="{TemplateBinding FontFamily}"
-                         FontSize="{TemplateBinding FontSize}"
-                         Foreground="{TemplateBinding Foreground}"
-                         Text="{TemplateBinding Label}"
-                         TextTrimming="CharacterEllipsis" />
+                    <!-- Floating Badge if present -->
+                    <Border x:Name="Badge"
+                            Margin="18,-4,-12,0"
+                            Padding="5,1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="{DynamicResource Brush.Accent.Default}"
+                            CornerRadius="{StaticResource Radius.Pill}">
+                      <TextBlock FontFamily="{TemplateBinding FontFamily}"
+                                 FontSize="{StaticResource Font.Size.Caption}"
+                                 FontWeight="Bold"
+                                 Foreground="{DynamicResource Brush.Text.OnAccent}"
+                                 Text="{TemplateBinding BadgeText}" />
+                    </Border>
+                  </Grid>
 
-              <Border x:Name="Badge"
-                      Grid.Column="3"
-                      Margin="8,0,12,0"
-                      Padding="7,1"
-                      VerticalAlignment="Center"
-                      Background="{DynamicResource Brush.Accent.Default}"
-                      CornerRadius="{StaticResource Radius.Pill}">
-                <TextBlock FontFamily="{TemplateBinding FontFamily}"
-                           FontSize="{StaticResource Font.Size.Caption}"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource Brush.Text.OnAccent}"
-                           Text="{TemplateBinding BadgeText}" />
-              </Border>
+                  <TextBlock x:Name="LabelText"
+                             Margin="0,3,0,0"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             FontFamily="{TemplateBinding FontFamily}"
+                             FontSize="12.5"
+                             FontWeight="SemiBold"
+                             Foreground="{TemplateBinding Foreground}"
+                             Text="{TemplateBinding Label}"
+                             TextAlignment="Center"
+                             TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </Grid>
             </Grid>
           </Border>
 
@@ -335,7 +342,6 @@
 
             <Trigger Property="IsCollapsed" Value="True">
               <Setter TargetName="LabelText" Property="Visibility" Value="Collapsed" />
-              <Setter TargetName="Badge" Property="Visibility" Value="Collapsed" />
             </Trigger>
 
             <Trigger Property="IsMouseOver" Value="True">
@@ -349,14 +355,16 @@
 
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Surface.Selected}" />
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Border.Subtle}" />
               <Setter TargetName="SelectionBar" Property="Visibility" Value="Visible" />
               <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Brush.Text.Accent}" />
               <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
-              <Setter Property="FontWeight" Value="SemiBold" />
+              <Setter Property="FontWeight" Value="Bold" />
             </Trigger>
 
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderThickness" Value="2" />
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Border.Focus}" />
             </Trigger>
 
             <Trigger Property="IsEnabled" Value="False">

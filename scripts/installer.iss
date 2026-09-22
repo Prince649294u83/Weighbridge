@@ -7,6 +7,7 @@
 #define MyAppPublisher "WeighBridge Systems"
 #define MyAppExeName "WeighBridge.App.exe"
 #define DiagExeName "WeighBridge.SerialDiagnostic.exe"
+#define AuditCliExeName "WeighBridge.AuditCli.exe"
 #define TerminalExeName "Terminal.exe"
 #define ModernSourceDir "..\publish\modern-win-x64"
 #define LegacySourceDir "..\publish\legacy-win-x86"
@@ -56,6 +57,7 @@ Source: "{#AssetsDir}\Redist\*"; DestDir: "{tmp}\Redist"; Flags: deleteafterinst
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\truck.ico"
 Name: "{group}\{#MyAppName} (Safe Graphics Mode)"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--software-render"; IconFilename: "{app}\truck.ico"
 Name: "{group}\Hardware Serial Diagnostic Tool"; Filename: "{app}\{#DiagExeName}"; IconFilename: "{app}\truck.ico"
+Name: "{group}\System Audit & Zero-Breakage Certifier"; Filename: "{app}\Tools\{#AuditCliExeName}"; IconFilename: "{app}\truck.ico"
 Name: "{group}\Legacy Terminal Utility"; Filename: "{app}\Tools\{#TerminalExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\truck.ico"; Tasks: desktopicon

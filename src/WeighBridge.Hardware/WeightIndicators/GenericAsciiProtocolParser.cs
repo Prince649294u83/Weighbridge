@@ -39,6 +39,13 @@ public sealed class GenericAsciiProtocolParser : IIndicatorProtocolParser
             return false;
         }
 
+        // Support Yaohua XK3190 equal-sign frame delimiters and quote-bounded frames
+        text = text.Trim('"', '=', ' ', '\0', '\r', '\n');
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
         // Format 1: Comma-separated with an alphabetic status token first
         // (e.g. ST,GS,+025400kg or US,GS, 12500 kg). The status token is what makes this
         // the comma-separated format rather than a decimal comma: a frame like
@@ -163,7 +170,7 @@ public sealed class GenericAsciiProtocolParser : IIndicatorProtocolParser
                 numberStarted = true;
                 number.Append('.');
             }
-            else if (char.IsWhiteSpace(c))
+            else if (char.IsWhiteSpace(c) || c is '=' or '"')
             {
                 continue;
             }

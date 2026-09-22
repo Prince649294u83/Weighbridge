@@ -48,6 +48,9 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
     private string _pushStatusText = "Push To Server";
     private string _statusMessage = string.Empty;
     private BadgeSeverity _statusSeverity = BadgeSeverity.Neutral;
+    private bool _isPreviewModalOpen;
+    private string _previewSlipTitle = string.Empty;
+    private string _previewSlipText = string.Empty;
 
     public DuplicateSlipViewModel(
         IRepository<Weighment> weighments,
@@ -87,6 +90,12 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
         WhatsAppSlipCommand = new AsyncRelayCommand(WhatsAppSlipAsync, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
         PushToServerCommand = new AsyncRelayCommand(PushToServerAsync, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
         ClearCommand = new RelayCommand(Clear);
+        ClosePreviewCommand = new RelayCommand(() => IsPreviewModalOpen = false);
+        ConfirmPrintPreviewCommand = new AsyncRelayCommand(async () =>
+        {
+            IsPreviewModalOpen = false;
+            await PrintSlipAsync().ConfigureAwait(true);
+        }, () => !IsBusy && _activeWeighmentId.HasValue, OnUnhandled);
 
         PropertyChanged += (_, args) =>
         {
@@ -97,6 +106,7 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
                 (EmailSlipCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
                 (WhatsAppSlipCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
                 (PushToServerCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                (ConfirmPrintPreviewCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
             }
         };
 
@@ -162,6 +172,24 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
         private set => SetProperty(ref _statusSeverity, value);
     }
 
+    public bool IsPreviewModalOpen
+    {
+        get => _isPreviewModalOpen;
+        set => SetProperty(ref _isPreviewModalOpen, value);
+    }
+
+    public string PreviewSlipTitle
+    {
+        get => _previewSlipTitle;
+        set => SetProperty(ref _previewSlipTitle, value);
+    }
+
+    public string PreviewSlipText
+    {
+        get => _previewSlipText;
+        set => SetProperty(ref _previewSlipText, value);
+    }
+
     #region Commands
 
     public ICommand SearchTicketCommand { get; }
@@ -172,6 +200,8 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
     public ICommand WhatsAppSlipCommand { get; }
     public ICommand PushToServerCommand { get; }
     public ICommand ClearCommand { get; }
+    public ICommand ClosePreviewCommand { get; }
+    public ICommand ConfirmPrintPreviewCommand { get; }
 
     #endregion
 
@@ -356,16 +386,11 @@ public sealed class DuplicateSlipViewModel : ViewModelBase
             var printData = WeighmentPrintDataFactory.Create(weighment, _companyOptions.Value, isDuplicate: true);
             var doc = _templateEngine.Parse(BuiltInTemplates.DotMatrix);
             var renderedSlip = _templateEngine.RenderToText(doc, printData, PrinterProfile.DotMatrix());
-            await _dialogs.ShowInformationAsync("Duplicate Slip Preview",
-                $"Preview for Ticket: {printData.SlipNumber}\n" +
-                $"Vehicle: {printData.VehicleNumber}\n" +
-                $"Party: {printData.PartyName ?? "-"}\n" +
-                $"Material: {printData.MaterialName ?? "-"}\n" +
-                $"Gross Weight: {printData.GrossWeightKg:N0} kg\n" +
-                $"Tare Weight: {printData.TareWeightKg:N0} kg\n" +
-                $"Net Weight: {printData.NetWeightKg:N0} kg\n" +
-                $"Charges: Rs.{printData.TotalCharges:N0}",
-                renderedSlip);
+
+            PreviewSlipTitle = $"Ticket {printData.SlipNumber} - Duplicate Slip Preview";
+            PreviewSlipText = renderedSlip;
+            IsPreviewModalOpen = true;
+            ShowStatus($"Loaded ticket preview for {printData.SlipNumber}.", BadgeSeverity.Success);
         }
         catch (Exception ex)
         {

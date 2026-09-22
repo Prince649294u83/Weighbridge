@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
@@ -16,6 +18,10 @@ namespace WeighBridge.App;
 /// concerns that a ViewModel cannot own without taking a dependency on WPF:
 /// the clock tick that drives the title bar, the minimise/maximise/close commands,
 /// and handing the view locator to the navigation host. Everything else is a binding.
+///
+/// Also handles WM_GETMINMAXINFO so that a maximised borderless window is constrained
+/// exactly to the current monitor's work area, preventing content from being clipped
+/// behind the taskbar on any screen size or DPI.
 /// </remarks>
 public partial class MainWindow : Window
 {
@@ -132,4 +138,109 @@ public partial class MainWindow : Window
     }
 
     private void OnCloseClicked(object sender, RoutedEventArgs e) => Close();
+
+    // =========================================================================
+    //  WM_GETMINMAXINFO — constrain maximised window to the monitor's work area
+    // =========================================================================
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+
+        var hwndSource = (HwndSource)PresentationSource.FromVisual(this)!;
+        hwndSource.AddHook(WindowProc);
+    }
+
+    private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        // WM_GETMINMAXINFO = 0x0024
+        if (msg == 0x0024)
+        {
+            WmGetMinMaxInfo(hwnd, lParam);
+            handled = true;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static void WmGetMinMaxInfo(IntPtr hwnd, IntPtr lParam)
+    {
+        var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+
+        // Find the monitor this window is mostly on.
+        const int MONITOR_DEFAULTTONEAREST = 0x00000002;
+        var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+
+        if (monitor != IntPtr.Zero)
+        {
+            var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+
+            if (GetMonitorInfo(monitor, ref monitorInfo))
+            {
+                // rcWork is the usable area (excluding taskbar) in device pixels.
+                var workArea = monitorInfo.rcWork;
+                var monitorArea = monitorInfo.rcMonitor;
+
+                // MaxPosition is relative to the monitor's top-left corner.
+                mmi.ptMaxPosition.x = Math.Abs(workArea.left - monitorArea.left);
+                mmi.ptMaxPosition.y = Math.Abs(workArea.top - monitorArea.top);
+                mmi.ptMaxSize.x = Math.Abs(workArea.right - workArea.left);
+                mmi.ptMaxSize.y = Math.Abs(workArea.bottom - workArea.top);
+
+                // Prevent Windows from clamping the maximized size to ptMinTrackSize
+                // if the work area happens to be smaller than the default minimum tracking size.
+                mmi.ptMinTrackSize.x = Math.Min(mmi.ptMinTrackSize.x, mmi.ptMaxSize.x);
+                mmi.ptMinTrackSize.y = Math.Min(mmi.ptMinTrackSize.y, mmi.ptMaxSize.y);
+                mmi.ptMaxTrackSize.x = mmi.ptMaxSize.x;
+                mmi.ptMaxTrackSize.y = mmi.ptMaxSize.y;
+            }
+        }
+
+        Marshal.StructureToPtr(mmi, lParam, true);
+    }
+
+    // =========================================================================
+    //  Win32 P/Invoke declarations
+    // =========================================================================
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int x;
+        public int y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int left;
+        public int top;
+        public int right;
+        public int bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public int dwFlags;
+    }
 }

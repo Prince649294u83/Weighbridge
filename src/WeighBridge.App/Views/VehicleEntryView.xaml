@@ -290,7 +290,8 @@
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Charges" />
-              <TextBox Grid.Column="1"
+              <TextBox x:Name="ChargesTextBox"
+                       Grid.Column="1"
                        AutomationProperties.Name="Charges"
                        Style="{StaticResource TextBox.Numeric}"
                        Text="{Binding Charges, UpdateSourceTrigger=PropertyChanged}" />
@@ -385,9 +386,15 @@
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding ModeLabelText}" />
               
-              <!-- In F1: quick mode buttons (G / T / A / M) -->
-              <UniformGrid Grid.Column="1" Rows="1" Visibility="{Binding IsF1Mode, Converter={StaticResource Converter.BooleanToVisibility}}">
-                <Button AutomationProperties.Name="Select Gross Mode"
+              <!-- In F1: quick mode buttons (G / T / M / A) -->
+              <UniformGrid x:Name="GtmaButtonsGrid"
+                           Grid.Column="1"
+                           Rows="1"
+                           Focusable="True"
+                           KeyboardNavigation.IsTabStop="True"
+                           Visibility="{Binding IsF1Mode, Converter={StaticResource Converter.BooleanToVisibility}}">
+                <Button x:Name="BtnGrossMode"
+                        AutomationProperties.Name="Select Gross Mode"
                         Command="{Binding SelectGrossModeCommand}"
                         Padding="0,3"
                         Margin="0,0,2,0"
@@ -408,7 +415,8 @@
                   </Button.Style>
                   <TextBlock FontWeight="SemiBold" FontSize="11" Text="G" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
                 </Button>
-                <Button AutomationProperties.Name="Select Tare Mode"
+                <Button x:Name="BtnTareMode"
+                        AutomationProperties.Name="Select Tare Mode"
                         Command="{Binding SelectTareModeCommand}"
                         Padding="0,3"
                         Margin="2,0,2,0"
@@ -429,32 +437,11 @@
                   </Button.Style>
                   <TextBlock FontWeight="SemiBold" FontSize="11" Text="T" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
                 </Button>
-                <Button AutomationProperties.Name="Select Auto Tare Mode"
-                        Command="{Binding SelectAutoTareModeCommand}"
-                        Padding="0,3"
-                        Margin="2,0,2,0"
-                        ToolTip="Auto tare weight from vehicle master (A)"
-                        Visibility="{Binding IsAutoTareWeightEnabled, Converter={StaticResource Converter.BooleanToVisibility}}"
-                        HorizontalContentAlignment="Center">
-                  <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
-                      <Setter Property="Height" Value="28" />
-                      <Setter Property="MinWidth" Value="0" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsAutoTareModeSelected}" Value="True">
-                          <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
-                          <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
-                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Success.Default}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                  <TextBlock FontWeight="SemiBold" FontSize="11" Text="A" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
-                </Button>
-                <Button AutomationProperties.Name="Select Manual Tare Mode"
+                <Button x:Name="BtnManualTareMode"
+                        AutomationProperties.Name="Select Manual Tare Mode"
                         Command="{Binding SelectManualTareModeCommand}"
                         Padding="0,3"
-                        Margin="2,0,0,0"
+                        Margin="2,0,2,0"
                         ToolTip="Manual tare weight input (M)"
                         Visibility="{Binding CanEnterManualWeight, Converter={StaticResource Converter.BooleanToVisibility}}"
                         HorizontalContentAlignment="Center">
@@ -472,6 +459,29 @@
                     </Style>
                   </Button.Style>
                   <TextBlock FontWeight="SemiBold" FontSize="11" Text="M" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
+                </Button>
+                <Button x:Name="BtnAutoTareMode"
+                        AutomationProperties.Name="Select Auto Tare Mode"
+                        Command="{Binding SelectAutoTareModeCommand}"
+                        Padding="0,3"
+                        Margin="2,0,0,0"
+                        ToolTip="Auto tare weight from vehicle master (A)"
+                        Visibility="{Binding IsAutoTareWeightEnabled, Converter={StaticResource Converter.BooleanToVisibility}}"
+                        HorizontalContentAlignment="Center">
+                  <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+                      <Setter Property="Height" Value="28" />
+                      <Setter Property="MinWidth" Value="0" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsAutoTareModeSelected}" Value="True">
+                          <Setter Property="Background" Value="{DynamicResource Brush.Success.Default}" />
+                          <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Success.Default}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                  <TextBlock FontWeight="SemiBold" FontSize="11" Text="A" Foreground="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" />
                 </Button>
               </UniformGrid>
 
@@ -497,7 +507,8 @@
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Gross Weight" />
-              <TextBox Grid.Column="1"
+              <TextBox x:Name="GrossWeightBox"
+                       Grid.Column="1"
                        AutomationProperties.Name="Gross Weight Output"
                        FontWeight="Bold"
                        IsReadOnly="{Binding IsGrossWeightReadOnly}"
@@ -514,7 +525,8 @@
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Tare Weight" />
-              <TextBox Grid.Column="1"
+              <TextBox x:Name="TareWeightBox"
+                       Grid.Column="1"
                        AutomationProperties.Name="Tare Weight Output"
                        FontWeight="Bold"
                        IsReadOnly="{Binding IsTareWeightReadOnly}"
@@ -559,41 +571,16 @@
                        Text="{Binding EstimatedActualWeightKg, StringFormat='{}{0:N0}', Mode=OneWay}" />
             </Grid>
 
-            <!--  Weight Input (When manual or reading indicator)  -->
-            <Grid Margin="0,0,0,8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="110" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Capture Weight" />
-              <TextBox Grid.Column="1"
-                       AutomationProperties.Name="Weight Input"
-                       FontWeight="Bold"
-                       HorizontalContentAlignment="Right"
-                       IsReadOnly="{Binding CanEnterManualWeight, Converter={StaticResource Converter.InverseBoolean}}"
-                       Style="{StaticResource TextBox.Default}"
-                       Text="{Binding WeightInput, UpdateSourceTrigger=PropertyChanged}" />
-              <Button Grid.Column="2"
-                      Margin="6,0,0,0"
-                      AutomationProperties.Name="Read Scale"
-                      Command="{Binding ReadIndicatorCommand}"
-                      Style="{StaticResource Button.Secondary}"
-                      Padding="8,4"
-                      ToolTip="Read live weight from indicator [F3]">
-                <TextBlock FontWeight="Bold" Text="[F3]" />
-              </Button>
-            </Grid>
-
             <!--  Submit Action Row (F5 Submit / Clear)  -->
-            <Grid Margin="0,2,0,0">
+            <Grid Margin="0,6,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
 
-              <Button Grid.Column="0"
+              <Button x:Name="SubmitButton"
+                      Grid.Column="0"
                       AutomationProperties.Name="Submit Workflow"
                       Command="{Binding SubmitWorkflowCommand}"
                       Style="{StaticResource Button.Primary}"
@@ -828,6 +815,138 @@
           </Grid>
         </Border>
       </Grid>
+    </Grid>
+
+    <!--  Print Options Modal Overlay  -->
+    <Grid Grid.RowSpan="2"
+          Background="#99000000"
+          Visibility="{Binding IsPrintModalOpen, Converter={StaticResource Converter.BooleanToVisibility}}"
+          Panel.ZIndex="1000">
+      <Border HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Width="440"
+              Background="{DynamicResource Brush.Surface.Card}"
+              BorderBrush="{DynamicResource Brush.Border.Default}"
+              BorderThickness="1"
+              CornerRadius="8"
+              Padding="24"
+              Effect="{DynamicResource Shadow.Dialog}">
+        <StackPanel>
+          <!-- Header -->
+          <Grid Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Style="{StaticResource Text.H3}" Text="Transaction Saved" />
+              <TextBlock Style="{StaticResource Text.Caption}"
+                         Foreground="{DynamicResource Brush.Text.Muted}"
+                         Text="Slip is saved in queue. Select print options." />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Command="{Binding CancelPrintCommand}"
+                    Style="{StaticResource Button.Icon}"
+                    ToolTip="Close [Esc]">
+              <TextBlock Style="{StaticResource Text.Icon}" Text="✕" FontSize="14" />
+            </Button>
+          </Grid>
+
+          <!-- Ticket Summary Box -->
+          <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                  BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="12"
+                  Margin="0,0,0,16">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Slip No:" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding PrintSlipNumber}" FontWeight="Bold" HorizontalAlignment="Right" />
+
+              <TextBlock Grid.Row="0" Grid.Column="1" Margin="12,0,0,0" Text="Vehicle:" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding PrintVehicleNumber}" FontWeight="Bold" HorizontalAlignment="Right" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,6,0,0" Text="Net Wt:" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,6,0,0" Text="{Binding PrintNetWeightText}" FontWeight="Bold" Foreground="{DynamicResource Brush.Accent.Default}" HorizontalAlignment="Right" />
+
+              <TextBlock Grid.Row="1" Grid.Column="1" Margin="12,6,0,0" Text="Charges:" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Text="{Binding PrintChargesText}" FontWeight="Bold" HorizontalAlignment="Right" />
+            </Grid>
+          </Border>
+
+          <!-- Number of Copies Selection -->
+          <TextBlock Style="{StaticResource Text.Body}" FontWeight="SemiBold" Text="Copies to Print:" Margin="0,0,0,8" />
+          <Grid Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="6" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="6" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="80" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0"
+                    Content="1 Copy [1]"
+                    Command="{Binding SetPrintCopiesCommand}"
+                    CommandParameter="1"
+                    Style="{StaticResource Button.Secondary}"
+                    Padding="4,6" />
+            <Button Grid.Column="2"
+                    Content="2 Copies [2]"
+                    Command="{Binding SetPrintCopiesCommand}"
+                    CommandParameter="2"
+                    Style="{StaticResource Button.Secondary}"
+                    Padding="4,6" />
+            <Button Grid.Column="4"
+                    Content="3 Copies [3]"
+                    Command="{Binding SetPrintCopiesCommand}"
+                    CommandParameter="3"
+                    Style="{StaticResource Button.Secondary}"
+                    Padding="4,6" />
+            <TextBox Grid.Column="6"
+                     AutomationProperties.Name="Print Copies Count"
+                     Text="{Binding PrintCopies, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{StaticResource TextBox.Numeric}"
+                     HorizontalContentAlignment="Center"
+                     FontWeight="Bold"
+                     FontSize="14" />
+          </Grid>
+
+          <!-- Action Buttons -->
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0"
+                    AutomationProperties.Name="Cancel Print"
+                    Command="{Binding CancelPrintCommand}"
+                    Style="{StaticResource Button.Secondary}"
+                    Content="Skip / Cancel [Esc]"
+                    Padding="0,8"
+                    HorizontalContentAlignment="Center" />
+            <Button Grid.Column="2"
+                    x:Name="BtnConfirmPrint"
+                    AutomationProperties.Name="Confirm Print"
+                    Command="{Binding ConfirmPrintCommand}"
+                    Style="{StaticResource Button.Primary}"
+                    Content="Print Slip [Enter]"
+                    Padding="0,8"
+                    HorizontalContentAlignment="Center" />
+          </Grid>
+        </StackPanel>
+      </Border>
     </Grid>
   </Grid>
 </UserControl>

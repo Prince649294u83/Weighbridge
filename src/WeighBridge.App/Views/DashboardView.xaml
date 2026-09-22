@@ -54,97 +54,103 @@
                             ShowSeparator="True"
                             Title="{Binding Title}" />
 
-    <Grid Grid.Row="1" Margin="0,20,0,0">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="20" />
-        <ColumnDefinition Width="400" />
-      </Grid.ColumnDefinitions>
+    <ScrollViewer Grid.Row="1"
+                  Focusable="False"
+                  Style="{StaticResource ScrollViewer.Default}"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <Grid Margin="0,20,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="20" />
+          <ColumnDefinition Width="400" />
+        </Grid.ColumnDefinitions>
 
-      <!--  Left Column: Live Indicator & Metrics  -->
-      <StackPanel Grid.Column="0">
-        
-        <controls:ModernCard Header="Live Indicator"
-                             Icon="{StaticResource Icon.Scale}"
-                             SubHeader="Real-time weight reading">
-          <StackPanel>
-            
-            <Border Background="{DynamicResource Brush.Surface.Sunken}"
-                    CornerRadius="{StaticResource Radius.MD}"
-                    Margin="0,0,0,16" Padding="20">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="4" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0" Style="{StaticResource StatusLine.Accent}" />
-
-                    <StackPanel Grid.Column="1" Margin="20,0,0,0">
-                        <TextBlock Text="{Binding IndicatorStatus}" Style="{StaticResource Text.Body}" Foreground="{DynamicResource Brush.Text.Tertiary}" Margin="0,0,0,10"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding LiveWeight}" FontSize="48" FontWeight="Bold" FontFamily="Consolas" />
-                            <TextBlock Text="{Binding LiveUnit}" FontSize="24" Margin="10,0,0,0" VerticalAlignment="Bottom" />
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
-            </Border>
-          </StackPanel>
-        </controls:ModernCard>
-
-        <Grid Margin="0,20,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="20" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            
-            <controls:ModernCard Grid.Column="0" Header="Today's Weighments">
-                <StackPanel Margin="10">
-                    <TextBlock Style="{StaticResource MetricLabel}" Text="Completed today" />
-                    <TextBlock Style="{StaticResource MetricValue}" Text="{Binding TodaysCompleted}" />
-                </StackPanel>
-            </controls:ModernCard>
-            
-            <controls:ModernCard Grid.Column="2" Header="Waiting Area">
-                <StackPanel Margin="10">
-                    <TextBlock Style="{StaticResource MetricLabel}" Text="Vehicles inside" />
-                    <TextBlock Style="{StaticResource MetricValue}" Text="{Binding CurrentlyWaiting}" />
-                </StackPanel>
-            </controls:ModernCard>
-        </Grid>
-      </StackPanel>
-
-      <!--  Right Column: Shortcuts  -->
-      <StackPanel Grid.Column="2">
-        <controls:ModernCard Header="Shortcuts"
-                             Icon="{StaticResource Icon.Forward}"
-                             SubHeader="Quick access to common tasks">
+        <!--  Left Column: Live Indicator & Metrics  -->
+        <StackPanel Grid.Column="0">
+          
+          <controls:ModernCard Header="Live Indicator"
+                               Icon="{StaticResource Icon.Scale}"
+                               SubHeader="Real-time weight reading">
             <StackPanel>
-                <Button Command="{Binding OpenVehicleEntryCommand}"
-                        Margin="0,0,0,10"
-                        Padding="15"
-                        HorizontalContentAlignment="Left"
-                        Style="{StaticResource Button.Secondary}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{StaticResource Icon.Scale}" Margin="0,0,15,0" />
-                        <TextBlock Text="Vehicle Entry" />
-                    </StackPanel>
-                </Button>
-                
-                <Button Command="{Binding OpenReportsCommand}"
-                        Padding="15"
-                        HorizontalContentAlignment="Left"
-                        Style="{StaticResource Button.Secondary}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{StaticResource Icon.Reports}" Margin="0,0,15,0" />
-                        <TextBlock Text="Reports" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-        </controls:ModernCard>
-      </StackPanel>
+              
+              <Border Background="{DynamicResource Brush.Surface.Sunken}"
+                      CornerRadius="{StaticResource Radius.MD}"
+                      Margin="0,0,0,16" Padding="20">
+                  <Grid>
+                      <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="4" />
+                          <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
 
-    </Grid>
+                      <Border Grid.Column="0" Style="{StaticResource StatusLine.Accent}" />
+
+                      <StackPanel Grid.Column="1" Margin="20,0,0,0">
+                          <TextBlock Text="{Binding IndicatorStatus}" Style="{StaticResource Text.Body}" Foreground="{DynamicResource Brush.Text.Tertiary}" Margin="0,0,0,10"/>
+                          <StackPanel Orientation="Horizontal">
+                              <TextBlock Text="{Binding LiveWeight}" FontSize="48" FontWeight="Bold" FontFamily="Consolas" />
+                              <TextBlock Text="{Binding LiveUnit}" FontSize="24" Margin="10,0,0,0" VerticalAlignment="Bottom" />
+                          </StackPanel>
+                      </StackPanel>
+                  </Grid>
+              </Border>
+            </StackPanel>
+          </controls:ModernCard>
+
+          <Grid Margin="0,20,0,0">
+              <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="20" />
+                  <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              
+              <controls:ModernCard Grid.Column="0" Header="Today's Weighments">
+                  <StackPanel Margin="10">
+                      <TextBlock Style="{StaticResource MetricLabel}" Text="Completed today" />
+                      <TextBlock Style="{StaticResource MetricValue}" Text="{Binding TodaysCompleted}" />
+                  </StackPanel>
+              </controls:ModernCard>
+              
+              <controls:ModernCard Grid.Column="2" Header="Waiting Area">
+                  <StackPanel Margin="10">
+                      <TextBlock Style="{StaticResource MetricLabel}" Text="Vehicles inside" />
+                      <TextBlock Style="{StaticResource MetricValue}" Text="{Binding CurrentlyWaiting}" />
+                  </StackPanel>
+              </controls:ModernCard>
+          </Grid>
+        </StackPanel>
+
+        <!--  Right Column: Shortcuts  -->
+        <StackPanel Grid.Column="2">
+          <controls:ModernCard Header="Shortcuts"
+                               Icon="{StaticResource Icon.Forward}"
+                               SubHeader="Quick access to common tasks">
+              <StackPanel>
+                  <Button Command="{Binding OpenVehicleEntryCommand}"
+                          Margin="0,0,0,10"
+                          Padding="15"
+                          HorizontalContentAlignment="Left"
+                          Style="{StaticResource Button.Secondary}">
+                      <StackPanel Orientation="Horizontal">
+                          <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{StaticResource Icon.Scale}" Margin="0,0,15,0" />
+                          <TextBlock Text="Vehicle Entry" />
+                      </StackPanel>
+                  </Button>
+                  
+                  <Button Command="{Binding OpenReportsCommand}"
+                          Padding="15"
+                          HorizontalContentAlignment="Left"
+                          Style="{StaticResource Button.Secondary}">
+                      <StackPanel Orientation="Horizontal">
+                          <TextBlock FontFamily="{StaticResource Font.Icons}" Text="{StaticResource Icon.Reports}" Margin="0,0,15,0" />
+                          <TextBlock Text="Reports" />
+                      </StackPanel>
+                  </Button>
+              </StackPanel>
+          </controls:ModernCard>
+        </StackPanel>
+
+      </Grid>
+    </ScrollViewer>
   </Grid>
 </UserControl>

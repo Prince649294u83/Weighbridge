@@ -12,6 +12,7 @@
     </ResourceDictionary.MergedDictionaries>
 
     <!--  ===== Surfaces =====  -->
+    <SolidColorBrush x:Key="Brush.Surface.Default" Color="{StaticResource Neutral.90}" />
     <SolidColorBrush x:Key="Brush.Surface.Window" Color="{StaticResource Neutral.100}" />
     <SolidColorBrush x:Key="Brush.Surface.Card" Color="{StaticResource Neutral.90}" />
     <SolidColorBrush x:Key="Brush.Surface.Raised" Color="{StaticResource Neutral.80}" />

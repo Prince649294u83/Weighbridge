@@ -86,6 +86,9 @@ public sealed class WeightIndicatorSimulator : IWeightIndicatorService, IWeightI
     public event EventHandler<ConnectionState>? StateChanged;
 
     /// <inheritdoc />
+    public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
+
+    /// <inheritdoc />
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         lock (_lock)
@@ -226,27 +229,27 @@ public sealed class WeightIndicatorSimulator : IWeightIndicatorService, IWeightI
 
         lock (_lock)
         {
-            // Allow out-of-process weight setting for desktop automation testing when explicitly activated
+            // Allow out-of-process weight setting for desktop automation testing and simulations when explicitly activated
             if (string.Equals(Environment.GetEnvironmentVariable("WEIGHBRIDGE_AUTOMATION_ACTIVE"), "1", StringComparison.OrdinalIgnoreCase))
             {
                 string simControlFile = Path.Combine(Path.GetTempPath(), "weighbridge_sim_weight.txt");
                 if (File.Exists(simControlFile))
                 {
-                try
-                {
-                    string content = File.ReadAllText(simControlFile).Trim();
-                    if (!string.IsNullOrWhiteSpace(content))
+                    try
                     {
-                        string[] parts = content.Split(',');
-                        if (decimal.TryParse(parts[0], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedWeight))
+                        string content = File.ReadAllText(simControlFile).Trim();
+                        if (!string.IsNullOrWhiteSpace(content))
                         {
-                            _targetWeightKg = parsedWeight;
-                            if (parts.Length > 1 && bool.TryParse(parts[1], out var parsedStable))
+                            string[] parts = content.Split(',');
+                            if (decimal.TryParse(parts[0], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedWeight))
                             {
-                                _isStable = parsedStable;
+                                _targetWeightKg = parsedWeight;
+                                if (parts.Length > 1 && bool.TryParse(parts[1], out var parsedStable))
+                                {
+                                    _isStable = parsedStable;
+                                }
                             }
                         }
-                    }
                     }
                     catch { }
                 }
@@ -266,6 +269,13 @@ public sealed class WeightIndicatorSimulator : IWeightIndicatorService, IWeightI
         }
 
         CurrentReading = new WeightReading(value, _options.Unit, stable, DateTime.UtcNow, WeightSource.Simulator, raw);
+        try
+        {
+            var simBytes = System.Text.Encoding.ASCII.GetBytes(raw + "\r\n");
+            var chunk = new DiagnosticDataChunk(simBytes, simBytes.Length, true, true, true);
+            RawTelemetryReceived?.Invoke(this, chunk);
+        }
+        catch { }
     }
 
     /// <inheritdoc />

@@ -86,6 +86,10 @@ public static class ServicesServiceCollectionExtensions
         // Authentication service
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
 
+        // Anti-Piracy Hardware Locking & RSA-2048 Licensing
+        services.AddSingleton<IHardwareIdProvider, HardwareIdProvider>();
+        services.AddSingleton<ILicenseService, RsaLicenseService>();
+
         // The command pipeline. A singleton because it is stateless per execution.
         services.AddSingleton<ICommandExecutor, CommandExecutor>();
 

@@ -29,6 +29,7 @@ publish/
 test_pub/
 test-artifacts/
 scratch/
+SerialCapture_*
 
 ## Python / Virtual Environments
 .venv/

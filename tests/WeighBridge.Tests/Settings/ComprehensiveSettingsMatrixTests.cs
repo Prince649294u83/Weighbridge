@@ -62,6 +62,7 @@ internal sealed class StubWeightIndicator : IWeightIndicatorService
     public WeightReading CurrentReading => WeightReading.Empty;
     public event EventHandler<WeightReading>? ReadingReceived { add { } remove { } }
     public event EventHandler<ConnectionState>? StateChanged { add { } remove { } }
+    public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived { add { } remove { } }
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
     public Task DisconnectAsync() => Task.CompletedTask;
     public Task<WeightReading> ReadAsync(CancellationToken cancellationToken = default)

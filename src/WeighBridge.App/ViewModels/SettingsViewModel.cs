@@ -209,6 +209,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _isDsrHigh;
     private bool _isCdHigh;
     private bool _isBraysTerminalRunning;
+    private bool _isDetectingScale;
 
     public SettingsViewModel(
         ISettingsService settingsService,
@@ -293,40 +294,20 @@ public sealed class SettingsViewModel : ViewModelBase
         SendDiagnosticHexCommand = new RelayCommand(SendDiagnosticHex);
         SetAsciiDisplayModeCommand = new RelayCommand(() => DiagnosticDisplayMode = "ASCII");
         SetHexDisplayModeCommand = new RelayCommand(() => DiagnosticDisplayMode = "HEX");
+        AutoDetectScaleCommand = new AsyncRelayCommand(AutoDetectScaleAsync, () => !IsDetectingScale && CanEditConfiguration);
+        AdoptStreamAsLiveScaleCommand = new AsyncRelayCommand(AdoptStreamAsLiveScaleAsync, () => CanEditConfiguration);
+
+        _indicator.RawTelemetryReceived += (s, chunk) =>
+        {
+            if (_isDiagnosticMonitoring && string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
+            {
+                OnTelemetryChunkReceived(chunk);
+            }
+        };
 
         _diagnosticMonitor.DataReceived += (s, chunk) =>
         {
-            void Update()
-            {
-                if (_asciiLogBuilder.Length > MaxLogCharacters)
-                {
-                    _asciiLogBuilder.Remove(0, _asciiLogBuilder.Length - (MaxLogCharacters / 2));
-                }
-                if (_hexLogBuilder.Length > MaxLogCharacters)
-                {
-                    _hexLogBuilder.Remove(0, _hexLogBuilder.Length - (MaxLogCharacters / 2));
-                }
-
-                _asciiLogBuilder.Append(chunk.AsciiRepresentation);
-                _hexLogBuilder.Append(chunk.HexRepresentation);
-
-                DiagnosticAsciiLog = _asciiLogBuilder.ToString();
-                DiagnosticHexLog = _hexLogBuilder.ToString();
-                DiagnosticBytesReceivedCount += chunk.RawBytes.Length;
-
-                IsCtsHigh = chunk.CtsHolding;
-                IsDsrHigh = chunk.DsrHolding;
-                IsCdHigh = chunk.CdHolding;
-            }
-
-            if (System.Windows.Application.Current?.Dispatcher != null)
-            {
-                System.Windows.Application.Current.Dispatcher.InvokeAsync(Update);
-            }
-            else
-            {
-                Update();
-            }
+            OnTelemetryChunkReceived(chunk);
         };
 
         _diagnosticMonitor.ErrorOccurred += (s, err) =>
@@ -1175,6 +1156,20 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand SendDiagnosticHexCommand { get; }
     public ICommand SetAsciiDisplayModeCommand { get; }
     public ICommand SetHexDisplayModeCommand { get; }
+    public ICommand AutoDetectScaleCommand { get; }
+    public ICommand AdoptStreamAsLiveScaleCommand { get; }
+
+    public bool IsDetectingScale
+    {
+        get => _isDetectingScale;
+        private set
+        {
+            if (SetProperty(ref _isDetectingScale, value))
+            {
+                (AutoDetectScaleCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+            }
+        }
+    }
 
     public bool IsBraysTerminalRunning
     {
@@ -2177,15 +2172,58 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
+    private void OnTelemetryChunkReceived(DiagnosticDataChunk chunk)
+    {
+        void Update()
+        {
+            if (_asciiLogBuilder.Length > MaxLogCharacters)
+            {
+                _asciiLogBuilder.Remove(0, _asciiLogBuilder.Length - (MaxLogCharacters / 2));
+            }
+            if (_hexLogBuilder.Length > MaxLogCharacters)
+            {
+                _hexLogBuilder.Remove(0, _hexLogBuilder.Length - (MaxLogCharacters / 2));
+            }
+
+            _asciiLogBuilder.Append(chunk.AsciiRepresentation);
+            _hexLogBuilder.Append(chunk.HexRepresentation);
+
+            DiagnosticAsciiLog = _asciiLogBuilder.ToString();
+            DiagnosticHexLog = _hexLogBuilder.ToString();
+            DiagnosticBytesReceivedCount += chunk.RawBytes.Length;
+
+            IsCtsHigh = chunk.CtsHolding;
+            IsDsrHigh = chunk.DsrHolding;
+            IsCdHigh = chunk.CdHolding;
+        }
+
+        if (System.Windows.Application.Current?.Dispatcher != null)
+        {
+            System.Windows.Application.Current.Dispatcher.InvokeAsync(Update);
+        }
+        else
+        {
+            Update();
+        }
+    }
+
     private async Task StartDiagnosticMonitoringAsync()
     {
         try
         {
             DiagnosticStatus = $"Connecting to {DiagnosticPort}...";
 
+            // If monitoring the active scale indicator port, tap directly into the live driver
             if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
             {
-                await _indicator.DisconnectAsync();
+                if (!_indicator.IsConnected)
+                {
+                    await _indicator.ConnectAsync();
+                }
+
+                IsDiagnosticMonitoring = true;
+                DiagnosticStatus = $"Monitoring live scale stream on {DiagnosticPort} @ {BaudRate} bps";
+                return;
             }
 
             var parity = Enum.TryParse<System.IO.Ports.Parity>(DiagnosticParity, true, out var p) ? p : System.IO.Ports.Parity.None;
@@ -2213,10 +2251,6 @@ public sealed class SettingsViewModel : ViewModelBase
             else
             {
                 DiagnosticStatus = $"Could not open {DiagnosticPort}. Make sure it is not in use.";
-                if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
-                {
-                    await _indicator.ConnectAsync();
-                }
             }
         }
         catch (Exception ex)
@@ -2227,14 +2261,13 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private async Task StopDiagnosticMonitoringAsync()
     {
-        await _diagnosticMonitor.StopAsync();
+        if (_diagnosticMonitor.IsRunning)
+        {
+            await _diagnosticMonitor.StopAsync();
+        }
+
         IsDiagnosticMonitoring = false;
         DiagnosticStatus = "Monitoring stopped.";
-
-        if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
-        {
-            try { await _indicator.ConnectAsync(); } catch { }
-        }
     }
 
     private void ClearDiagnosticLog()
@@ -2262,13 +2295,145 @@ public sealed class SettingsViewModel : ViewModelBase
     private void SendDiagnosticText()
     {
         if (string.IsNullOrWhiteSpace(DiagnosticTransmitText)) return;
-        _diagnosticMonitor.Send(DiagnosticTransmitText, appendCrLf: true);
+
+        if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase) && _indicator.IsConnected)
+        {
+            _ = _indicator.SendAsync(DiagnosticTransmitText + "\r\n");
+        }
+        else
+        {
+            _diagnosticMonitor.Send(DiagnosticTransmitText, appendCrLf: true);
+        }
     }
 
     private void SendDiagnosticHex()
     {
         if (string.IsNullOrWhiteSpace(DiagnosticTransmitText)) return;
-        _diagnosticMonitor.SendHex(DiagnosticTransmitText);
+
+        if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase) && _indicator.IsConnected)
+        {
+            _ = _indicator.SendHexAsync(DiagnosticTransmitText);
+        }
+        else
+        {
+            _diagnosticMonitor.SendHex(DiagnosticTransmitText);
+        }
+    }
+
+    public async Task AdoptStreamAsLiveScaleAsync()
+    {
+        try
+        {
+            if (IsDiagnosticMonitoring && _diagnosticMonitor.IsRunning)
+            {
+                await StopDiagnosticMonitoringAsync();
+            }
+
+            string adoptedPort = DiagnosticPort;
+            int adoptedBaud = DiagnosticBaudRate;
+
+            PortName = adoptedPort;
+            BaudRate = adoptedBaud;
+            DataBits = DiagnosticDataBits;
+            Parity = DiagnosticParity;
+            StopBits = DiagnosticStopBits;
+
+            ApplyToOptions();
+            await SaveConfigurationAsync();
+
+            DiagnosticStatus = $"Adopted {adoptedPort} ({adoptedBaud} baud) as live scale. Connecting...";
+            await _indicator.DisconnectAsync();
+            var connected = await _indicator.ConnectAsync();
+            if (connected)
+            {
+                var reading = _indicator.CurrentReading;
+                DiagnosticStatus = $"Scale live on {PortName} ({BaudRate} baud). Reading: {reading.Value:F1} {reading.Unit}";
+                ConnectionTestStatus = $"Active on {PortName} ({BaudRate} baud): {reading.Value:F1} {reading.Unit}";
+                await _dialogService.ShowInformationAsync("Scale Stream Adopted",
+                    $"Successfully adopted {adoptedPort} ({adoptedBaud} baud) as the live operational scale indicator.\n\n" +
+                    $"Current Reading: {reading.Value:F1} {reading.Unit}\nStatus: {(reading.IsStable ? "STABLE" : "UNSTABLE")}");
+            }
+            else
+            {
+                DiagnosticStatus = $"Port {PortName} adopted, but scale did not respond. Check indicator power.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to adopt diagnostic stream as live scale");
+            DiagnosticStatus = $"Adoption error: {ex.Message}";
+            await _dialogService.ShowErrorAsync("Adoption Failed", ex.Message);
+        }
+    }
+
+    public async Task AutoDetectScaleAsync()
+    {
+        if (IsDetectingScale) return;
+
+        try
+        {
+            IsDetectingScale = true;
+            DiagnosticStatus = "Scanning serial ports and baud rates for weighbridge indicator...";
+            ConnectionTestStatus = "Auto-detecting scale...";
+
+            if (IsDiagnosticMonitoring && _diagnosticMonitor.IsRunning)
+            {
+                await StopDiagnosticMonitoringAsync();
+            }
+
+            await _indicator.DisconnectAsync();
+
+            var allPorts = _portScanner.GetAvailablePorts();
+            var prioritizedPorts = WeighBridge.Hardware.WeightIndicators.FastHardwarePortDetector.PrioritizePorts(allPorts);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var probeResults = await _portScanner.ScanAsync(portNames: prioritizedPorts, cancellationToken: cts.Token);
+
+            var matched = probeResults.FirstOrDefault(r => r.SpeaksProtocol);
+            if (matched != null)
+            {
+                DiagnosticPort = matched.PortName;
+                DiagnosticBaudRate = matched.BaudRate;
+                PortName = matched.PortName;
+                BaudRate = matched.BaudRate;
+
+                ApplyToOptions();
+                await SaveConfigurationAsync();
+
+                await _indicator.ConnectAsync();
+                var weightStr = matched.SampleWeightKg.HasValue ? $"{matched.SampleWeightKg.Value:F1} kg" : "valid reading";
+                DiagnosticStatus = $"Scale detected on {matched.PortName} at {matched.BaudRate} baud ({weightStr}). Adopted as live scale.";
+                ConnectionTestStatus = $"Detected: {matched.PortName} @ {matched.BaudRate} baud ({weightStr})";
+
+                await _dialogService.ShowInformationAsync("Scale Detected & Connected",
+                    $"Indicator automatically detected and adopted!\n\n" +
+                    $"Port: {matched.PortName}\n" +
+                    $"Baud: {matched.BaudRate}\n" +
+                    $"Sample Weight: {weightStr}\n" +
+                    $"Raw Frame: '{matched.RawSample}'");
+            }
+            else
+            {
+                DiagnosticStatus = "No active weighbridge indicator found on any serial port. Restoring previous connection...";
+                ConnectionTestStatus = "No indicator detected. Check physical cable and indicator power.";
+                await _indicator.ConnectAsync();
+                await _dialogService.ShowWarningAsync("Detection Complete",
+                    "No weighbridge indicator was detected responding on any available serial port.\n\n" +
+                    "Please verify:\n1. The indicator is powered ON and in continuous send mode.\n2. The RS-232 / USB cable is securely connected.\n3. The correct COM port driver is installed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Auto-detect scale failed");
+            DiagnosticStatus = $"Detection error: {ex.Message}";
+            ConnectionTestStatus = $"Error: {ex.Message}";
+            try { await _indicator.ConnectAsync(); } catch { }
+            await _dialogService.ShowErrorAsync("Auto-Detect Error", ex.Message);
+        }
+        finally
+        {
+            IsDetectingScale = false;
+        }
     }
 
     private static string? ResolveTerminalExecutablePath()

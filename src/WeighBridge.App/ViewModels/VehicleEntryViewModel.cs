@@ -146,6 +146,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private decimal? _manualTareKg;
     private string _grossWeightInput = string.Empty;
     private string _tareWeightInput = string.Empty;
+    private bool _isGtmaActivated;
 
     // Commands
     private readonly AsyncRelayCommand _switchToFirstEntry;
@@ -168,6 +169,9 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private readonly AsyncRelayCommand _clearContext;
     private readonly AsyncRelayCommand _printSlip;
     private readonly AsyncRelayCommand _openSettings;
+    private readonly AsyncRelayCommand _confirmPrint;
+    private readonly RelayCommand _cancelPrint;
+    private readonly RelayCommand<object> _setPrintCopies;
 
     public VehicleEntryViewModel(
         ICommandExecutor executor,
@@ -219,12 +223,19 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _readIndicator = new AsyncRelayCommand(ReadIndicatorAsync, () => !IsBusy, OnUnhandled);
         _refresh = new AsyncRelayCommand(RefreshAsync, () => !IsBusy, OnUnhandled);
         _clearContext = new AsyncRelayCommand(ClearContextAsync, () => !IsBusy, OnUnhandled);
-        _printSlip = new AsyncRelayCommand(PrintSlipAsync, () => !IsBusy && Current is { Status: WeighmentStatus.Completed }, OnUnhandled);
+        _printSlip = new AsyncRelayCommand(PrintSlipAsync, () => !IsBusy && Current is not null, OnUnhandled);
         _openSettings = new AsyncRelayCommand(() => _navigationService?.NavigateToAsync<SettingsViewModel>() ?? Task.CompletedTask);
         _selectGrossMode = new RelayCommand(() => GrossTareText = "G");
         _selectTareMode = new RelayCommand(() => GrossTareText = "T");
         _selectAutoTareMode = new RelayCommand(() => GrossTareText = "A", () => IsAutoTareWeightEnabled);
         _selectManualTareMode = new RelayCommand(() => GrossTareText = "M", () => CanEnterManualWeight);
+        _confirmPrint = new AsyncRelayCommand(ConfirmPrintAsync, () => !IsBusy && _isPrintModalOpen, OnUnhandled);
+        _cancelPrint = new RelayCommand(CancelPrint);
+        _setPrintCopies = new RelayCommand<object>(param =>
+        {
+            if (param is int i) PrintCopies = i;
+            else if (int.TryParse(param?.ToString(), out var parsed)) PrintCopies = parsed;
+        });
 
         PropertyChanged += (_, changed) =>
         {
@@ -402,6 +413,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 }
                 _isAutoTareMode = true;
                 _isManualTareMode = false;
+                _isGtmaActivated = true;
+                _tareWeightInput = string.Empty;
                 SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
                 if (StandardTareWeightKg.HasValue)
                 {
@@ -421,6 +434,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 }
                 _isManualTareMode = true;
                 _isAutoTareMode = false;
+                _isGtmaActivated = true;
+                _tareWeightInput = string.Empty;
                 SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
                 Show("Manual Tare mode [M] selected. You can enter tare weight directly.", BadgeSeverity.Information);
             }
@@ -428,15 +443,22 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             {
                 _isAutoTareMode = false;
                 _isManualTareMode = false;
+                _isGtmaActivated = true;
+                // Clear Gross box — T streams exclusively to Tare
+                _grossWeightInput = string.Empty;
                 SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.TareFirst) ?? ArrivalModes[1];
             }
             else
             {
                 _isAutoTareMode = false;
                 _isManualTareMode = false;
+                _isGtmaActivated = true;
+                // Clear Tare box — G streams exclusively to Gross
+                _tareWeightInput = string.Empty;
                 SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
             }
 
+            OnPropertyChanged(nameof(IsGtmaActivated));
             OnPropertyChanged(nameof(GrossTareText));
             OnPropertyChanged(nameof(IsAutoTareModeSelected));
             OnPropertyChanged(nameof(IsManualTareModeSelected));
@@ -686,6 +708,72 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     }
 
     public ICommand OpenSettingsCommand => _openSettings;
+
+    #region Print Modal Properties
+
+    private bool _isPrintModalOpen;
+    public bool IsPrintModalOpen
+    {
+        get => _isPrintModalOpen;
+        set
+        {
+            if (SetProperty(ref _isPrintModalOpen, value))
+            {
+                _confirmPrint.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    private string _printSlipNumber = string.Empty;
+    public string PrintSlipNumber
+    {
+        get => _printSlipNumber;
+        set => SetProperty(ref _printSlipNumber, value);
+    }
+
+    private string _printVehicleNumber = string.Empty;
+    public string PrintVehicleNumber
+    {
+        get => _printVehicleNumber;
+        set => SetProperty(ref _printVehicleNumber, value);
+    }
+
+    private string _printGrossWeightText = string.Empty;
+    public string PrintGrossWeightText
+    {
+        get => _printGrossWeightText;
+        set => SetProperty(ref _printGrossWeightText, value);
+    }
+
+    private string _printTareWeightText = string.Empty;
+    public string PrintTareWeightText
+    {
+        get => _printTareWeightText;
+        set => SetProperty(ref _printTareWeightText, value);
+    }
+
+    private string _printNetWeightText = string.Empty;
+    public string PrintNetWeightText
+    {
+        get => _printNetWeightText;
+        set => SetProperty(ref _printNetWeightText, value);
+    }
+
+    private string _printChargesText = string.Empty;
+    public string PrintChargesText
+    {
+        get => _printChargesText;
+        set => SetProperty(ref _printChargesText, value);
+    }
+
+    private int _printCopies = 1;
+    public int PrintCopies
+    {
+        get => _printCopies;
+        set => SetProperty(ref _printCopies, Math.Clamp(value, 1, 9));
+    }
+
+    #endregion
 
     #region State & Authorization Properties
 
@@ -1297,6 +1385,9 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     public ICommand RefreshCommand => _refresh;
     public ICommand ClearContextCommand => _clearContext;
     public ICommand PrintSlipCommand => _printSlip;
+    public ICommand ConfirmPrintCommand => _confirmPrint;
+    public ICommand CancelPrintCommand => _cancelPrint;
+    public ICommand SetPrintCopiesCommand => _setPrintCopies;
 
     #endregion
 
@@ -1338,12 +1429,20 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         return Task.CompletedTask;
     }
 
+    private WeightSource _liveWeightReadingSource = WeightSource.Indicator;
+
     private void OnReadingReceived(object? sender, WeightReading reading)
     {
+        var displayVal = reading.Value < 0m ? 0m : reading.Value;
+        if (displayVal == _liveWeightKg && reading.IsStable == _isWeightStable && reading.Unit == _liveWeightUnit && reading.Source == _liveWeightReadingSource)
+        {
+            return;
+        }
+
         _dispatcher.Post(() =>
         {
-            var displayVal = reading.Value < 0m ? 0m : reading.Value;
             LiveWeightKg = displayVal;
+            _liveWeightReadingSource = reading.Source;
             LiveWeightUnit = string.IsNullOrWhiteSpace(reading.Unit) ? "Kg" : (string.Equals(reading.Unit, "kg", StringComparison.OrdinalIgnoreCase) ? "Kg" : reading.Unit);
             IsWeightStable = reading.IsStable;
 
@@ -1369,7 +1468,106 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 WeightSource.Indicator => "[Hardware]",
                 _ => "[Manual]",
             };
+
+            StreamWeightToActiveBox(displayVal);
         });
+    }
+
+    /// <summary>
+    /// Gets whether the operator has explicitly activated the GTMA mode selector.
+    /// In F1 mode, weight does not stream into Gross/Tare boxes until this is true.
+    /// </summary>
+    public bool IsGtmaActivated
+    {
+        get => _isGtmaActivated;
+        set
+        {
+            if (SetProperty(ref _isGtmaActivated, value))
+            {
+                OnPropertyChanged(nameof(GrossWeightText));
+                OnPropertyChanged(nameof(TareWeightText));
+            }
+        }
+    }
+
+    private void StreamWeightToActiveBox(decimal displayVal)
+    {
+        var formattedVal = displayVal > 0m ? displayVal.ToString("0.##", CultureInfo.InvariantCulture) : string.Empty;
+
+        if (IsF2Mode)
+        {
+            if (Current?.Mode == WeighmentMode.GrossFirst)
+            {
+                if (!IsTareWeightReadOnly && _tareWeightInput != formattedVal)
+                {
+                    _tareWeightInput = formattedVal;
+                    OnPropertyChanged(nameof(TareWeightText));
+                    OnPropertyChanged(nameof(DisplayTareWeightKg));
+                    OnPropertyChanged(nameof(DisplayNetWeightKg));
+                    OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                    OnPropertyChanged(nameof(TotalMaterialAmount));
+                }
+            }
+            else
+            {
+                if (!IsGrossWeightReadOnly && _grossWeightInput != formattedVal)
+                {
+                    _grossWeightInput = formattedVal;
+                    OnPropertyChanged(nameof(GrossWeightText));
+                    OnPropertyChanged(nameof(DisplayGrossWeightKg));
+                    OnPropertyChanged(nameof(DisplayNetWeightKg));
+                    OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                    OnPropertyChanged(nameof(TotalMaterialAmount));
+                }
+            }
+        }
+        else // F1 Mode
+        {
+            // Gate: in F1 mode, do NOT stream weight into Gross/Tare boxes
+            // until the operator has explicitly reached the GTMA section
+            // and selected a mode (G, T, M, or A).
+            if (!_isGtmaActivated)
+            {
+                return;
+            }
+
+            if (SelectedArrivalMode?.Value == WeighmentMode.TareFirst && !_isAutoTareMode && !_isManualTareMode)
+            {
+                if (!IsTareWeightReadOnly && _tareWeightInput != formattedVal)
+                {
+                    _tareWeightInput = formattedVal;
+                    OnPropertyChanged(nameof(TareWeightText));
+                    OnPropertyChanged(nameof(DisplayTareWeightKg));
+                    OnPropertyChanged(nameof(DisplayNetWeightKg));
+                    OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                    OnPropertyChanged(nameof(TotalMaterialAmount));
+                }
+            }
+            else if (_isManualTareMode)
+            {
+                if (!IsGrossWeightReadOnly && _grossWeightInput != formattedVal)
+                {
+                    _grossWeightInput = formattedVal;
+                    OnPropertyChanged(nameof(GrossWeightText));
+                    OnPropertyChanged(nameof(DisplayGrossWeightKg));
+                    OnPropertyChanged(nameof(DisplayNetWeightKg));
+                    OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                    OnPropertyChanged(nameof(TotalMaterialAmount));
+                }
+            }
+            else
+            {
+                if (!IsGrossWeightReadOnly && _grossWeightInput != formattedVal)
+                {
+                    _grossWeightInput = formattedVal;
+                    OnPropertyChanged(nameof(GrossWeightText));
+                    OnPropertyChanged(nameof(DisplayGrossWeightKg));
+                    OnPropertyChanged(nameof(DisplayNetWeightKg));
+                    OnPropertyChanged(nameof(EstimatedActualWeightKg));
+                    OnPropertyChanged(nameof(TotalMaterialAmount));
+                }
+            }
+        }
     }
 
     private void OnIndicatorStateChanged(object? sender, ConnectionState state)
@@ -1670,6 +1868,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         {
             await EnsureReservationAsync().ConfigureAwait(true);
         }
+
+        OpenPrintModalForWeighment(saved);
     }
 
     #endregion
@@ -1920,6 +2120,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
             Show($"Weighment {saved.SlipNumber} completed. Net {saved.NetWeightKg:0.##} kg.", BadgeSeverity.Success);
             await RefreshAsync().ConfigureAwait(true);
+            OpenPrintModalForWeighment(saved);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("modified by another operator or process"))
         {
@@ -2064,8 +2265,10 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _selectedArrivalMode = ArrivalModes[0];
         _isAutoTareMode = false;
         _isManualTareMode = false;
+        _isGtmaActivated = false;
         _manualTareKg = null;
         IsDirty = false;
+        OnPropertyChanged(nameof(IsGtmaActivated));
         OnPropertyChanged(nameof(SelectedArrivalMode));
         OnPropertyChanged(nameof(GrossTareText));
         OnPropertyChanged(nameof(IsAutoTareModeSelected));
@@ -2113,8 +2316,13 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             if (string.IsNullOrWhiteSpace(text)) text = WeightInput?.Trim();
         }
 
-        if (string.IsNullOrWhiteSpace(text))
+        if (string.IsNullOrWhiteSpace(text) || text == "0")
         {
+            if (LiveWeightKg > 0m)
+            {
+                kilograms = LiveWeightKg;
+                return true;
+            }
             Show("Enter or capture a weight first.", BadgeSeverity.Warning);
             return false;
         }
@@ -2122,12 +2330,22 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         if (!decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out kilograms) &&
             !decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out kilograms))
         {
+            if (LiveWeightKg > 0m)
+            {
+                kilograms = LiveWeightKg;
+                return true;
+            }
             Show($"'{text}' is not a valid weight in kilograms.", BadgeSeverity.Warning);
             return false;
         }
 
         if (kilograms <= 0m)
         {
+            if (LiveWeightKg > 0m)
+            {
+                kilograms = LiveWeightKg;
+                return true;
+            }
             Show("Enter a weight greater than zero.", BadgeSeverity.Warning);
             return false;
         }
@@ -2284,11 +2502,13 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
     public async Task PrintSlipAsync()
     {
-        if (Current is not { Status: WeighmentStatus.Completed } current)
+        if (Current is null)
         {
-            Show("Only completed weighments can be printed.", BadgeSeverity.Warning);
+            Show("No active transaction to print.", BadgeSeverity.Warning);
             return;
         }
+
+        var current = Current;
 
         try
         {
@@ -2315,6 +2535,40 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             _logger.LogError(ex, "Failed to print slip {SlipNumber}", current.SlipNumber);
             Show("Failed to send slip to printer.", BadgeSeverity.Danger);
         }
+    }
+
+    private void OpenPrintModalForWeighment(Weighment saved)
+    {
+        PrintSlipNumber = saved.SlipNumber;
+        PrintVehicleNumber = saved.VehicleNumber;
+        PrintGrossWeightText = (saved.Gross?.Kilograms ?? 0m).ToString("N0", CultureInfo.InvariantCulture) + " kg";
+        PrintTareWeightText = (saved.Tare?.Kilograms ?? 0m).ToString("N0", CultureInfo.InvariantCulture) + " kg";
+        PrintNetWeightText = (saved.NetWeightKg ?? 0m).ToString("N0", CultureInfo.InvariantCulture) + " kg";
+        PrintChargesText = "₹" + (saved.Charges + saved.SecondCharges).ToString("0.##", CultureInfo.InvariantCulture);
+        PrintCopies = 1;
+        IsPrintModalOpen = true;
+    }
+
+    public async Task ConfirmPrintAsync()
+    {
+        IsPrintModalOpen = false;
+        var slipNo = PrintSlipNumber;
+        var copies = PrintCopies;
+        if (Current is not null)
+        {
+            for (int i = 0; i < copies; i++)
+            {
+                await PrintSlipAsync().ConfigureAwait(true);
+            }
+        }
+        Show($"Printed {copies} copy/copies for Slip {slipNo}.", BadgeSeverity.Success);
+    }
+
+    public void CancelPrint()
+    {
+        var slipNo = PrintSlipNumber;
+        IsPrintModalOpen = false;
+        Show($"Print skipped. Transaction {slipNo} remains safely in queue.", BadgeSeverity.Information);
     }
 
     private void MatchVehicleFromText(string text)
@@ -2455,6 +2709,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _refresh.NotifyCanExecuteChanged();
         _clearContext.NotifyCanExecuteChanged();
         _printSlip.NotifyCanExecuteChanged();
+        _confirmPrint.NotifyCanExecuteChanged();
         _selectGrossMode.NotifyCanExecuteChanged();
         _selectTareMode.NotifyCanExecuteChanged();
         _selectAutoTareMode.NotifyCanExecuteChanged();
