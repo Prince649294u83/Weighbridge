@@ -280,6 +280,15 @@
                 <ColumnDefinition Width="220" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
+              <TextBlock Style="{StaticResource Settings.Label}" Text="Print Engine" />
+              <ComboBox Grid.Column="1" ItemsSource="{Binding PrintEngines}" SelectedItem="{Binding PrintEngine}" IsEnabled="{Binding CanEditConfiguration}" Style="{StaticResource Settings.Choice}" />
+            </Grid>
+
+            <Grid Style="{StaticResource Settings.Row}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
               <TextBlock Style="{StaticResource Settings.Label}" Text="Side Wise Printing" />
               <CheckBox Grid.Column="1" IsChecked="{Binding SideWisePrinting}" IsEnabled="{Binding CanEditConfiguration}" VerticalAlignment="Center" />
             </Grid>

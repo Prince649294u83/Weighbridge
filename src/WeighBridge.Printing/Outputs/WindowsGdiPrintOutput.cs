@@ -215,7 +215,17 @@ public sealed class WindowsGdiPrintOutput(
                 {
                     if (e.Graphics is null) return;
 
-                    float fontSize = isHalfA4 ? 9.5f : 10.0f;
+                    int maxLineChars = lines.Length > 0 ? lines.Max(l => l.Length) : 80;
+                    float fontSize = isHalfA4 ? 9.0f : 9.5f;
+                    if (maxLineChars > 130)
+                    {
+                        fontSize = 6.2f; // Fits 160 columns wide report cleanly within margins
+                    }
+                    else if (maxLineChars > 90)
+                    {
+                        fontSize = 7.5f; // Fits 96-120 columns
+                    }
+
                     using var font = new Font("Courier New", fontSize, FontStyle.Regular);
                     using var brush = new SolidBrush(Color.Black);
 

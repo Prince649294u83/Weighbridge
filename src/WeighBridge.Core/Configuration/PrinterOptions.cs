@@ -15,6 +15,9 @@ public sealed class PrinterOptions
     /// <summary>Printer Type: "Dot Matrix Printer", "Graphics Printer", or "Label / Sticker Printer".</summary>
     public string PrinterType { get; set; } = "Dot Matrix Printer";
 
+    /// <summary>Print engine: "Universal GDI (Windows Driver)" or "Direct ESC/P (Raw Spool)".</summary>
+    public string PrintEngine { get; set; } = "Universal GDI (Windows Driver)";
+
     /// <summary>Side-wise printing mode.</summary>
     public bool SideWisePrinting { get; set; } = false;
 

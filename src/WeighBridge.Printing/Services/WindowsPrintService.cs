@@ -354,6 +354,13 @@ public sealed class WindowsPrintService : IPrintService
         }
     }
 
+    private static bool IsRawSpoolRequested(PrinterOptions options)
+    {
+        return !string.IsNullOrWhiteSpace(options.PrintEngine) &&
+               (options.PrintEngine.Contains("ESC/P", StringComparison.OrdinalIgnoreCase) ||
+                options.PrintEngine.Contains("Raw", StringComparison.OrdinalIgnoreCase));
+    }
+
     private PrinterProfile ResolveDefaultProfile(string templateName, string printerName)
     {
         var options = CurrentPrinterOptions;
@@ -368,7 +375,8 @@ public sealed class WindowsPrintService : IPrintService
                  string.Equals(templateName, "dotmatrix", StringComparison.OrdinalIgnoreCase) ||
                  options.PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase))
         {
-            profile = PrinterProfile.DotMatrix(printerName);
+            var outputMode = IsRawSpoolRequested(options) ? PrinterOutputMode.RawSpool : PrinterOutputMode.Gdi;
+            profile = PrinterProfile.DotMatrix(printerName) with { OutputMode = outputMode };
         }
         else
         {
@@ -405,7 +413,8 @@ public sealed class WindowsPrintService : IPrintService
         PrinterProfile profile;
         if (options.PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase))
         {
-            profile = PrinterProfile.DotMatrix(printerName);
+            var outputMode = IsRawSpoolRequested(options) ? PrinterOutputMode.RawSpool : PrinterOutputMode.Gdi;
+            profile = PrinterProfile.DotMatrix(printerName) with { OutputMode = outputMode };
         }
         else if (options.PrinterType.Contains("Label", StringComparison.OrdinalIgnoreCase) ||
             options.PrinterType.Contains("Sticker", StringComparison.OrdinalIgnoreCase))
@@ -415,6 +424,12 @@ public sealed class WindowsPrintService : IPrintService
         else
         {
             profile = PrinterProfile.DefaultGdi(printerName);
+        }
+
+        if (options.PaperSize.Contains("Half", StringComparison.OrdinalIgnoreCase) ||
+            options.PaperSize.Contains("A5", StringComparison.OrdinalIgnoreCase))
+        {
+            profile = profile with { PhysicalPaperProfile = "Half A4 / A5", PageHeightLines = 33 };
         }
 
         if (options.SideWisePrinting)

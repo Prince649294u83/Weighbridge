@@ -42,20 +42,7 @@ public sealed class RawSpoolPrintOutput(
         try
         {
             byte[] rawBytes = _templateEngine.RenderToBytes(document, data, profile);
-
-            if (profile.PageHeightLines == 33)
-            {
-                // ESC C 33 (0x1B, 0x43, 0x21) sets page length to 33 lines for continuous tractor-feed half-A4 paper
-                byte[] initCommands = [0x1B, 0x43, 33];
-                byte[] trailing = rawBytes.Length > 0 && rawBytes[^1] == 0x0C ? [] : [0x0C];
-                rawBytes = [..initCommands, ..rawBytes, ..trailing];
-            }
-            else if (rawBytes.Length > 0 && rawBytes[^1] != 0x0C)
-            {
-                // Continuous roll / tractor feed: advance slip past tear-off bar
-                byte[] tearFeed = [0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A];
-                rawBytes = [..rawBytes, ..tearFeed];
-            }
+            rawBytes = FrameEscpPayload(rawBytes, profile);
 
             return await Task.Run(() =>
             {
@@ -102,20 +89,7 @@ public sealed class RawSpoolPrintOutput(
         try
         {
             byte[] rawBytes = profile.Encoding.GetBytes(renderedText);
-
-            if (profile.PageHeightLines == 33)
-            {
-                // ESC C 33 (0x1B, 0x43, 0x21) sets page length to 33 lines for continuous tractor-feed half-A4 paper
-                byte[] initCommands = [0x1B, 0x43, 33];
-                byte[] trailing = rawBytes.Length > 0 && rawBytes[^1] == 0x0C ? [] : [0x0C];
-                rawBytes = [..initCommands, ..rawBytes, ..trailing];
-            }
-            else if (rawBytes.Length > 0 && rawBytes[^1] != 0x0C)
-            {
-                // Continuous roll / tractor feed: advance slip past tear-off bar
-                byte[] tearFeed = [0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A];
-                rawBytes = [..rawBytes, ..tearFeed];
-            }
+            rawBytes = FrameEscpPayload(rawBytes, profile);
 
             return await Task.Run(() =>
             {
@@ -142,5 +116,38 @@ public sealed class RawSpoolPrintOutput(
             _logger.LogError(ex, "Failed to submit raw text spool job to printer '{PrinterName}'", profile.PrinterName);
             return PrintResult.Failure($"Raw spooling failed: {ex.Message}");
         }
+    }
+
+    private static byte[] FrameEscpPayload(byte[] rawBytes, PrinterProfile profile)
+    {
+        var list = new List<byte>(rawBytes.Length + 16);
+
+        // ESC @ (0x1B, 0x40): Initialize printer to wake print head and reset state
+        list.Add(0x1B);
+        list.Add(0x40);
+
+        // ESC C n: Set page length in lines (33 lines for half A4, 66 for full A4)
+        if (profile.PageHeightLines is 33 or 66)
+        {
+            list.Add(0x1B);
+            list.Add(0x43);
+            list.Add((byte)profile.PageHeightLines);
+        }
+
+        // SI (0x0F): Condensed font mode for wide slips/reports on 80-column carriage printers
+        if (profile.PageWidthColumns > 80 || profile.SideWisePrinting)
+        {
+            list.Add(0x0F);
+        }
+
+        list.AddRange(rawBytes);
+
+        // Always end with Form Feed (0x0C) so printer flushes internal RAM buffer and advances/ejects paper
+        if (list.Count == 0 || list[^1] != 0x0C)
+        {
+            list.Add(0x0C);
+        }
+
+        return list.ToArray();
     }
 }

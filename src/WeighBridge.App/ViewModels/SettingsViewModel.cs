@@ -36,6 +36,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private static readonly string[] ParityChoices = ["None", "Odd", "Even", "Mark", "Space"];
     private static readonly string[] StopBitsChoices = ["One", "OnePointFive", "Two"];
     private static readonly string[] PrinterTypeChoices = ["Dot Matrix Printer", "Graphics Printer", "Label / Sticker Printer"];
+    private static readonly string[] PrintEngineChoices = ["Universal GDI (Windows Driver)", "Direct ESC/P (Raw Spool)"];
     private static readonly string[] PaperSizeChoices = ["A4", "Half A4 / A5"];
     private static readonly string[] TimeFormatChoices = ["12 Hour", "24 Hour"];
     private static readonly string[] EmailFrequencyChoices = ["Email only Final Entry", "Email Both Entry"];
@@ -396,6 +397,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public IReadOnlyList<string> ParityOptions => ParityChoices;
     public IReadOnlyList<string> StopBitsOptions => StopBitsChoices;
     public IReadOnlyList<string> PrinterTypes => PrinterTypeChoices;
+    public IReadOnlyList<string> PrintEngines => PrintEngineChoices;
     public IReadOnlyList<string> PaperSizes => PaperSizeChoices;
     public IReadOnlyList<string> TimeFormats => TimeFormatChoices;
     public IReadOnlyList<string> EmailFrequencies => EmailFrequencyChoices;
@@ -626,6 +628,13 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         get => _printerType;
         set => SetProperty(ref _printerType, value);
+    }
+
+    private string _printEngine = "Universal GDI (Windows Driver)";
+    public string PrintEngine
+    {
+        get => _printEngine;
+        set => SetProperty(ref _printEngine, value);
     }
 
     public bool SideWisePrinting
@@ -1472,6 +1481,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
         _printingEnabled = Printer.Enabled;
         _printerType = Printer.PrinterType ?? "Dot Matrix Printer";
+        _printEngine = Printer.PrintEngine ?? "Universal GDI (Windows Driver)";
         _sideWisePrinting = Printer.SideWisePrinting;
         _defaultPrinterName = Printer.DefaultPrinterName;
         _copyCount = Printer.CopyCount;
@@ -1618,6 +1628,7 @@ public sealed class SettingsViewModel : ViewModelBase
                 ["Hardware:PortSettings:SendDataPort:BaudRate"] = SendDataPortBaud,
                 ["Printer:Enabled"] = PrintingEnabled,
                 ["Printer:PrinterType"] = PrinterType,
+                ["Printer:PrintEngine"] = PrintEngine,
                 ["Printer:SideWisePrinting"] = SideWisePrinting,
                 ["Printer:DefaultPrinterName"] = DefaultPrinterName,
                 ["Printer:CopyCount"] = CopyCount,
@@ -1855,6 +1866,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
         Printer.Enabled = PrintingEnabled;
         Printer.PrinterType = PrinterType;
+        Printer.PrintEngine = PrintEngine;
         Printer.SideWisePrinting = SideWisePrinting;
         Printer.DefaultPrinterName = DefaultPrinterName;
         Printer.CopyCount = CopyCount;
@@ -2008,11 +2020,12 @@ public sealed class SettingsViewModel : ViewModelBase
                 AddressLine2: string.IsNullOrWhiteSpace(WeighbridgeAddress2) ? Company.AddressLine2 : WeighbridgeAddress2
             );
 
+            bool isRawSpool = PrintEngine.Contains("ESC/P", StringComparison.OrdinalIgnoreCase) ||
+                              PrintEngine.Contains("Raw", StringComparison.OrdinalIgnoreCase);
+
             var profile = new PrinterProfile(
                 PrinterName: targetPrinter,
-                OutputMode: PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase)
-                    ? PrinterOutputMode.RawSpool
-                    : PrinterOutputMode.Gdi,
+                OutputMode: isRawSpool ? PrinterOutputMode.RawSpool : PrinterOutputMode.Gdi,
                 Encoding: Encoding.ASCII,
                 PageWidthColumns: 80,
                 PageHeightLines: PaperSize.Contains("Half", StringComparison.OrdinalIgnoreCase) || PaperSize.Contains("A5", StringComparison.OrdinalIgnoreCase) ? 33 : 66,
