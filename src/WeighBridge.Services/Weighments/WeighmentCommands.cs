@@ -487,8 +487,9 @@ public sealed class RecordSecondWeightCommand : IApplicationCommand<Weighment>, 
         }
 
         var first = weighment.FirstWeight!.Kilograms;
-        var gross = weighment.Mode == WeighmentMode.GrossFirst ? first : _request.Kilograms;
-        var tare = weighment.Mode == WeighmentMode.GrossFirst ? _request.Kilograms : first;
+        var effectiveMode = _request.ModeOverride ?? weighment.Mode;
+        var gross = effectiveMode == WeighmentMode.GrossFirst ? first : _request.Kilograms;
+        var tare = effectiveMode == WeighmentMode.GrossFirst ? _request.Kilograms : first;
 
         if (gross < tare)
         {

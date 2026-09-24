@@ -448,5 +448,20 @@ public sealed class VehicleEntryWorkflowTests : IDisposable
         Assert.Contains("Current?.Mode == WeighmentMode.TareFirst || !CanEnterManualWeight", ViewModelSource);
     }
 
+    [Fact]
+    public void VehicleEntry_ViewModel_F2_Supports_GTMA_Modes()
+    {
+        // Invariant: G/T/M/A selection is enabled and functional in F2
+        Assert.Contains("public bool CanSelectGtmaMode =>", ViewModelSource);
+        Assert.Contains("SelectGrossMode", ViewModelSource);
+        Assert.Contains("SelectTareMode", ViewModelSource);
+        Assert.Contains("SelectAutoTareMode", ViewModelSource);
+        Assert.Contains("SelectManualTareMode", ViewModelSource);
+        Assert.Contains("_f2GrossTareText = \"G\";", ViewModelSource);
+        Assert.Contains("_f2GrossTareText = \"T\";", ViewModelSource);
+        Assert.Contains("_f2GrossTareText = \"A\";", ViewModelSource);
+        Assert.Contains("_f2GrossTareText = \"M\";", ViewModelSource);
+    }
+
     #endregion
 }

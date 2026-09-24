@@ -97,7 +97,8 @@ public sealed record RecordSecondWeightRequest(
     string? Remarks = null,
     string? CustomField3 = null,
     string? CustomField4 = null,
-    Guid? ExpectedVersion = null);
+    Guid? ExpectedVersion = null,
+    WeighmentMode? ModeOverride = null);
 
 /// <summary>
 /// Captures a one-step weighment where the second weight is supplied by an approved tare source.

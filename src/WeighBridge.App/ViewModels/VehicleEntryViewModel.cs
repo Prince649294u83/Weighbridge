@@ -150,6 +150,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private string _grossWeightInput = string.Empty;
     private string _tareWeightInput = string.Empty;
     private bool _isGtmaActivated;
+    private string? _f2GrossTareText;
 
     // Commands
     private readonly AsyncRelayCommand _switchToFirstEntry;
@@ -357,8 +358,12 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     public ICommand SelectManualTareModeCommand => _selectManualTareMode;
 
     public string ModeLabelText => IsF2Mode
-        ? "2nd Weight Role"
+        ? "2nd Wt Mode"
         : "Gross/Tare/Auto/Manual";
+
+    public bool CanSelectGtmaMode => IsF1Mode || (IsF2Mode && Current is not null);
+
+    public bool IsGtmaButtonsVisible => IsF1Mode || IsF2Mode;
 
     public string F2DerivedModeText
     {
@@ -366,21 +371,37 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         {
             if (!IsF2Mode) return string.Empty;
             if (Current is null) return "- [Select Pending Ticket]";
-            return Current.Mode == WeighmentMode.GrossFirst
-                ? "Tare (T) [2nd Weight]"
-                : "Gross (G) [2nd Weight]";
+            return GrossTareText switch
+            {
+                "G" => "Gross (G) [2nd Weight]",
+                "T" => "Tare (T) [2nd Weight]",
+                "M" => "Manual Tare (M) [2nd Weight]",
+                "A" => "Auto Tare (A) [2nd Weight]",
+                _ => Current.Mode == WeighmentMode.GrossFirst
+                    ? "Tare (T) [2nd Weight]"
+                    : "Gross (G) [2nd Weight]"
+            };
         }
     }
 
-    public bool IsGrossFirstSelected => IsF1Mode && !_isAutoTareMode && !_isManualTareMode && SelectedArrivalMode?.Value == WeighmentMode.GrossFirst;
-    public bool IsTareFirstSelected => IsF1Mode && !_isAutoTareMode && !_isManualTareMode && SelectedArrivalMode?.Value == WeighmentMode.TareFirst;
-    public bool IsAutoTareModeSelected => IsF1Mode && _isAutoTareMode && IsAutoTareWeightEnabled;
-    public bool IsManualTareModeSelected => IsF1Mode && _isManualTareMode;
+    public bool IsGrossFirstSelected => IsF1Mode
+        ? (!_isAutoTareMode && !_isManualTareMode && SelectedArrivalMode?.Value == WeighmentMode.GrossFirst)
+        : (GrossTareText == "G");
+
+    public bool IsTareFirstSelected => IsF1Mode
+        ? (!_isAutoTareMode && !_isManualTareMode && SelectedArrivalMode?.Value == WeighmentMode.TareFirst)
+        : (GrossTareText == "T");
+
+    public bool IsAutoTareModeSelected => _isAutoTareMode && IsAutoTareWeightEnabled;
+
+    public bool IsManualTareModeSelected => _isManualTareMode;
+
     public bool IsTareWeightReadOnly => IsF2Mode
-        ? (Current?.Mode == WeighmentMode.TareFirst || !CanEnterManualWeight)
+        ? (GrossTareText != "M" || Current?.Mode == WeighmentMode.TareFirst || !CanEnterManualWeight)
         : (_isAutoTareMode || (!_isManualTareMode && !CanEnterManualWeight));
+
     public bool IsGrossWeightReadOnly => IsF2Mode
-        ? (Current?.Mode == WeighmentMode.GrossFirst || !CanEnterManualWeight)
+        ? true
         : (SelectedArrivalMode?.Value == WeighmentMode.TareFirst && !_isAutoTareMode && !_isManualTareMode);
 
     public string GrossTareText
@@ -389,7 +410,10 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         {
             if (IsF2Mode)
             {
-                // In F2, mode is strictly locked to the stored transaction complementary role
+                if (!string.IsNullOrEmpty(_f2GrossTareText))
+                {
+                    return _f2GrossTareText;
+                }
                 return Current?.Mode == WeighmentMode.GrossFirst ? "T" : "G";
             }
             if (_isManualTareMode)
@@ -404,13 +428,62 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         }
         set
         {
+            var trimmed = value?.Trim() ?? string.Empty;
+
             if (IsF2Mode)
             {
-                // In F2, mode cannot be manually altered; it is derived from stored transaction state
+                if (string.Equals(trimmed, "A", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!IsAutoTareWeightEnabled)
+                    {
+                        Show("Auto Tare Weight is disabled in site settings.", BadgeSeverity.Warning);
+                        return;
+                    }
+                    _isAutoTareMode = true;
+                    _isManualTareMode = false;
+                    _f2GrossTareText = "A";
+                    _tareWeightInput = string.Empty;
+                    if (StandardTareWeightKg.HasValue)
+                    {
+                        Show($"Auto Tare applied from Vehicle Master: {StandardTareWeightKg.Value:N0} kg.", BadgeSeverity.Information);
+                    }
+                    else
+                    {
+                        Show("Vehicle does not have a standard tare weight registered in Vehicle Master.", BadgeSeverity.Warning);
+                    }
+                }
+                else if (string.Equals(trimmed, "M", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!CanEnterManualWeight)
+                    {
+                        Show("Manual Tare Entry is disabled in site settings.", BadgeSeverity.Warning);
+                        return;
+                    }
+                    _isManualTareMode = true;
+                    _isAutoTareMode = false;
+                    _f2GrossTareText = "M";
+                    _tareWeightInput = string.Empty;
+                    Show("Manual Tare mode [M] selected. You can enter tare weight directly.", BadgeSeverity.Information);
+                }
+                else if (string.Equals(trimmed, "T", StringComparison.OrdinalIgnoreCase))
+                {
+                    _isAutoTareMode = false;
+                    _isManualTareMode = false;
+                    _f2GrossTareText = "T";
+                    _tareWeightInput = string.Empty;
+                }
+                else // "G"
+                {
+                    _isAutoTareMode = false;
+                    _isManualTareMode = false;
+                    _f2GrossTareText = "G";
+                    _grossWeightInput = string.Empty;
+                }
+
+                NotifyGtmaModeChanged();
                 return;
             }
 
-            var trimmed = value?.Trim() ?? string.Empty;
             if (string.Equals(trimmed, "A", StringComparison.OrdinalIgnoreCase))
             {
                 if (!IsAutoTareWeightEnabled)
@@ -465,28 +538,54 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 SelectedArrivalMode = ArrivalModes.FirstOrDefault(m => m.Value == WeighmentMode.GrossFirst) ?? ArrivalModes[0];
             }
 
-            OnPropertyChanged(nameof(IsGtmaActivated));
-            OnPropertyChanged(nameof(GrossTareText));
-            OnPropertyChanged(nameof(IsAutoTareModeSelected));
-            OnPropertyChanged(nameof(IsManualTareModeSelected));
-            OnPropertyChanged(nameof(IsGrossFirstSelected));
-            OnPropertyChanged(nameof(IsTareFirstSelected));
-            OnPropertyChanged(nameof(IsTareWeightReadOnly));
-            OnPropertyChanged(nameof(IsGrossWeightReadOnly));
-            OnPropertyChanged(nameof(DisplayGrossWeightKg));
-            OnPropertyChanged(nameof(DisplayTareWeightKg));
-            OnPropertyChanged(nameof(DisplayNetWeightKg));
-            OnPropertyChanged(nameof(EstimatedActualWeightKg));
-            OnPropertyChanged(nameof(TotalMaterialAmount));
-            OnPropertyChanged(nameof(GrossWeightText));
-            OnPropertyChanged(nameof(TareWeightText));
+            NotifyGtmaModeChanged();
         }
+    }
+
+    private void NotifyGtmaModeChanged()
+    {
+        OnPropertyChanged(nameof(IsGtmaActivated));
+        OnPropertyChanged(nameof(GrossTareText));
+        OnPropertyChanged(nameof(IsAutoTareModeSelected));
+        OnPropertyChanged(nameof(IsManualTareModeSelected));
+        OnPropertyChanged(nameof(IsGrossFirstSelected));
+        OnPropertyChanged(nameof(IsTareFirstSelected));
+        OnPropertyChanged(nameof(IsTareWeightReadOnly));
+        OnPropertyChanged(nameof(IsGrossWeightReadOnly));
+        OnPropertyChanged(nameof(DisplayGrossWeightKg));
+        OnPropertyChanged(nameof(DisplayTareWeightKg));
+        OnPropertyChanged(nameof(DisplayNetWeightKg));
+        OnPropertyChanged(nameof(EstimatedActualWeightKg));
+        OnPropertyChanged(nameof(TotalMaterialAmount));
+        OnPropertyChanged(nameof(GrossWeightText));
+        OnPropertyChanged(nameof(TareWeightText));
+        OnPropertyChanged(nameof(F2DerivedModeText));
     }
 
     public string GrossWeightText
     {
         get
         {
+            if (IsF2Mode)
+            {
+                if (GrossTareText == "G")
+                {
+                    if (!string.IsNullOrWhiteSpace(_grossWeightInput)) return _grossWeightInput;
+                    if (!string.IsNullOrWhiteSpace(WeightInput)) return WeightInput;
+                    return "0";
+                }
+
+                if (Current?.FirstWeightKg.HasValue == true)
+                {
+                    return Current.FirstWeightKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+                }
+                if (Current?.GrossKg.HasValue == true)
+                {
+                    return Current.GrossKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+                }
+                return "0";
+            }
+
             if (Current?.GrossKg.HasValue == true)
             {
                 return Current.GrossKg.Value.ToString("N0", CultureInfo.InvariantCulture);
@@ -497,10 +596,6 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             }
             if (IsF1Mode && (SelectedArrivalMode?.Value == WeighmentMode.GrossFirst || SelectedArrivalMode == null || _isAutoTareMode || _isManualTareMode) &&
                 !string.IsNullOrWhiteSpace(WeightInput))
-            {
-                return WeightInput;
-            }
-            if (IsF2Mode && Current?.Mode == WeighmentMode.TareFirst && !string.IsNullOrWhiteSpace(WeightInput))
             {
                 return WeightInput;
             }
@@ -523,6 +618,39 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     {
         get
         {
+            if (IsF2Mode)
+            {
+                if (GrossTareText == "G")
+                {
+                    if (Current?.FirstWeightKg.HasValue == true)
+                    {
+                        return Current.FirstWeightKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+                    }
+                    if (Current?.TareKg.HasValue == true)
+                    {
+                        return Current.TareKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+                    }
+                    return "0";
+                }
+                if (GrossTareText == "A" && StandardTareWeightKg.HasValue)
+                {
+                    return StandardTareWeightKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+                }
+                if (GrossTareText == "M" && _manualTareKg.HasValue)
+                {
+                    return _manualTareKg.Value.ToString("N0", CultureInfo.InvariantCulture);
+                }
+                if (!string.IsNullOrWhiteSpace(_tareWeightInput))
+                {
+                    return _tareWeightInput;
+                }
+                if (!string.IsNullOrWhiteSpace(WeightInput))
+                {
+                    return WeightInput;
+                }
+                return "0";
+            }
+
             if (Current?.TareKg.HasValue == true)
             {
                 return Current.TareKg.Value.ToString("N0", CultureInfo.InvariantCulture);
@@ -544,10 +672,6 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             {
                 return WeightInput;
             }
-            if (IsF2Mode && Current?.Mode == WeighmentMode.GrossFirst && !string.IsNullOrWhiteSpace(WeightInput))
-            {
-                return WeightInput;
-            }
             return "0";
         }
         set
@@ -558,9 +682,10 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed))
             {
                 _manualTareKg = parsed;
-                if (IsF1Mode && parsed > 0m)
+                if (parsed > 0m)
                 {
                     _isManualTareMode = true;
+                    if (IsF2Mode) _f2GrossTareText = "M";
                 }
             }
             else if (string.IsNullOrWhiteSpace(value) || parsed == 0m)
@@ -586,6 +711,35 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     {
         get
         {
+            if (IsF2Mode && WorkflowState is WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture)
+            {
+                if (GrossTareText == "G")
+                {
+                    if (decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var g) ||
+                        decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out g))
+                    {
+                        return g;
+                    }
+                    if (IsF2Mode && Current?.Mode == WeighmentMode.TareFirst && !string.IsNullOrWhiteSpace(WeightInput))
+                    {
+                        if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var gFallback) ||
+                            decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out gFallback))
+                        {
+                            return gFallback;
+                        }
+                    }
+                    else if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var gFallback) ||
+                             decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out gFallback))
+                    {
+                        return gFallback;
+                    }
+                    return 0m;
+                }
+
+                // First weight is Gross
+                return Current?.FirstWeightKg ?? Current?.GrossKg ?? 0m;
+            }
+
             if (Current?.GrossKg.HasValue == true) return Current.GrossKg.Value;
 
             // F1 mode: read from _grossWeightInput, fallback to WeightInput
@@ -607,29 +761,6 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 return 0m;
             }
 
-            // F2 mode: use stored first weight or captured second weight
-            if (WorkflowState is WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture)
-            {
-                if (Current?.Mode == WeighmentMode.GrossFirst && Current.FirstWeightKg.HasValue)
-                {
-                    return Current.FirstWeightKg.Value;
-                }
-                // TareFirst F2: second weight is gross, read from _grossWeightInput or WeightInput
-                if (Current?.Mode == WeighmentMode.TareFirst)
-                {
-                    if (decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var g2) ||
-                        decimal.TryParse(_grossWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out g2))
-                    {
-                        return g2;
-                    }
-                    if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out g2) ||
-                        decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out g2))
-                    {
-                        return g2;
-                    }
-                }
-            }
-
             return 0m;
         }
     }
@@ -638,6 +769,42 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     {
         get
         {
+            if (IsF2Mode && WorkflowState is WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture)
+            {
+                if (GrossTareText == "G")
+                {
+                    // First weight is Tare
+                    return Current?.FirstWeightKg ?? Current?.TareKg ?? 0m;
+                }
+                if (GrossTareText == "A" && StandardTareWeightKg.HasValue)
+                {
+                    return StandardTareWeightKg.Value;
+                }
+                if (GrossTareText == "M" && _manualTareKg.HasValue)
+                {
+                    return _manualTareKg.Value;
+                }
+                if (decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var t) ||
+                    decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out t))
+                {
+                    return t;
+                }
+                if (IsF2Mode && Current?.Mode == WeighmentMode.GrossFirst && !string.IsNullOrWhiteSpace(WeightInput))
+                {
+                    if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var tFallback) ||
+                        decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out tFallback))
+                    {
+                        return tFallback;
+                    }
+                }
+                else if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var tFallback) ||
+                         decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out tFallback))
+                {
+                    return tFallback;
+                }
+                return 0m;
+            }
+
             if (Current?.TareKg.HasValue == true) return Current.TareKg.Value;
 
             if (IsF1Mode && _isAutoTareMode && StandardTareWeightKg.HasValue)
@@ -668,29 +835,6 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                     }
                 }
                 return 0m;
-            }
-
-            // F2 mode: use stored first weight or captured second weight
-            if (WorkflowState is WeighmentWorkflowState.F2Selected or WeighmentWorkflowState.AwaitingSecondWeightCapture)
-            {
-                if (Current?.Mode == WeighmentMode.TareFirst && Current.FirstWeightKg.HasValue)
-                {
-                    return Current.FirstWeightKg.Value;
-                }
-                // GrossFirst F2: second weight is tare, read from _tareWeightInput or WeightInput
-                if (Current?.Mode == WeighmentMode.GrossFirst)
-                {
-                    if (decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var t2) ||
-                        decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out t2))
-                    {
-                        return t2;
-                    }
-                    if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out t2) ||
-                        decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out t2))
-                    {
-                        return t2;
-                    }
-                }
             }
 
             return 0m;
@@ -1189,9 +1333,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                 if (decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var currentWeight) ||
                     decimal.TryParse(WeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out currentWeight))
                 {
-                    var first = Current.FirstWeightKg ?? 0m;
-                    var gross = Current.Mode == WeighmentMode.GrossFirst ? first : currentWeight;
-                    var tare = Current.Mode == WeighmentMode.GrossFirst ? currentWeight : first;
+                    var gross = DisplayGrossWeightKg;
+                    var tare = DisplayTareWeightKg;
                     var n = gross - tare;
                     return n >= 0 ? Math.Max(0m, n - TotalBagWeightKg.Value) : null;
                 }
@@ -1518,7 +1661,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
 
         if (IsF2Mode)
         {
-            if (Current?.Mode == WeighmentMode.GrossFirst)
+            if (GrossTareText == "T")
             {
                 if (!IsTareWeightReadOnly && _tareWeightInput != formattedVal)
                 {
@@ -1530,7 +1673,7 @@ public sealed class VehicleEntryViewModel : ViewModelBase
                     OnPropertyChanged(nameof(TotalMaterialAmount));
                 }
             }
-            else
+            else if (GrossTareText == "G")
             {
                 if (!IsGrossWeightReadOnly && _grossWeightInput != formattedVal)
                 {
@@ -2102,15 +2245,39 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             return;
         }
 
-        if (!TryReadWeight(out var kilograms))
+        decimal kilograms;
+        var source = _weightSource;
+
+        if (GrossTareText == "A" && StandardTareWeightKg.HasValue)
         {
-            return;
+            kilograms = StandardTareWeightKg.Value;
+            source = WeightSource.MasterTare;
+        }
+        else if (GrossTareText == "M" && _manualTareKg.HasValue)
+        {
+            kilograms = _manualTareKg.Value;
+            source = WeightSource.Manual;
+        }
+        else if (!_manualTareKg.HasValue && GrossTareText == "M" &&
+                 (decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.CurrentCulture, out var parsedManualTare) ||
+                  decimal.TryParse(_tareWeightInput, NumberStyles.Number, CultureInfo.InvariantCulture, out parsedManualTare)) &&
+                 parsedManualTare > 0m)
+        {
+            kilograms = parsedManualTare;
+            source = WeightSource.Manual;
+        }
+        else
+        {
+            if (!TryReadWeight(out kilograms))
+            {
+                return;
+            }
         }
 
         var request = new RecordSecondWeightRequest(
             WeighmentId: ActiveWeighmentId.Value,
             Kilograms: kilograms,
-            Source: _weightSource,
+            Source: source,
             SecondCharges: IsSecondEntryChargesEnabled ? SecondCharges : 0m,
             NumberOfBags: IsUnitBagsWeightColumnEnabled ? NumberOfBags : null,
             BagWeightKg: IsUnitBagsWeightColumnEnabled ? BagWeightKg : null,
@@ -2418,8 +2585,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         bool isTareTarget;
         if (IsF2Mode)
         {
-            // F2: second weight is complementary role
-            isTareTarget = Current?.Mode == WeighmentMode.GrossFirst;
+            // F2: route according to selected 2nd weight role (default Tare for GrossFirst, Gross for TareFirst)
+            isTareTarget = GrossTareText == "T";
         }
         else
         {

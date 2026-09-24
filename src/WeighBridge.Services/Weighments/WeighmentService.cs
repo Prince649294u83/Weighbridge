@@ -271,6 +271,11 @@ public sealed class WeighmentService : IWeighmentService
                     request.CustomField3,
                     request.CustomField4);
 
+                if (request.ModeOverride.HasValue && request.ModeOverride.Value != target.Mode)
+                {
+                    target.OverrideMode(request.ModeOverride.Value);
+                }
+
                 target.RecordSecondWeight(
                     new WeightCapture(request.Kilograms, DateTime.UtcNow, request.Source),
                     policy);

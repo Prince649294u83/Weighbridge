@@ -386,13 +386,13 @@
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding ModeLabelText}" />
               
-              <!-- In F1: quick mode buttons (G / T / M / A) -->
+              <!-- Quick mode buttons (G / T / M / A) -->
               <UniformGrid x:Name="GtmaButtonsGrid"
                            Grid.Column="1"
                            Rows="1"
                            Focusable="True"
                            KeyboardNavigation.IsTabStop="True"
-                           Visibility="{Binding IsF1Mode, Converter={StaticResource Converter.BooleanToVisibility}}">
+                           IsEnabled="{Binding CanSelectGtmaMode}">
                 <Button x:Name="BtnGrossMode"
                         AutomationProperties.Name="Select Gross Mode"
                         Command="{Binding SelectGrossModeCommand}"
@@ -485,16 +485,11 @@
                 </Button>
               </UniformGrid>
 
-              <!-- In F2: Locked complementary role derived from stored transaction state -->
-              <TextBox Grid.Column="1"
-                       AutomationProperties.Name="F2 Derived Mode"
-                       FontWeight="Bold"
-                       IsReadOnly="True"
-                       HorizontalContentAlignment="Center"
-                       Background="{DynamicResource Brush.Surface.Sunken}"
-                       Style="{StaticResource TextBox.Default}"
-                       Text="{Binding F2DerivedModeText, Mode=OneWay}"
-                       Visibility="{Binding IsF2Mode, Converter={StaticResource Converter.BooleanToVisibility}}" />
+              <!-- Accessible indicator for F2 derived mode -->
+              <TextBlock Grid.Column="1"
+                         AutomationProperties.Name="F2 Derived Mode"
+                         Visibility="Collapsed"
+                         Text="{Binding F2DerivedModeText, Mode=OneWay}" />
             </Grid>
 
             <!--  Divider  -->

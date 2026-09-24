@@ -422,6 +422,23 @@ public sealed class Weighment : EntityBase, IAggregateRoot, ISoftDeletable
     }
 
     /// <summary>
+    /// Overrides the weighment mode prior to second weight capture if the initial classification was incorrect.
+    /// </summary>
+    /// <param name="newMode">The updated weighment mode.</param>
+    /// <exception cref="InvalidOperationException">Weighment is not in AwaitingSecondWeight status.</exception>
+    public void OverrideMode(WeighmentMode newMode)
+    {
+        if (Status != WeighmentStatus.AwaitingSecondWeight)
+        {
+            throw new InvalidOperationException(
+                $"Mode can only be overridden while awaiting second weight for {Describe()}. Current status is {Status}.");
+        }
+
+        Mode = newMode;
+        Version = Guid.NewGuid();
+    }
+
+    /// <summary>
     /// Records the second weight, fixes the net weight and completes the weighment.
     /// </summary>
     /// <remarks>

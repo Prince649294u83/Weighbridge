@@ -133,10 +133,10 @@ public partial class VehicleEntryView : UserControl
             var focused = Keyboard.FocusedElement as UIElement;
             if (focused is not null and not Button)
             {
-                // If pressing Enter in Charges, move directly to GTMA buttons row in F1 mode
+                // If pressing Enter in Charges, move directly to GTMA buttons row
                 if (focused == ChargesTextBox || (focused is TextBox tb && tb.Name == "ChargesTextBox"))
                 {
-                    if (vm.IsF1Mode && BtnGrossMode is not null)
+                    if ((vm.IsF1Mode || vm.IsF2Mode) && BtnGrossMode is not null)
                     {
                         BtnGrossMode.Focus();
                         e.Handled = true;
