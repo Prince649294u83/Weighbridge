@@ -25,8 +25,11 @@ namespace WeighBridge.Domain.Weighments;
 /// </remarks>
 public static class SlipNumbers
 {
-    /// <summary>Prefix every slip number carries.</summary>
-    public const string Prefix = "WB-";
+    /// <summary>Prefix previously used for slip numbers (retained for backward compatibility).</summary>
+    public const string LegacyPrefix = "WB-";
+
+    /// <summary>Current prefix is empty for numeric-only tickets.</summary>
+    public const string Prefix = "";
 
     /// <summary>Digits the sequence is padded to. Longer sequences are not truncated.</summary>
     public const int Digits = 6;
@@ -37,7 +40,7 @@ public static class SlipNumbers
     /// </summary>
     public const int MaxLength = 24;
 
-    /// <summary>Renders a sequence number as a slip number, for example <c>WB-000042</c>.</summary>
+    /// <summary>Renders a sequence number as a slip number, for example <c>000042</c>.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The sequence is not positive.</exception>
     public static string Format(long sequence)
     {
@@ -49,10 +52,10 @@ public static class SlipNumbers
                 "A slip number sequence starts at 1.");
         }
 
-        return Prefix + sequence.ToString(new string('0', Digits), CultureInfo.InvariantCulture);
+        return sequence.ToString(new string('0', Digits), CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Reads the sequence back out of a slip number.</summary>
+    /// <summary>Reads the sequence back out of a slip number, accepting both modern (000042) and legacy (WB-000042) formats.</summary>
     /// <returns><c>true</c> when <paramref name="value"/> is a well-formed slip number.</returns>
     public static bool TryParse(string? value, out long sequence)
     {
@@ -63,15 +66,19 @@ public static class SlipNumbers
             return false;
         }
 
-        var trimmed = value.Trim();
+        var span = value.Trim().AsSpan();
 
-        if (!trimmed.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+        if (span.StartsWith(LegacyPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            span = span[LegacyPrefix.Length..];
+        }
+        else if (span.StartsWith("WB", StringComparison.OrdinalIgnoreCase))
+        {
+            span = span[2..];
         }
 
         return long.TryParse(
-                   trimmed.AsSpan(Prefix.Length),
+                   span,
                    NumberStyles.None,
                    CultureInfo.InvariantCulture,
                    out sequence)
@@ -80,7 +87,7 @@ public static class SlipNumbers
 
     /// <summary>
     /// Turns whatever the operator typed into a slip number, so a search for <c>42</c>,
-    /// <c>000042</c> or <c>wb-42</c> all find <c>WB-000042</c>.
+    /// <c>000042</c>, <c>wb-42</c> or <c>WB-000042</c> all find <c>000042</c>.
     /// </summary>
     /// <returns>The canonical slip number, or <c>null</c> when the input is not one.</returns>
     public static string? Normalise(string? value)
@@ -95,12 +102,6 @@ public static class SlipNumbers
             return Format(sequence);
         }
 
-        return long.TryParse(
-            value.Trim(),
-            NumberStyles.None,
-            CultureInfo.InvariantCulture,
-            out var bare) && bare > 0
-            ? Format(bare)
-            : null;
+        return null;
     }
 }

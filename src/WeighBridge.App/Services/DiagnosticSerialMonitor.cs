@@ -62,6 +62,24 @@ public sealed class DiagnosticSerialMonitor : IAsyncDisposable, IDisposable
         }
     }
 
+    public bool RetuneBaud(int baudRate)
+    {
+        if (baudRate <= 0) return false;
+        try
+        {
+            if (_port is not null && _port.IsOpen)
+            {
+                _port.BaudRate = baudRate;
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorOccurred?.Invoke(this, $"Failed to retune baud rate: {ex.Message}");
+        }
+        return false;
+    }
+
     public async Task StopAsync()
     {
         if (_cts != null)

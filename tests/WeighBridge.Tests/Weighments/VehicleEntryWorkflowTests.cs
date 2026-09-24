@@ -62,7 +62,7 @@ public sealed class VehicleEntryWorkflowTests : IDisposable
 
         Assert.Equal(CommandOutcome.Succeeded, result.Outcome);
         Assert.NotNull(result.Value);
-        Assert.StartsWith("WB-", result.Value.SlipNumber);
+        Assert.Matches(@"^\d{6,}$", result.Value.SlipNumber);
         Assert.Equal(WeighmentStatus.Created, result.Value.Status);
         Assert.Null(result.Value.FirstWeight);
         Assert.Null(result.Value.SecondWeight);

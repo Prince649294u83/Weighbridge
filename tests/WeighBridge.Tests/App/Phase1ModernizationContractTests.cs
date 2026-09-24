@@ -54,7 +54,7 @@ public sealed class Phase1ModernizationContractTests
     {
         var source = Read(SettingsViewPath);
 
-        Assert.Contains("Header=\"Signal Diagnostic\"", source);
+        Assert.Contains("Header=\"Terminal Studio\"", source);
         Assert.Contains("DiagnosticAsciiLog", source);
         Assert.Contains("StartDiagnosticMonitoringCommand", source);
         Assert.Contains("StopDiagnosticMonitoringCommand", source);

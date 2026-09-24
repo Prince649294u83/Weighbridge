@@ -40,7 +40,7 @@ public interface IPrintService : IHealthCheck
         string documentKey,
         IReadOnlyDictionary<string, object?> data,
         string? printerName = null,
-        int copies = 1,
+        int copies = 0,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -50,7 +50,7 @@ public interface IPrintService : IHealthCheck
         WeighmentPrintData data,
         string? templateName = null,
         PrinterProfile? profile = null,
-        int copies = 1,
+        int copies = 0,
         CancellationToken cancellationToken = default)
         => PrintAsync(templateName ?? "Standard", new Dictionary<string, object?> { ["PrintData"] = data }, profile?.PrinterName, copies, cancellationToken);
 }

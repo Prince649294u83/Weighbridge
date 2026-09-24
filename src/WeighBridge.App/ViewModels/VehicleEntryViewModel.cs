@@ -78,6 +78,9 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     private readonly IUiDispatcher _dispatcher;
     private readonly ILogger<VehicleEntryViewModel> _logger;
     private readonly IOptionsMonitor<WeighmentOptions>? _optionsMonitor;
+    private readonly IOptionsMonitor<CompanyOptions>? _companyOptions;
+    private readonly IOptionsMonitor<PrinterOptions>? _printerOptions;
+    private long? _lastSavedWeighmentId;
 
     // Workflow state
     private WeighmentWorkflowState _workflowState = WeighmentWorkflowState.F1Entry;
@@ -189,7 +192,9 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         ILogger<VehicleEntryViewModel> logger,
         INavigationService? navigationService = null,
         IOptionsMonitor<WeighmentOptions>? optionsMonitor = null,
-        IEventSubscriber? eventSubscriber = null)
+        IEventSubscriber? eventSubscriber = null,
+        IOptionsMonitor<CompanyOptions>? companyOptions = null,
+        IOptionsMonitor<PrinterOptions>? printerOptions = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _weighments = weighments ?? throw new ArgumentNullException(nameof(weighments));
@@ -206,6 +211,8 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _navigationService = navigationService;
         _optionsMonitor = optionsMonitor;
+        _companyOptions = companyOptions;
+        _printerOptions = printerOptions;
 
         Title = "Vehicle Entry";
         Description = "Industrial F1/F2 Weighment Workflow: First Entry, Second Entry, and Slip Completion.";
@@ -1412,6 +1419,21 @@ public sealed class VehicleEntryViewModel : ViewModelBase
             IndicatorState = _indicator.State;
         }
 
+        if (_indicator.State == ConnectionState.Connected)
+        {
+            var cur = _indicator.CurrentReading;
+            if (cur != WeightReading.Empty)
+            {
+                OnReadingReceived(_indicator, cur);
+            }
+            else
+            {
+                StabilityStatusText = "AWAITING READING";
+                LiveSourceText = "[Hardware]";
+                IsWeightStable = false;
+            }
+        }
+
         if (_cameraService.State != ConnectionState.Connected)
         {
             await _cameraService.ConnectAsync().ConfigureAwait(true);
@@ -2500,30 +2522,40 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         await RefreshAsync().ConfigureAwait(true);
     }
 
-    public async Task PrintSlipAsync()
+    public Task PrintSlipAsync()
     {
         if (Current is null)
         {
             Show("No active transaction to print.", BadgeSeverity.Warning);
-            return;
+            return Task.CompletedTask;
         }
 
-        var current = Current;
+        int defaultCopies = Math.Max(1, _printerOptions?.CurrentValue.CopyCount ?? 1);
+        return PrintSlipByIdAsync(Current.Id, defaultCopies);
+    }
 
+    private async Task PrintSlipByIdAsync(long weighmentId, int copies)
+    {
         try
         {
-            var weighment = await _weighments.GetAsync(current.Id).ConfigureAwait(true);
+            var weighment = await _weighments.GetAsync(weighmentId).ConfigureAwait(true);
             if (weighment is null)
             {
                 Show("Transaction record not found.", BadgeSeverity.Danger);
                 return;
             }
 
-            var printData = WeighmentPrintDataFactory.Create(weighment);
-            var result = await _printService.PrintSlipAsync(printData).ConfigureAwait(true);
+            var company = _companyOptions?.CurrentValue;
+            var printData = WeighmentPrintDataFactory.Create(
+                weighment,
+                company,
+                _permissions.CurrentOperator.UserName,
+                _permissions.CurrentOperator.DisplayName);
+
+            var result = await _printService.PrintSlipAsync(printData, copies: copies).ConfigureAwait(true);
             if (result.Succeeded)
             {
-                Show($"Weighment slip {current.SlipNumber} sent to printer.", BadgeSeverity.Success);
+                Show($"Weighment slip {weighment.SlipNumber} ({copies} copy/copies) sent to printer.", BadgeSeverity.Success);
             }
             else
             {
@@ -2532,20 +2564,21 @@ public sealed class VehicleEntryViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to print slip {SlipNumber}", current.SlipNumber);
+            _logger.LogError(ex, "Failed to print slip for weighment ID {Id}", weighmentId);
             Show("Failed to send slip to printer.", BadgeSeverity.Danger);
         }
     }
 
     private void OpenPrintModalForWeighment(Weighment saved)
     {
+        _lastSavedWeighmentId = saved.Id;
         PrintSlipNumber = saved.SlipNumber;
         PrintVehicleNumber = saved.VehicleNumber;
         PrintGrossWeightText = (saved.Gross?.Kilograms ?? 0m).ToString("N0", CultureInfo.InvariantCulture) + " kg";
         PrintTareWeightText = (saved.Tare?.Kilograms ?? 0m).ToString("N0", CultureInfo.InvariantCulture) + " kg";
         PrintNetWeightText = (saved.NetWeightKg ?? 0m).ToString("N0", CultureInfo.InvariantCulture) + " kg";
         PrintChargesText = "₹" + (saved.Charges + saved.SecondCharges).ToString("0.##", CultureInfo.InvariantCulture);
-        PrintCopies = 1;
+        PrintCopies = Math.Max(1, _printerOptions?.CurrentValue.CopyCount ?? 1);
         IsPrintModalOpen = true;
     }
 
@@ -2553,15 +2586,17 @@ public sealed class VehicleEntryViewModel : ViewModelBase
     {
         IsPrintModalOpen = false;
         var slipNo = PrintSlipNumber;
-        var copies = PrintCopies;
-        if (Current is not null)
+        var copies = Math.Max(1, PrintCopies);
+        var targetId = _lastSavedWeighmentId ?? Current?.Id;
+
+        if (targetId.HasValue)
         {
-            for (int i = 0; i < copies; i++)
-            {
-                await PrintSlipAsync().ConfigureAwait(true);
-            }
+            await PrintSlipByIdAsync(targetId.Value, copies).ConfigureAwait(true);
         }
-        Show($"Printed {copies} copy/copies for Slip {slipNo}.", BadgeSeverity.Success);
+        else
+        {
+            Show("No active transaction record found to print.", BadgeSeverity.Warning);
+        }
     }
 
     public void CancelPrint()

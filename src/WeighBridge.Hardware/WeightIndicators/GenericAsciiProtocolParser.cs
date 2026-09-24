@@ -39,8 +39,8 @@ public sealed class GenericAsciiProtocolParser : IIndicatorProtocolParser
             return false;
         }
 
-        // Support Yaohua XK3190 equal-sign frame delimiters and quote-bounded frames
-        text = text.Trim('"', '=', ' ', '\0', '\r', '\n');
+        // Support Yaohua XK3190 equal-sign frame delimiters, quote-bounded frames, and Essae/Industrial '$' headers
+        text = text.Trim('"', '=', '$', ' ', '\0', '\r', '\n');
         if (string.IsNullOrWhiteSpace(text))
         {
             return false;
@@ -170,9 +170,16 @@ public sealed class GenericAsciiProtocolParser : IIndicatorProtocolParser
                 numberStarted = true;
                 number.Append('.');
             }
-            else if (char.IsWhiteSpace(c) || c is '=' or '"')
+            else if (char.IsWhiteSpace(c) || c is '=' or '"' or '$')
             {
                 continue;
+            }
+            else if (c is '/')
+            {
+                // In Essae ES0D14 and Indian weighbridge digitizer protocols, '/' (ASCII 47)
+                // represents a blank/suppressed digit or leading zero (e.g. "$ ////0" = 0 kg, "$ //250" = 250 kg).
+                numberStarted = true;
+                number.Append('0');
             }
             else if (char.IsLetter(c))
             {

@@ -321,20 +321,19 @@ public sealed class SerialPortScanner : IIndicatorPortScanner
         catch (IOException ioEx) when (ioEx.HResult == unchecked((int)0x8007001F) || ioEx.Message.Contains("not functioning", StringComparison.OrdinalIgnoreCase))
         {
             // CH340 / USB-Serial direct stream fallback for scanner
-            return await ListenViaDirectStreamAsync(portName, listen, cancellationToken).ConfigureAwait(false);
+            return await ListenViaDirectStreamAsync(portName, baudRate, listen, cancellationToken).ConfigureAwait(false);
         }
     }
 
     private async Task<byte[]> ListenViaDirectStreamAsync(
         string portName,
+        int baudRate,
         TimeSpan listen,
         CancellationToken cancellationToken)
     {
         try
         {
-            using var handle = SerialPortTransport.OpenRawHandle(portName, (int)listen.TotalMilliseconds, rts: true, dtr: true);
-            using var stream = new FileStream(handle, FileAccess.ReadWrite, 4096, isAsync: false);
-
+            using var handle = SerialPortTransport.OpenRawHandle(portName, baudRate, (int)listen.TotalMilliseconds, rts: true, dtr: true);
             var buffer = new byte[512];
             var collected = new List<byte>(1024);
             var deadline = DateTime.UtcNow + listen;
@@ -343,26 +342,38 @@ public sealed class SerialPortScanner : IIndicatorPortScanner
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                int read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-                if (read <= 0)
-                {
-                    await Task.Delay(50, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-
-                collected.AddRange(buffer.AsSpan(0, read).ToArray());
-
-                if (collected.Count >= 512)
+                var stat = new SerialPortTransport.ComStat();
+                if (!SerialPortTransport.ClearCommError(handle, out _, ref stat))
                 {
                     break;
                 }
+
+                if (stat.cbInQue > 0)
+                {
+                    int toRead = (int)Math.Min((uint)buffer.Length, stat.cbInQue);
+                    if (SerialPortTransport.ReadFile(handle, buffer, (uint)toRead, out uint read, IntPtr.Zero) && read > 0)
+                    {
+                        collected.AddRange(buffer.AsSpan(0, (int)read).ToArray());
+
+                        if (collected.Count >= 512)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                await Task.Delay(30, cancellationToken).ConfigureAwait(false);
             }
 
             return [.. collected];
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Direct stream probe on {PortName} failed", portName);
+            _logger.LogDebug(ex, "Direct stream probe on {PortName} at {BaudRate} failed", portName, baudRate);
             return [];
         }
     }

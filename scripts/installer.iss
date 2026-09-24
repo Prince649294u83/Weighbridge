@@ -31,6 +31,9 @@ WizardStyle=modern
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=6.1sp1
+; Upgrade handling: close the running app, clean old files before installing new ones
+CloseApplications=yes
+CloseApplicationsFilter=*.exe
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -38,10 +41,22 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
+; Clean up residual files from a previous installation so that files from a
+; different build flavour (e.g. switching from legacy x86 to modern x64) do not
+; linger and create the appearance of "two applications" being installed.
+[InstallDelete]
+Type: files; Name: "{app}\*.exe"
+Type: files; Name: "{app}\*.dll"
+Type: files; Name: "{app}\*.json"
+Type: files; Name: "{app}\*.pdb"
+Type: filesandordirs; Name: "{app}\Tools"
+Type: filesandordirs; Name: "{app}\runtimes"
+Type: filesandordirs; Name: "{app}\wwwroot"
+
 [Files]
-; Modern 64-bit binaries (Installed on Windows 10, 11, 8.1, 7 SP1 64-bit)
+; Modern 64-bit binaries (Installed on 64-bit Windows 7 SP1, 8.1, 10, 11)
 Source: "{#ModernSourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: Is64BitInstallMode
-; Legacy 32-bit binaries (Installed on 32-bit Windows systems)
+; Legacy 32-bit binaries (Installed on 32-bit Windows 7 SP1, 8, 8.1, 10)
 Source: "{#LegacySourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not Is64BitInstallMode
 
 ; Application icon
@@ -54,12 +69,15 @@ Source: "{#AssetsDir}\Drivers\*"; DestDir: "{tmp}\Drivers"; Flags: deleteafterin
 Source: "{#AssetsDir}\Redist\*"; DestDir: "{tmp}\Redist"; Flags: deleteafterinstall
 
 [Icons]
+; Primary application shortcut
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\truck.ico"
+; Fallback for systems with limited GPU drivers
 Name: "{group}\{#MyAppName} (Safe Graphics Mode)"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--software-render"; IconFilename: "{app}\truck.ico"
-Name: "{group}\Hardware Serial Diagnostic Tool"; Filename: "{app}\{#DiagExeName}"; IconFilename: "{app}\truck.ico"
-Name: "{group}\System Audit & Zero-Breakage Certifier"; Filename: "{app}\Tools\{#AuditCliExeName}"; IconFilename: "{app}\truck.ico"
-Name: "{group}\Legacy Terminal Utility"; Filename: "{app}\Tools\{#TerminalExeName}"
+; Diagnostic utility for serial-port connected indicators
+Name: "{group}\Diagnostic Tool"; Filename: "{app}\{#DiagExeName}"; IconFilename: "{app}\truck.ico"
+; Uninstaller
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+; Desktop shortcut (optional)
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\truck.ico"; Tasks: desktopicon
 
 [Run]

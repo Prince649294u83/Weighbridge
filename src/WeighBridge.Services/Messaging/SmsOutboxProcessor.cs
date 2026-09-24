@@ -5,6 +5,7 @@ using WeighBridge.Core.Configuration;
 using WeighBridge.Core.Messaging;
 using WeighBridge.Core.Printing;
 using WeighBridge.Domain.Messaging;
+using WeighBridge.Domain.Weighments;
 
 namespace WeighBridge.Services.Messaging;
 
@@ -62,17 +63,19 @@ public sealed class SmsOutboxProcessor : ISmsService
             return null;
         }
 
-        // Deterministic idempotency key: WB-{SlipNumber}:Completion
-        var messageKey = $"WB-{printData.SlipNumber}:Completion";
+        // Deterministic idempotency key: {SlipNumber}:Completion
+        var canonicalSlip = SlipNumbers.Normalise(printData.SlipNumber) ?? printData.SlipNumber;
+        var messageKey = $"{canonicalSlip}:Completion";
+        var legacyMessageKey = $"WB-{canonicalSlip}:Completion";
 
         await using var scope = _unitOfWork();
         var repo = scope.Repository<SmsOutboxMessage>();
 
-        // Idempotency check
-        var existing = await repo.FindAsync(m => m.MessageKey == messageKey, cancellationToken).ConfigureAwait(false);
+        // Idempotency check: guard against both modern and legacy keys
+        var existing = await repo.FindAsync(m => m.MessageKey == messageKey || m.MessageKey == legacyMessageKey, cancellationToken).ConfigureAwait(false);
         if (existing.Count > 0)
         {
-            _logger.LogWarning("SMS outbox message with key {Key} already exists; ignoring duplicate enqueue", messageKey);
+            _logger.LogWarning("SMS outbox message with key {Key} already exists; ignoring duplicate enqueue", existing[0].MessageKey);
             return existing[0].MessageKey;
         }
 

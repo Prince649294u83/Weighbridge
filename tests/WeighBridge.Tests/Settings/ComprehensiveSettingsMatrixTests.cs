@@ -63,6 +63,7 @@ internal sealed class StubWeightIndicator : IWeightIndicatorService
     public event EventHandler<WeightReading>? ReadingReceived { add { } remove { } }
     public event EventHandler<ConnectionState>? StateChanged { add { } remove { } }
     public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived { add { } remove { } }
+    public event EventHandler<ScaleAutoDetectedEventArgs>? ScaleAutoDetected { add { } remove { } }
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
     public Task DisconnectAsync() => Task.CompletedTask;
     public Task<WeightReading> ReadAsync(CancellationToken cancellationToken = default)
@@ -200,13 +201,7 @@ public sealed class ComprehensiveSettingsMatrixTests
         vm.ChargesMandatory = true;
         vm.MinimumCharges = 150.0m;
 
-        // 6. Auxiliary Ports
-        vm.ReceivePort1Enabled = true;
-        vm.ReceivePort1Name = "COM8";
-        vm.ReceivePort1Baud = 19200;
-        vm.ReceivePort2Enabled = true;
-        vm.ReceivePort2Name = "COM9";
-        vm.ReceivePort2Baud = 38400;
+        // 6. Yard Display Port
         vm.SendDataPortEnabled = true;
         vm.SendDataPortName = "COM10";
         vm.SendDataPortBaud = 57600;
@@ -312,10 +307,6 @@ public sealed class ComprehensiveSettingsMatrixTests
         Assert.True(jsonRoot["Weighment"]?["ChargesMandatory"]?.GetValue<bool>());
         Assert.Equal(150.0m, jsonRoot["Weighment"]?["MinimumCharges"]?.GetValue<decimal>());
 
-        // Verify Auxiliary Ports
-        Assert.True(jsonRoot["Hardware"]?["PortSettings"]?["ReceivePort1"]?["Enabled"]?.GetValue<bool>());
-        Assert.Equal("COM8", jsonRoot["Hardware"]?["PortSettings"]?["ReceivePort1"]?["PortName"]?.GetValue<string>());
-        Assert.Equal(19200, jsonRoot["Hardware"]?["PortSettings"]?["ReceivePort1"]?["BaudRate"]?.GetValue<int>());
 
         // Verify Company
         Assert.Equal("Port Logistics Yard 4", jsonRoot["Company"]?["CompanyName"]?.GetValue<string>());

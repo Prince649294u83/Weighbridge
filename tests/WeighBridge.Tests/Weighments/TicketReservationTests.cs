@@ -43,7 +43,7 @@ public sealed class TicketReservationTests
 
         reservation.AssignSlipNumber();
 
-        Assert.Equal("WB-000042", reservation.SlipNumber);
+        Assert.Equal("000042", reservation.SlipNumber);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public sealed class TicketReservationTests
             partyName: " Acme Corp ",
             charges: 50m);
 
-        Assert.Equal("WB-000123", weighment.SlipNumber);
+        Assert.Equal("000123", weighment.SlipNumber);
         Assert.Equal(123, weighment.ReservationId);
         Assert.Equal("KA01AB1234", weighment.VehicleNumber);
         Assert.Equal("Acme Corp", weighment.PartyName);
@@ -162,7 +162,7 @@ public sealed class TicketReservationTests
             reservationId = reservation.Id;
             reservedSlipNumber = reservation.SlipNumber;
             Assert.True(reservationId > 0);
-            Assert.Equal("WB-000001", reservedSlipNumber);
+            Assert.Equal("000001", reservedSlipNumber);
         }
 
         // 2. Consume reservation and create Weighment atomically in single transaction
@@ -204,10 +204,10 @@ public sealed class TicketReservationTests
             var savedReservation = await context.Set<TicketReservation>().SingleAsync(r => r.Id == reservationId);
             Assert.Equal(TicketReservationStatus.Consumed, savedReservation.Status);
             Assert.Equal(weighmentId, savedReservation.ConsumedByWeighmentId);
-            Assert.Equal("WB-000001", savedReservation.SlipNumber);
+            Assert.Equal("000001", savedReservation.SlipNumber);
 
             var savedWeighment = await context.Set<Weighment>().SingleAsync(w => w.Id == weighmentId);
-            Assert.Equal("WB-000001", savedWeighment.SlipNumber);
+            Assert.Equal("000001", savedWeighment.SlipNumber);
             Assert.Equal(reservationId, savedWeighment.ReservationId);
             Assert.Equal(WeighmentStatus.AwaitingSecondWeight, savedWeighment.Status);
             Assert.Equal(25000m, savedWeighment.FirstWeight?.Kilograms);

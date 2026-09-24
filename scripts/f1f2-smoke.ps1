@@ -18,9 +18,15 @@
 #
 # Exit code 0 = verified. Non-zero = something failed.
 
+param(
+    [string]$ExePath
+)
+
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $projectRoot 'src\WeighBridge.App\bin\Debug\net8.0-windows\WeighBridge.App.exe'
+$exe = if ($ExePath) { $ExePath } else {
+    Join-Path $projectRoot 'src\WeighBridge.App\bin\Debug\net8.0-windows\WeighBridge.App.exe'
+}
 
 . (Join-Path $PSScriptRoot 'isolated-data-root.ps1')
 $paths = New-IsolatedDataRoot -Label 'f1f2-smoke'
@@ -168,13 +174,13 @@ Set-Field $root1 'CustomField2' 'GR-8899'
 
 # 1. Allocate Ticket
 Invoke-Named $root1 '1. Allocate Ticket' ($Ctrl::Button)
-Assert-Text $root1 'WB-\d{6}' 'authoritative ticket number allocated' | Out-Null
+Assert-Text $root1 '(?:WB-)?\d{6}' 'authoritative ticket number allocated' | Out-Null
 
 $screenTexts = Get-ScreenText $root1
-$ticketMatch = ($screenTexts | Where-Object { $_ -match '^WB-\d{6}$' } | Select-Object -First 1)
+$ticketMatch = ($screenTexts | Where-Object { $_ -match '^(?:WB-)?\d{6}$' } | Select-Object -First 1)
 if (-not $ticketMatch) {
-    $matched = (($screenTexts -match 'WB-\d{6}') | Select-Object -First 1)
-    if ($matched -match '(WB-\d{6})') { $ticketMatch = $matches[1] }
+    $matched = (($screenTexts -match '(?:WB-)?\d{6}') | Select-Object -First 1)
+    if ($matched -match '((?:WB-)?\d{6})') { $ticketMatch = $matches[1] }
 }
 Say "Dynamic allocated ticket: $ticketMatch"
 if (-not $ticketMatch) {

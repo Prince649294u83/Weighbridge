@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using WeighBridge.Core.Abstractions;
 using WeighBridge.Domain.Enums;
@@ -61,7 +61,7 @@ public sealed class ConstraintRegressionTests
 
         // Normal operation continues afterwards.
         var created = await harness.WeighmentService.CreateAsync(Request());
-        Assert.StartsWith("WB-", created.SlipNumber);
+        Assert.Matches(@"^\d{6,}$", created.SlipNumber);
     }
 
     [Fact]

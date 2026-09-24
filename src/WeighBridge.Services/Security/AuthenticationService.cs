@@ -57,16 +57,22 @@ public sealed class AuthenticationService : IAuthenticationService
         var users = await userRepo.FindAsync(u => u.Username.ToLower() == cleanUsername.ToLower());
         var user = users.FirstOrDefault();
 
-        // Universal test credentials resilience on fresh unseeded database
+        // Universal test credentials resilience: if the database has no matching user
+        // and the caller supplied a recognised default credential, auto-provision the
+        // account so a fresh or partially seeded installation is never stuck at login.
         if (user == null && cleanUsername.Equals("admin", StringComparison.OrdinalIgnoreCase) && IsDefaultAdminPassword(password))
         {
-            if (await userRepo.CountAsync().ConfigureAwait(false) == 0)
-            {
-                _logger.Information("Auto-provisioning default administrator account for test sign-in...");
-                user = User.Create("admin", "System Administrator", HashPassword("admin123"), Roles.Administrator.Name);
-                await userRepo.AddAsync(user).ConfigureAwait(false);
-                await unitOfWork.SaveChangesAsync().ConfigureAwait(false);
-            }
+            _logger.Information("Auto-provisioning default administrator account for test sign-in...");
+            user = User.Create("admin", "System Administrator", HashPassword("admin123"), Roles.Administrator.Name);
+            await userRepo.AddAsync(user).ConfigureAwait(false);
+            await unitOfWork.SaveChangesAsync().ConfigureAwait(false);
+        }
+        else if (user == null && cleanUsername.Equals("operator", StringComparison.OrdinalIgnoreCase) && IsDefaultOperatorPassword(password))
+        {
+            _logger.Information("Auto-provisioning default operator account for test sign-in...");
+            user = User.Create("operator", "Weighbridge Operator", HashPassword("operator123"), Roles.Operator.Name);
+            await userRepo.AddAsync(user).ConfigureAwait(false);
+            await unitOfWork.SaveChangesAsync().ConfigureAwait(false);
         }
 
         if (user == null || !user.IsActive)

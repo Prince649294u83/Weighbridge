@@ -88,7 +88,13 @@ public sealed class WindowsGdiPrintOutput(
                     ? new Margins(25, 25, 25, 25)
                     : new Margins(40, 40, 40, 40);
 
-                using var reader = new StringReader(renderedText);
+                string[] lines = renderedText.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
+                int currentLineIndex = 0;
+
+                printDoc.BeginPrint += (s, e) =>
+                {
+                    currentLineIndex = 0;
+                };
 
                 printDoc.PrintPage += (s, e) =>
                 {
@@ -103,24 +109,14 @@ public sealed class WindowsGdiPrintOutput(
                     float y = e.MarginBounds.Top;
                     float x = e.MarginBounds.Left;
 
-                    string? line;
-                    while (y + lineHeight <= e.MarginBounds.Bottom && (line = reader.ReadLine()) is not null)
+                    while (y + lineHeight <= e.MarginBounds.Bottom && currentLineIndex < lines.Length)
                     {
-                        e.Graphics.DrawString(line, font, brush, x, y);
+                        e.Graphics.DrawString(lines[currentLineIndex], font, brush, x, y);
                         y += lineHeight;
+                        currentLineIndex++;
                     }
 
-                    bool hasMore = false;
-                    string? peek;
-                    while ((peek = reader.ReadLine()) is not null)
-                    {
-                        if (!string.IsNullOrWhiteSpace(peek))
-                        {
-                            hasMore = true;
-                            break;
-                        }
-                    }
-                    e.HasMorePages = hasMore;
+                    e.HasMorePages = currentLineIndex < lines.Length;
                 };
 
                 _logger.LogInformation("Sending GDI print job '{DocumentTitle}' to '{PrinterName}' ({Copies} copies)",
@@ -207,7 +203,13 @@ public sealed class WindowsGdiPrintOutput(
                     ? new Margins(25, 25, 25, 25)
                     : new Margins(40, 40, 40, 40);
 
-                using var reader = new StringReader(renderedText);
+                string[] lines = renderedText.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
+                int currentLineIndex = 0;
+
+                printDoc.BeginPrint += (s, e) =>
+                {
+                    currentLineIndex = 0;
+                };
 
                 printDoc.PrintPage += (s, e) =>
                 {
@@ -221,24 +223,14 @@ public sealed class WindowsGdiPrintOutput(
                     float y = e.MarginBounds.Top;
                     float x = e.MarginBounds.Left;
 
-                    string? line;
-                    while (y + lineHeight <= e.MarginBounds.Bottom && (line = reader.ReadLine()) is not null)
+                    while (y + lineHeight <= e.MarginBounds.Bottom && currentLineIndex < lines.Length)
                     {
-                        e.Graphics.DrawString(line, font, brush, x, y);
+                        e.Graphics.DrawString(lines[currentLineIndex], font, brush, x, y);
                         y += lineHeight;
+                        currentLineIndex++;
                     }
 
-                    bool hasMore = false;
-                    string? peek;
-                    while ((peek = reader.ReadLine()) is not null)
-                    {
-                        if (!string.IsNullOrWhiteSpace(peek))
-                        {
-                            hasMore = true;
-                            break;
-                        }
-                    }
-                    e.HasMorePages = hasMore;
+                    e.HasMorePages = currentLineIndex < lines.Length;
                 };
 
                 _logger.LogInformation("Sending GDI text print job '{DocumentTitle}' to '{PrinterName}' ({Copies} copies)",

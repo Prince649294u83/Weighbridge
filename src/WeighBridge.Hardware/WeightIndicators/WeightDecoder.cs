@@ -31,7 +31,11 @@ public sealed class WeightDecoder : IWeightDecoder
 
         options ??= new WeightDecodeOptions();
 
-        var payload = frame.RawNumericPayload.Trim();
+        var payload = frame.RawNumericPayload.Trim().TrimStart('$').Trim();
+        if (payload.Contains('/'))
+        {
+            payload = payload.Replace('/', '0');
+        }
 
         // STEP 1: Payload Length & Character Invariant Check
         if (options.WeightDigits > 0 && payload.Length != options.WeightDigits)

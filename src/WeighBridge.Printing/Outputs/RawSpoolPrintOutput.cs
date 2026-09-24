@@ -50,6 +50,12 @@ public sealed class RawSpoolPrintOutput(
                 byte[] trailing = rawBytes.Length > 0 && rawBytes[^1] == 0x0C ? [] : [0x0C];
                 rawBytes = [..initCommands, ..rawBytes, ..trailing];
             }
+            else if (rawBytes.Length > 0 && rawBytes[^1] != 0x0C)
+            {
+                // Continuous roll / tractor feed: advance slip past tear-off bar
+                byte[] tearFeed = [0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A];
+                rawBytes = [..rawBytes, ..tearFeed];
+            }
 
             return await Task.Run(() =>
             {
@@ -103,6 +109,12 @@ public sealed class RawSpoolPrintOutput(
                 byte[] initCommands = [0x1B, 0x43, 33];
                 byte[] trailing = rawBytes.Length > 0 && rawBytes[^1] == 0x0C ? [] : [0x0C];
                 rawBytes = [..initCommands, ..rawBytes, ..trailing];
+            }
+            else if (rawBytes.Length > 0 && rawBytes[^1] != 0x0C)
+            {
+                // Continuous roll / tractor feed: advance slip past tear-off bar
+                byte[] tearFeed = [0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A, 0x0D, 0x0A];
+                rawBytes = [..rawBytes, ..tearFeed];
             }
 
             return await Task.Run(() =>

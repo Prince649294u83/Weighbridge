@@ -68,6 +68,13 @@ public sealed class PlaceholderWeightIndicatorService(
     }
 
     /// <inheritdoc />
+    public event EventHandler<ScaleAutoDetectedEventArgs>? ScaleAutoDetected
+    {
+        add { }
+        remove { }
+    }
+
+    /// <inheritdoc />
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (!_options.Enabled)

@@ -69,14 +69,33 @@ public sealed class WindowsPrintService : IPrintService
     }
 
     /// <inheritdoc />
+    public static string? ResolveCanonicalPrinterName(string? printerName)
+    {
+        if (string.IsNullOrWhiteSpace(printerName)) return null;
+        var trimmed = printerName.Trim();
+        return PrinterSettings.InstalledPrinters.Cast<string>()
+            .FirstOrDefault(p => string.Equals(p.Trim(), trimmed, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc />
     public Task<string?> GetDefaultPrinterAsync(CancellationToken cancellationToken = default)
     {
-        var settings = new PrinterSettings();
-        var defaultPrinter = settings.IsDefaultPrinter ? settings.PrinterName : null;
         var options = CurrentPrinterOptions;
-        return Task.FromResult(string.IsNullOrWhiteSpace(options.DefaultPrinterName)
-            ? defaultPrinter
-            : options.DefaultPrinterName);
+        if (!string.IsNullOrWhiteSpace(options.DefaultPrinterName))
+        {
+            var canonical = ResolveCanonicalPrinterName(options.DefaultPrinterName);
+            return Task.FromResult<string?>(canonical ?? options.DefaultPrinterName);
+        }
+
+        var settings = new PrinterSettings();
+        if (settings.IsDefaultPrinter && !string.IsNullOrWhiteSpace(settings.PrinterName))
+        {
+            var sysDefault = ResolveCanonicalPrinterName(settings.PrinterName);
+            return Task.FromResult<string?>(sysDefault ?? settings.PrinterName);
+        }
+
+        var firstInstalled = PrinterSettings.InstalledPrinters.Cast<string>().FirstOrDefault();
+        return Task.FromResult<string?>(firstInstalled);
     }
 
     /// <summary>
@@ -131,12 +150,26 @@ public sealed class WindowsPrintService : IPrintService
         if (string.IsNullOrWhiteSpace(targetPrinter))
         {
             _logger.LogWarning("No target printer configured or available.");
-            return PrintResult.Failure("No printer specified and no default printer could be found.");
+            return PrintResult.Failure("No printer specified and no installed printer could be found on this computer.");
         }
 
-        if (!IsInstalledPrinter(targetPrinter))
+        var canonicalPrinter = ResolveCanonicalPrinterName(targetPrinter);
+        if (canonicalPrinter is null)
         {
             return PrintResult.Failure($"Printer '{targetPrinter}' is not installed.");
+        }
+        targetPrinter = canonicalPrinter;
+
+        if (string.IsNullOrWhiteSpace(data.CompanyName) || string.IsNullOrWhiteSpace(data.AddressLine1))
+        {
+            data = data with
+            {
+                CompanyName = string.IsNullOrWhiteSpace(data.CompanyName) ? CurrentCompanyOptions.CompanyName : data.CompanyName,
+                AddressLine1 = string.IsNullOrWhiteSpace(data.AddressLine1) ? CurrentCompanyOptions.AddressLine1 : data.AddressLine1,
+                AddressLine2 = string.IsNullOrWhiteSpace(data.AddressLine2) ? CurrentCompanyOptions.AddressLine2 : data.AddressLine2,
+                Phone = string.IsNullOrWhiteSpace(data.Phone) ? CurrentCompanyOptions.Phone : data.Phone,
+                Email = string.IsNullOrWhiteSpace(data.Email) ? CurrentCompanyOptions.Email : data.Email
+            };
         }
 
         // Determine profile
@@ -161,7 +194,15 @@ public sealed class WindowsPrintService : IPrintService
             _logger.LogInformation("Executing print job for {SlipNumber} on '{PrinterName}' via {OutputMode} ({Copies} copies)",
                 data.SlipNumber, effectiveProfile.PrinterName, effectiveProfile.OutputMode, effectiveCopies);
 
-            return await outputDriver.OutputAsync(docTitle, document, data, effectiveProfile, effectiveCopies, cancellationToken);
+            var result = await outputDriver.OutputAsync(docTitle, document, data, effectiveProfile, effectiveCopies, cancellationToken);
+            if (!result.Succeeded && effectiveProfile.OutputMode == PrinterOutputMode.RawSpool &&
+                (result.Message.Contains("Win32 error") || result.Message.Contains("Raw spooling failed") || result.Message.Contains("1804")))
+            {
+                _logger.LogWarning("Raw spooling failed for '{PrinterName}' ({Reason}). Falling back to GDI graphical driver.", targetPrinter, result.Message);
+                result = await _gdiOutput.OutputAsync(docTitle, document, data, effectiveProfile with { OutputMode = PrinterOutputMode.Gdi }, effectiveCopies, cancellationToken);
+            }
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -265,13 +306,15 @@ public sealed class WindowsPrintService : IPrintService
             if (string.IsNullOrWhiteSpace(targetPrinter))
             {
                 _logger.LogWarning("Report printing refused because no target printer is configured or available.");
-                return PrintResult.Failure("No printer specified and no default printer could be found.");
+                return PrintResult.Failure("No printer specified and no installed printer could be found on this computer.");
             }
 
-            if (!IsInstalledPrinter(targetPrinter))
+            var canonicalPrinter = ResolveCanonicalPrinterName(targetPrinter);
+            if (canonicalPrinter is null)
             {
                 return PrintResult.Failure($"Printer '{targetPrinter}' is not installed.");
             }
+            targetPrinter = canonicalPrinter;
 
             var profile = ResolveReportProfile(targetPrinter);
             int effectiveCopies = copies > 0 ? copies : Math.Max(1, options.CopyCount);
@@ -287,9 +330,18 @@ public sealed class WindowsPrintService : IPrintService
                 options.PaperSize,
                 options.SideWisePrinting);
 
-            return profile.OutputMode == PrinterOutputMode.RawSpool
+            var result = profile.OutputMode == PrinterOutputMode.RawSpool
                 ? await _rawSpoolOutput.OutputTextAsync(title, renderedText, profile, effectiveCopies, cancellationToken)
                 : await _gdiOutput.OutputTextAsync(title, renderedText, profile, effectiveCopies, cancellationToken);
+
+            if (!result.Succeeded && profile.OutputMode == PrinterOutputMode.RawSpool &&
+                (result.Message.Contains("Win32 error") || result.Message.Contains("Raw spooling failed") || result.Message.Contains("1804")))
+            {
+                _logger.LogWarning("Raw text spooling failed for '{PrinterName}' ({Reason}). Falling back to GDI graphical driver.", targetPrinter, result.Message);
+                result = await _gdiOutput.OutputTextAsync(title, renderedText, profile with { OutputMode = PrinterOutputMode.Gdi }, effectiveCopies, cancellationToken);
+            }
+
+            return result;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -436,5 +488,5 @@ public sealed class WindowsPrintService : IPrintService
     private CompanyOptions CurrentCompanyOptions => _companyOptionsMonitor?.CurrentValue ?? _companyOptions;
 
     private static bool IsInstalledPrinter(string printerName)
-        => PrinterSettings.InstalledPrinters.Cast<string>().Contains(printerName, StringComparer.OrdinalIgnoreCase);
+        => ResolveCanonicalPrinterName(printerName) is not null;
 }

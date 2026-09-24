@@ -1,3 +1,5 @@
+using WeighBridge.Core.Configuration;
+
 namespace WeighBridge.Hardware.WeightIndicators;
 
 /// <summary>
@@ -31,4 +33,15 @@ public interface ISerialPortTransport : IAsyncDisposable
 
     /// <summary>Writes bytes to the serial transport.</summary>
     ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Dynamically retunes the physical serial transport to a new baud rate
+    /// using in-place Win32 DCB modification without closing or churning the handle.
+    /// </summary>
+    Task<bool> RetuneAsync(int baudRate, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    /// <summary>
+    /// Updates transport configuration parameters dynamically in-memory.
+    /// </summary>
+    void UpdateOptions(WeightIndicatorOptions newOptions) { }
 }

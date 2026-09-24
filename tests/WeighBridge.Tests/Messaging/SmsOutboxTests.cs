@@ -136,7 +136,7 @@ public sealed class SmsOutboxTests
         Assert.NotNull(key1);
         Assert.Equal(key1, key2);
         Assert.Single(repo.Items);
-        Assert.Equal($"WB-{printData.SlipNumber}:Completion", key1);
+        Assert.Equal($"{printData.SlipNumber}:Completion", key1);
     }
 
     [Fact]

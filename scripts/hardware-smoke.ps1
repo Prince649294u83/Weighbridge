@@ -73,12 +73,12 @@ function Invoke-Named($scope, $name, $type) {
     if ($null -eq $elem) {
         throw "Could not find element: $name ($($type.ProgrammaticName))"
     }
-    if ($type -eq $Ctrl::RadioButton) {
-        Invoke-RealClick $elem
-    } else {
-        if (-not $elem.Current.IsEnabled) { throw "the element '$name' is disabled" }
+    if (-not $elem.Current.IsEnabled) { throw "the element '$name' is disabled" }
+    try {
         $pattern = $elem.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
         $pattern.Invoke()
+    } catch {
+        Invoke-RealClick $elem
     }
     Start-Sleep -Milliseconds 400
 }
@@ -299,7 +299,7 @@ try {
     Say "Opening weighment transaction..."
     Invoke-Named $window "Open weighment" $Ctrl::Button
     
-    Assert-Text $window 'WB-\d{6}' 'a slip number was allocated and shown' | Out-Null
+    Assert-Text $window '(?:WB-)?\d{6}' 'a slip number was allocated and shown' | Out-Null
     Assert-Text $window 'First weight pending' 'the stage reads as first-weight-pending' | Out-Null
 
     # Capture weight from indicator / simulator

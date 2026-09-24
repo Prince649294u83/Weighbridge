@@ -89,6 +89,9 @@ public sealed class WeightIndicatorSimulator : IWeightIndicatorService, IWeightI
     public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
 
     /// <inheritdoc />
+    public event EventHandler<ScaleAutoDetectedEventArgs>? ScaleAutoDetected { add { } remove { } }
+
+    /// <inheritdoc />
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         lock (_lock)

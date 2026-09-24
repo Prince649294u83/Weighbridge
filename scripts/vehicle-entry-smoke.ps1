@@ -1,4 +1,4 @@
-﻿# Runtime verification for the Vehicle Entry module (Prompt 7, Phase K).
+# Runtime verification for the Vehicle Entry module (Prompt 7, Phase K).
 #
 # Drives the real screen through UI Automation on the real database: opens a
 # weighment, records both weights, rejects two invalid operations, cancels one
@@ -13,9 +13,15 @@
 #
 # Exit code 0 = verified. Non-zero = something failed (details printed).
 
+param(
+    [string]$ExePath
+)
+
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $projectRoot 'src\WeighBridge.App\bin\Debug\net8.0-windows\WeighBridge.App.exe'
+$exe = if ($ExePath) { $ExePath } else {
+    Join-Path $projectRoot 'src\WeighBridge.App\bin\Debug\net8.0-windows\WeighBridge.App.exe'
+}
 
 # Runs against its own data root, not the installation's. This script needs an empty database
 # to exercise the migration path, and it used to get one by deleting the database at the real
@@ -310,8 +316,8 @@ Set-Field $root 'Driver' 'R. Singh'
 Invoke-Named $root 'Open weighment' ($Ctrl::Button)
 
 $slip = $null
-if (Assert-Text $root 'WB-\d{6}' 'a slip number was allocated and shown') {
-    $slip = (((Get-ScreenText $root) -match 'WB-\d{6}') | Select-Object -First 1)
+if (Assert-Text $root '(?:WB-)?\d{6}' 'a slip number was allocated and shown') {
+    $slip = (((Get-ScreenText $root) -match '(?:WB-)?\d{6}') | Select-Object -First 1)
     Say "  slip: $slip"
 }
 Assert-Text $root 'First weight pending' 'the stage reads as first-weight-pending' | Out-Null
@@ -391,7 +397,7 @@ if (-not $dialog) {
     } else {
         Invoke-Named $dialog 'Cancel weighment' ($Ctrl::Button)
         Start-Sleep -Seconds 1
-        Assert-Text $root 'WB-\d{6} cancelled' 'the cancellation was confirmed on screen' | Out-Null
+        Assert-Text $root '(?:WB-)?\d{6} cancelled' 'the cancellation was confirmed on screen' | Out-Null
     }
 }
 

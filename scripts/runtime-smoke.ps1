@@ -1,13 +1,19 @@
-﻿# Runtime smoke test for WeighBridge.Modern (Phase 0.5 verification).
+# Runtime smoke test for WeighBridge.Modern (Phase 0.5 verification).
 # Launches the app, drives navigation + theme toggle via UIA, waits for a
 # background health-refresh tick, then closes the window and verifies the
 # shutdown marker in the log.
 #
 # Exit code 0 = verified. Non-zero = something failed (details printed).
 
+param(
+    [string]$ExePath
+)
+
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $projectRoot 'src\WeighBridge.App\bin\Debug\net8.0-windows\WeighBridge.App.exe'
+$exe = if ($ExePath) { $ExePath } else {
+    Join-Path $projectRoot 'src\WeighBridge.App\bin\Debug\net8.0-windows\WeighBridge.App.exe'
+}
 
 # Runs against its own data root. Launching the application against the live installation put
 # this run's log lines, preferences and any records it created into the operator's data.
@@ -249,24 +255,30 @@ try {
 }
 
 # --- 4. Wait for one background subsystem tick (30s interval) --------------
-Say 'Waiting 35s for the background health/status tickâ€¦'
+Say 'Waiting 35s for the background health/status tick...'
 Start-Sleep -Seconds 35
 $process.Refresh()
 if ($process.HasExited) { Write-Error "App exited unexpectedly during the wait (code $($process.ExitCode))" }
 
 # --- 5. Graceful close ------------------------------------------------------
 try {
-    $closeBtn = Find-ByNameAndType $root 'Close' ([System.Windows.Automation.ControlType]::Button)
-    if ($closeBtn) {
-        $closeBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-        Say 'Close button invoked'
+    $shellWindow = Get-WeighBridgeWindow -ProcessId $processId -AutomationId 'ShellWindow' -TimeoutSec 5
+    if ($shellWindow) {
+        $shellWindow.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close()
+        Say 'WindowPattern.Close invoked on shell window'
     } else {
-        $failures.Add('close: button not found, fell back to WM_CLOSE')
-        [Win32]::PostMessage($root.Current.NativeWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        $procHwnd = (Get-Process -Id $processId -ErrorAction SilentlyContinue).MainWindowHandle
+        if ($procHwnd -and $procHwnd -ne [IntPtr]::Zero) {
+            [Win32]::PostMessage($procHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+            Say 'WM_CLOSE posted to Process MainWindowHandle'
+        }
     }
 } catch {
-    $failures.Add("close: $($_.Exception.Message), fell back to WM_CLOSE")
-    [Win32]::PostMessage($root.Current.NativeWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+    Say "Graceful close exception: $($_.Exception.Message)"
+    $procHwnd = (Get-Process -Id $processId -ErrorAction SilentlyContinue).MainWindowHandle
+    if ($procHwnd -and $procHwnd -ne [IntPtr]::Zero) {
+        [Win32]::PostMessage($procHwnd, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+    }
 }
 
 $waitDeadline = (Get-Date).AddSeconds(20)

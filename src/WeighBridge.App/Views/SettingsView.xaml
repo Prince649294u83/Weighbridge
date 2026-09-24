@@ -306,19 +306,32 @@
                         IsEditable="True"
                         IsEnabled="{Binding CanEditConfiguration}"
                         Style="{StaticResource Settings.Choice}" />
-              <Button Grid.Column="2"
-                      Command="{Binding RefreshPrintersCommand}"
-                      IsEnabled="{Binding CanEditConfiguration}"
-                      Style="{StaticResource Button.Secondary}"
-                      Height="32"
-                      Padding="10,0"
-                      Margin="8,0,0,0"
-                      ToolTip="Scan and refresh installed printers">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Refresh}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
-                  <TextBlock Text="Refresh" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
-                </StackPanel>
-              </Button>
+              <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Command="{Binding RefreshPrintersCommand}"
+                        IsEnabled="{Binding CanEditConfiguration}"
+                        Style="{StaticResource Button.Secondary}"
+                        Height="32"
+                        Padding="10,0"
+                        Margin="8,0,0,0"
+                        ToolTip="Scan and refresh installed printers">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Refresh}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+                    <TextBlock Text="Refresh" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding TestPrintCommand}"
+                        IsEnabled="{Binding CanEditConfiguration}"
+                        Style="{StaticResource Button.Secondary}"
+                        Height="32"
+                        Padding="10,0"
+                        Margin="6,0,0,0"
+                        ToolTip="Send a test print slip to verify printer signal and physical output">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" Text="{StaticResource Icon.Printer}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+                    <TextBlock Text="Test Print" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+              </StackPanel>
             </Grid>
 
             <Grid Style="{StaticResource Settings.Row}">
@@ -762,80 +775,62 @@
                 <TextBlock Text="{Binding ConnectionTestStatus}" Foreground="{DynamicResource Brush.Text.Secondary}" Margin="0,8,0,0" />
               </StackPanel>
             </Border>
-          </StackPanel>
-        </ScrollViewer>
-      </TabItem>
 
-      <!--  ============================================================
-            8. PORT SETTINGS TAB
-            ============================================================  -->
-      <TabItem Header="Port Settings" Style="{StaticResource Settings.TabItem}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24">
-          <StackPanel MaxWidth="800" HorizontalAlignment="Left">
-            <!-- Receive Serial Port 1 -->
-            <GroupBox Header="Receive Serial Port 1" Margin="0,0,0,20" Padding="16" BorderBrush="{DynamicResource Brush.Border.Subtle}">
-              <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="160" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource Settings.Label}" Text="COM Port" Margin="0,0,0,12" />
-                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailablePorts}" SelectedItem="{Binding ReceivePort1Name}" Width="160" HorizontalAlignment="Left" Margin="0,0,0,12" Style="{StaticResource Settings.Choice}" />
+            <!-- Outdoor Yard Display / Auxiliary Send Port Section -->
+            <Border Background="{DynamicResource Brush.Surface.Raised}"
+                    BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="16"
+                    Margin="0,16,0,0">
+              <StackPanel>
+                <TextBlock Text="Outdoor Yard Display (Auxiliary Send Port)" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10" />
+                <TextBlock Text="Streams live weights to an external LED yard scoreboard or secondary indicator via serial output."
+                           Style="{StaticResource Text.Secondary}" FontSize="12" Margin="0,0,0,14" TextWrapping="Wrap" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Settings.Label}" Text="Baud Rate" />
-                <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding BaudRates}" SelectedItem="{Binding ReceivePort1Baud}" Width="160" HorizontalAlignment="Left" Style="{StaticResource Settings.Choice}" />
-              </Grid>
-            </GroupBox>
-
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="24" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-
-              <!-- Receive Serial Port 2 -->
-              <GroupBox Grid.Column="0" Header="Receive Serial Port 2" Padding="16" BorderBrush="{DynamicResource Brush.Border.Subtle}">
-                <Grid>
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                  </Grid.RowDefinitions>
+                <Grid Style="{StaticResource Settings.Row}">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="180" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource Settings.Label}" Text="COM Port" Margin="0,0,0,12" />
-                  <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailablePorts}" SelectedItem="{Binding ReceivePort2Name}" Width="140" HorizontalAlignment="Left" Margin="0,0,0,12" Style="{StaticResource Settings.Choice}" />
-
-                  <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Settings.Label}" Text="Baud Rate" />
-                  <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding BaudRates}" SelectedItem="{Binding ReceivePort2Baud}" Width="140" HorizontalAlignment="Left" Style="{StaticResource Settings.Choice}" />
+                  <TextBlock Style="{StaticResource Settings.Label}" Text="Yard Display Output" />
+                  <CheckBox Grid.Column="1" Content="Enable Auxiliary Output"
+                            IsChecked="{Binding SendDataPortEnabled}"
+                            IsEnabled="{Binding CanEditConfiguration}"
+                            VerticalAlignment="Center" />
                 </Grid>
-              </GroupBox>
 
-              <!-- Send Data Port -->
-              <GroupBox Grid.Column="2" Header="Send Data Port" Padding="16" BorderBrush="{DynamicResource Brush.Border.Subtle}">
-                <Grid>
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                  </Grid.RowDefinitions>
+                <Grid Style="{StaticResource Settings.Row}"
+                      IsEnabled="{Binding SendDataPortEnabled}">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="180" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource Settings.Label}" Text="COM Port" Margin="0,0,0,12" />
-                  <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailablePorts}" SelectedItem="{Binding SendDataPortName}" Width="140" HorizontalAlignment="Left" Margin="0,0,0,12" Style="{StaticResource Settings.Choice}" />
-
-                  <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Settings.Label}" Text="Baud Rate" />
-                  <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding BaudRates}" SelectedItem="{Binding SendDataPortBaud}" Width="140" HorizontalAlignment="Left" Style="{StaticResource Settings.Choice}" />
+                  <TextBlock Style="{StaticResource Settings.Label}" Text="Display COM Port" />
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding AvailablePorts}"
+                            SelectedItem="{Binding SendDataPortName}"
+                            Width="160"
+                            HorizontalAlignment="Left"
+                            IsEnabled="{Binding CanEditConfiguration}"
+                            Style="{StaticResource Settings.Choice}" />
                 </Grid>
-              </GroupBox>
-            </Grid>
+
+                <Grid Style="{StaticResource Settings.Row}"
+                      IsEnabled="{Binding SendDataPortEnabled}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Style="{StaticResource Settings.Label}" Text="Display Baud Rate" />
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding BaudRates}"
+                            SelectedItem="{Binding SendDataPortBaud}"
+                            Width="160"
+                            HorizontalAlignment="Left"
+                            IsEnabled="{Binding CanEditConfiguration}"
+                            Style="{StaticResource Settings.Choice}" />
+                </Grid>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
@@ -926,34 +921,35 @@
       </TabItem>
 
       <!--  ============================================================
-            11. SIGNAL DIAGNOSTIC (BRAY'S TERMINAL) TAB
+            11. TERMINAL STUDIO (SERIAL MONITOR & BRAY'S COMPANION) TAB
             ============================================================  -->
-      <!--  ============================================================
-            11. SIGNAL DIAGNOSTIC (SERIAL MONITOR & BRAY'S COMPANION) TAB
-            ============================================================  -->
-      <TabItem Header="Signal Diagnostic" Style="{StaticResource Settings.TabItem}">
+      <TabItem Header="Terminal Studio" Style="{StaticResource Settings.TabItem}">
         <Grid Margin="16">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
 
-          <!-- Top Status / Diagnostic Banner -->
+          <!-- Top Status / Diagnostic Banner & Scale HUD -->
           <Border Grid.Row="0"
                   Background="{DynamicResource Brush.Surface.Raised}"
                   BorderBrush="{DynamicResource Brush.Border.Default}"
                   BorderThickness="1"
                   CornerRadius="{StaticResource Radius.MD}"
-                  Padding="16,10"
+                  Padding="16,12"
                   Margin="0,0,0,14">
             <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
 
-              <!-- Status Text and Icon -->
-              <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+              <!-- Top Row: Status Text and Icon -->
+              <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock Style="{StaticResource Text.Icon}"
                            Text="{StaticResource Icon.Settings}"
                            FontSize="16"
@@ -966,8 +962,8 @@
                            VerticalAlignment="Center" />
               </StackPanel>
 
-              <!-- Quick Status Badges -->
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+              <!-- Top Row Right: Rx and Pins -->
+              <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <Border Background="{DynamicResource Brush.Surface.Sunken}"
                         BorderBrush="{DynamicResource Brush.Border.Subtle}"
                         BorderThickness="1"
@@ -1032,6 +1028,67 @@
                   </StackPanel>
                 </Border>
               </StackPanel>
+
+              <!-- Row 1: Scale HUD Banner Strip -->
+              <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                      Margin="0,10,0,0"
+                      Background="{DynamicResource Brush.Surface.Sunken}"
+                      BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                      BorderThickness="1"
+                      CornerRadius="6"
+                      Padding="12,8">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+
+                  <!-- Lock Pill & Protocol -->
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border CornerRadius="4" Padding="8,4" Margin="0,0,12,0">
+                      <Border.Style>
+                        <Style TargetType="Border">
+                          <Setter Property="Background" Value="#334155" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding TerminalLockStatus}" Value="Locked">
+                              <Setter Property="Background" Value="#15803D" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding TerminalLockStatus}" Value="Searching">
+                              <Setter Property="Background" Value="#B45309" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Border.Style>
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="● " FontSize="11" FontWeight="Bold" Foreground="White" />
+                        <TextBlock Text="{Binding TerminalLockStatus}" FontSize="11" FontWeight="Bold" Foreground="White" />
+                      </StackPanel>
+                    </Border>
+
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Text="DECODED PROTOCOL" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Brush.Text.Tertiary}" FontSize="10" />
+                      <TextBlock Text="{Binding TerminalScaleProtocol}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Brush.Text.Primary}" />
+                    </StackPanel>
+                  </StackPanel>
+
+                  <!-- Live Scale Weight Readout (Center) -->
+                  <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="LIVE SCALE WEIGHT" HorizontalAlignment="Center" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Brush.Text.Tertiary}" FontSize="10" />
+                    <TextBlock Text="{Binding TerminalScaleWeight}" FontFamily="Consolas, Cascadia Code, Segoe UI" FontWeight="Bold" FontSize="18" Foreground="{DynamicResource Brush.Accent.Default}" HorizontalAlignment="Center" />
+                  </StackPanel>
+
+                  <!-- Active COM Port / Baud Telemetry (Right) -->
+                  <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock Text="HARDWARE TARGET" HorizontalAlignment="Right" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Brush.Text.Tertiary}" FontSize="10" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                      <TextBlock Text="{Binding DiagnosticPort}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Brush.Text.Primary}" />
+                      <TextBlock Text=" @ " FontSize="12" Foreground="{DynamicResource Brush.Text.Secondary}" />
+                      <TextBlock Text="{Binding DiagnosticBaudRate, StringFormat='{}{0} baud'}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource Brush.Text.Primary}" />
+                    </StackPanel>
+                  </StackPanel>
+                </Grid>
+              </Border>
             </Grid>
           </Border>
 
@@ -1077,10 +1134,19 @@
                     <TextBlock Text="Baud:" Style="{StaticResource Settings.Label}" Margin="0,0,6,0" />
                     <ComboBox ItemsSource="{Binding BaudRates}"
                               SelectedItem="{Binding DiagnosticBaudRate}"
-                              Width="90"
+                              Width="85"
                               Height="32"
-                              Margin="0,0,14,0"
+                              Margin="0,0,8,0"
                               IsEnabled="{Binding IsDiagnosticMonitoring, Converter={StaticResource InverseBoolConverter}}" />
+
+                    <!-- Quick-Baud Strip -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                      <Button Content="1200" Command="{Binding QuickBaudCommand}" CommandParameter="1200" Style="{StaticResource Button.Secondary}" Height="28" Padding="6,0" Margin="0,0,3,0" ToolTip="Quick switch to 1200 baud" />
+                      <Button Content="2400" Command="{Binding QuickBaudCommand}" CommandParameter="2400" Style="{StaticResource Button.Secondary}" Height="28" Padding="6,0" Margin="0,0,3,0" ToolTip="Quick switch to 2400 baud" />
+                      <Button Content="4800" Command="{Binding QuickBaudCommand}" CommandParameter="4800" Style="{StaticResource Button.Secondary}" Height="28" Padding="6,0" Margin="0,0,3,0" ToolTip="Quick switch to 4800 baud" />
+                      <Button Content="9600" Command="{Binding QuickBaudCommand}" CommandParameter="9600" Style="{StaticResource Button.Secondary}" Height="28" Padding="6,0" Margin="0,0,3,0" ToolTip="Quick switch to 9600 baud" />
+                      <Button Content="19200" Command="{Binding QuickBaudCommand}" CommandParameter="19200" Style="{StaticResource Button.Secondary}" Height="28" Padding="6,0" ToolTip="Quick switch to 19200 baud" />
+                    </StackPanel>
 
                     <!-- Start / Stop Monitoring Buttons -->
                     <Button Command="{Binding StartDiagnosticMonitoringCommand}"

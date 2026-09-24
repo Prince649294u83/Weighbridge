@@ -155,9 +155,16 @@ public sealed class DelimitedFrameExtractor : IFrameExtractor
         // No STX anywhere. A bare CR — one not immediately followed by LF, which the
         // branch above would already have taken — terminates its line by itself.
         int crIndex = buffer.IndexOf(Cr);
-        if (crIndex >= 0 && crIndex < buffer.Length - 1 && buffer[crIndex + 1] != Lf)
+        if (crIndex >= 0)
         {
-            return ExtractLine(buffer, terminatorIndex: crIndex, out frame, out bytesConsumed);
+            if (crIndex < buffer.Length - 1 && buffer[crIndex + 1] != Lf)
+            {
+                return ExtractLine(buffer, terminatorIndex: crIndex, out frame, out bytesConsumed);
+            }
+            if (crIndex == buffer.Length - 1 && crIndex > 0)
+            {
+                return ExtractLine(buffer, terminatorIndex: crIndex, out frame, out bytesConsumed);
+            }
         }
 
         // Cap runaway buffers when junk accumulates with no delimiter at all: keep only

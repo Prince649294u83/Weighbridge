@@ -88,7 +88,7 @@ public class WeighmentServiceTests
 
         Assert.NotNull(found);
         Assert.Equal(open.Id, found.Id);
-        Assert.Equal("WB-000001", found.SlipNumber);
+        Assert.Equal("000001", found.SlipNumber);
     }
 
     [Theory]

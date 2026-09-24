@@ -316,10 +316,10 @@ public sealed class WeighmentTests
     public void AssignSlipNumber_Twice_IsRefused()
     {
         var weighment = Saved(WeighmentMode.GrossFirst, id: 42);
-        Assert.Equal("WB-000042", weighment.SlipNumber);
+        Assert.Equal("000042", weighment.SlipNumber);
 
         Assert.Throws<InvalidOperationException>(weighment.AssignSlipNumber);
-        Assert.Equal("WB-000042", weighment.SlipNumber);
+        Assert.Equal("000042", weighment.SlipNumber);
     }
 
     [Fact]
@@ -517,10 +517,10 @@ public sealed class WeighmentTests
 public sealed class SlipNumberTests
 {
     [Theory]
-    [InlineData(1, "WB-000001")]
-    [InlineData(42, "WB-000042")]
-    [InlineData(999_999, "WB-999999")]
-    [InlineData(1_000_000, "WB-1000000")] // Widens rather than truncating.
+    [InlineData(1, "000001")]
+    [InlineData(42, "000042")]
+    [InlineData(999_999, "999999")]
+    [InlineData(1_000_000, "1000000")] // Widens rather than truncating.
     public void Format_PadsToSixDigitsAndThenGrows(long sequence, string expected)
         => Assert.Equal(expected, SlipNumbers.Format(sequence));
 
@@ -545,7 +545,7 @@ public sealed class SlipNumberTests
     [InlineData("42")]
     [InlineData("000042")]
     public void Normalise_AcceptsWhatAnOperatorActuallyTypes(string typed)
-        => Assert.Equal("WB-000042", SlipNumbers.Normalise(typed));
+        => Assert.Equal("000042", SlipNumbers.Normalise(typed));
 
     [Theory]
     [InlineData(null)]

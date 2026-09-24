@@ -1,3 +1,4 @@
+using WeighBridge.Core.Configuration;
 using WeighBridge.Domain.Enums;
 
 namespace WeighBridge.Core.Abstractions;
@@ -71,4 +72,20 @@ public interface IWeightIndicatorService : IHealthCheck, IAsyncDisposable
 
     /// <summary>Transmits raw hexadecimal bytes to the active indicator port.</summary>
     Task<bool> SendHexAsync(string hexString, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    /// <summary>
+    /// Dynamically retunes the physical serial transport to a new baud rate
+    /// using in-place Win32 DCB modification without tearing down the connection handle.
+    /// </summary>
+    Task<bool> RetuneAsync(int baudRate, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    /// <summary>
+    /// Fires when the auto-detector or stream decoder locks onto consecutive valid frames.
+    /// </summary>
+    event EventHandler<ScaleAutoDetectedEventArgs>? ScaleAutoDetected;
+
+    /// <summary>
+    /// Dynamically updates the indicator configuration options in memory.
+    /// </summary>
+    void UpdateOptions(WeightIndicatorOptions newOptions) { }
 }

@@ -103,6 +103,18 @@ public sealed class DecimalCommaParserTests
         var reading = Parse(frame);
         Assert.Equal(expectedUnit, reading.Unit);
     }
+
+    [Theory]
+    [InlineData("$ ////0", 0.0)]
+    [InlineData("$ //250", 250.0)]
+    [InlineData("$ //120.5", 120.5)]
+    [InlineData("$ 25400", 25400.0)]
+    [InlineData("////0", 0.0)]
+    public void DollarPrefix_And_SlashBlankDigits_ParseCorrectly(string frame, decimal expected)
+    {
+        var reading = Parse(frame);
+        Assert.Equal(expected, reading.Value);
+    }
 }
 
 /// <summary>
@@ -187,5 +199,16 @@ public sealed class DelimitedFrameExtractorTests
         Assert.True(_extractor.TryExtractFrame(buffer, out var extracted, out var consumed));
         Assert.Equal("0000300"u8.ToArray(), extracted.ToArray());
         Assert.Equal(junk.Length + frame.Length, consumed);
+    }
+
+    [Fact]
+    public void BareCr_AtBufferBoundary_IsExtractedImmediately()
+    {
+        // When a scale sends "+0025400\r" as a single packet ending exactly at buffer boundary
+        var buffer = System.Text.Encoding.ASCII.GetBytes("+0025400\r");
+
+        Assert.True(_extractor.TryExtractFrame(buffer, out var frame, out var consumed));
+        Assert.Equal("+0025400"u8.ToArray(), frame.ToArray());
+        Assert.Equal(buffer.Length, consumed);
     }
 }

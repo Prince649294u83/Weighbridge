@@ -106,12 +106,12 @@ public sealed class WeighmentPersistenceTests : IDisposable
             Remarks = "Gate 2",
         });
 
-        Assert.Equal("WB-000001", created.SlipNumber);
+        Assert.Equal("000001", created.SlipNumber);
         Assert.False(created.IsTransient);
 
         var reloaded = await Reload(created.Id);
 
-        Assert.Equal("WB-000001", reloaded.SlipNumber);
+        Assert.Equal("000001", reloaded.SlipNumber);
         Assert.Equal("MH12AB1234", reloaded.VehicleNumber);
         Assert.Equal(WeighmentMode.TareFirst, reloaded.Mode);
         Assert.Equal(WeighmentStatus.Created, reloaded.Status);
@@ -150,7 +150,7 @@ public sealed class WeighmentPersistenceTests : IDisposable
         var second = await _harness.Service.CreateAsync(Request("MH12AB0002"));
         var third = await _harness.Service.CreateAsync(Request("MH12AB0003"));
 
-        Assert.Equal(["WB-000001", "WB-000002", "WB-000003"], new[] { first, second, third }.Select(w => w.SlipNumber));
+        Assert.Equal(["000001", "000002", "000003"], new[] { first, second, third }.Select(w => w.SlipNumber));
     }
 
     [Fact]
@@ -346,7 +346,7 @@ public sealed class WeighmentPersistenceTests : IDisposable
 
         Assert.NotNull(published);
         Assert.Equal(created.Id, published!.WeighmentId);
-        Assert.Equal("WB-000001", published.SlipNumber);
+        Assert.Equal("000001", published.SlipNumber);
         Assert.Equal("MH12AB1234", published.VehicleNumber);
         Assert.Equal(WeighmentMode.TareFirst, published.Mode);
         Assert.Equal("VehicleEntry", published.Source);
@@ -403,7 +403,7 @@ public sealed class WeighmentPersistenceTests : IDisposable
 
         Assert.NotNull(published);
         Assert.Equal("Wrong vehicle on the platform", published!.Reason);
-        Assert.Equal("WB-000001", published.SlipNumber);
+        Assert.Equal("000001", published.SlipNumber);
     }
 
     /// <summary>

@@ -215,7 +215,7 @@ public sealed class OutputSettingsRuntimeConsumerTests
         {
             new ReportDocumentRow(
                 SerialNumber: 1,
-                SlipNumber: "WB-000001",
+                SlipNumber: "000001",
                 VehicleNumber: "MH12AB1001",
                 VehicleTypeName: "10 Wheeler",
                 PartyName: "Acme Minerals",

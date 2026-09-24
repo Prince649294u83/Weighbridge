@@ -17,6 +17,7 @@ using WeighBridge.Core.Events;
 using WeighBridge.Core.Events.Catalog;
 using WeighBridge.Core.Mvvm;
 using WeighBridge.Core.Navigation;
+using WeighBridge.Core.Printing;
 using WeighBridge.Core.Security;
 using WeighBridge.Core.Settings;
 using WeighBridge.Core.Theming;
@@ -54,6 +55,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly IEmailService? _emailService;
     private readonly ILegacyDataImporter? _legacyImporter;
     private readonly IEventPublisher? _eventPublisher;
+    private readonly IPrintService? _printService;
 
     private readonly AsyncRelayCommand _saveConfiguration;
     private readonly AsyncRelayCommand _testConnection;
@@ -131,13 +133,6 @@ public sealed class SettingsViewModel : ViewModelBase
     private decimal _minimumCharges = 0m;
 
     // Auxiliary Ports
-    private bool _receivePort1Enabled = false;
-    private string _receivePort1Name = "COM4";
-    private int _receivePort1Baud = 9600;
-
-    private bool _receivePort2Enabled = false;
-    private string _receivePort2Name = "COM5";
-    private int _receivePort2Baud = 9600;
 
     private bool _sendDataPortEnabled = false;
     private string _sendDataPortName = "COM6";
@@ -189,8 +184,14 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly DiagnosticSerialMonitor _diagnosticMonitor = new();
     private readonly StringBuilder _asciiLogBuilder = new();
     private readonly StringBuilder _hexLogBuilder = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<DiagnosticDataChunk> _telemetryQueue = new();
+    private System.Windows.Threading.DispatcherTimer? _logFlushTimer;
     private const int MaxLogCharacters = 8000;
     private Process? _braysTerminalProcess;
+
+    private string _terminalScaleWeight = "0.0 kg";
+    private string _terminalScaleProtocol = "Disconnected";
+    private string _terminalLockStatus = "Idle";
 
     private string _diagnosticPort = "COM3";
     private int _diagnosticBaudRate = 2400;
@@ -230,7 +231,8 @@ public sealed class SettingsViewModel : ViewModelBase
         IConfiguration? configuration = null,
         IEmailService? emailService = null,
         ILegacyDataImporter? legacyImporter = null,
-        IEventPublisher? eventPublisher = null)
+        IEventPublisher? eventPublisher = null,
+        IPrintService? printService = null)
     {
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
@@ -244,6 +246,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _emailService = emailService;
         _legacyImporter = legacyImporter;
         _eventPublisher = eventPublisher;
+        _printService = printService;
 
         Hardware = hardwareOptions?.Value ?? new HardwareOptions();
         Printer = printerOptions?.Value ?? new PrinterOptions();
@@ -279,6 +282,7 @@ public sealed class SettingsViewModel : ViewModelBase
         ImportLegacyDataCommand = _importLegacyData;
         RefreshPortsCommand = new RelayCommand(() => RefreshPorts());
         RefreshPrintersCommand = new RelayCommand(() => RefreshAvailablePrinters());
+        TestPrintCommand = new AsyncRelayCommand(TestPrintAsync, () => CanEditConfiguration);
         DiscardConfigurationCommand = new RelayCommand(LoadFromOptions);
         StartTerminalCommand = new AsyncRelayCommand(LaunchBraysTerminalAsync, () => !IsBraysTerminalRunning);
         LaunchBraysTerminalCommand = StartTerminalCommand;
@@ -296,6 +300,55 @@ public sealed class SettingsViewModel : ViewModelBase
         SetHexDisplayModeCommand = new RelayCommand(() => DiagnosticDisplayMode = "HEX");
         AutoDetectScaleCommand = new AsyncRelayCommand(AutoDetectScaleAsync, () => !IsDetectingScale && CanEditConfiguration);
         AdoptStreamAsLiveScaleCommand = new AsyncRelayCommand(AdoptStreamAsLiveScaleAsync, () => CanEditConfiguration);
+        QuickBaudCommand = new AsyncRelayCommand<object>(QuickBaudAsync);
+
+        _indicator.ReadingReceived += (s, reading) =>
+        {
+            void UpdateReading()
+            {
+                TerminalScaleWeight = $"{reading.Value:N1} {reading.Unit} {(reading.IsStable ? "STABLE" : "UNSTABLE")}";
+                if (TerminalLockStatus != "Locked")
+                {
+                    TerminalLockStatus = "Locked";
+                    if (TerminalScaleProtocol == "Disconnected" || TerminalScaleProtocol == "Raw UART Stream")
+                    {
+                        TerminalScaleProtocol = "Live Stream";
+                    }
+                }
+            }
+
+            if (System.Windows.Application.Current?.Dispatcher != null)
+            {
+                System.Windows.Application.Current.Dispatcher.InvokeAsync(UpdateReading);
+            }
+            else
+            {
+                UpdateReading();
+            }
+        };
+
+        _indicator.ScaleAutoDetected += (s, e) =>
+        {
+            void UpdateDetected()
+            {
+                TerminalScaleProtocol = e.Protocol;
+                TerminalLockStatus = "Locked";
+                TerminalStatusMessage = $"Scale locked: {e.Protocol} @ {e.BaudRate} baud on {e.PortName}";
+                if (e.SampleWeight.HasValue)
+                {
+                    TerminalScaleWeight = $"{e.SampleWeight.Value:N1} kg";
+                }
+            }
+
+            if (System.Windows.Application.Current?.Dispatcher != null)
+            {
+                System.Windows.Application.Current.Dispatcher.InvokeAsync(UpdateDetected);
+            }
+            else
+            {
+                UpdateDetected();
+            }
+        };
 
         _indicator.RawTelemetryReceived += (s, chunk) =>
         {
@@ -759,41 +812,6 @@ public sealed class SettingsViewModel : ViewModelBase
 
     #region Port Settings Properties
 
-    public bool ReceivePort1Enabled
-    {
-        get => _receivePort1Enabled;
-        set => SetProperty(ref _receivePort1Enabled, value);
-    }
-
-    public string ReceivePort1Name
-    {
-        get => _receivePort1Name;
-        set => SetProperty(ref _receivePort1Name, value);
-    }
-
-    public int ReceivePort1Baud
-    {
-        get => _receivePort1Baud;
-        set => SetProperty(ref _receivePort1Baud, value);
-    }
-
-    public bool ReceivePort2Enabled
-    {
-        get => _receivePort2Enabled;
-        set => SetProperty(ref _receivePort2Enabled, value);
-    }
-
-    public string ReceivePort2Name
-    {
-        get => _receivePort2Name;
-        set => SetProperty(ref _receivePort2Name, value);
-    }
-
-    public int ReceivePort2Baud
-    {
-        get => _receivePort2Baud;
-        set => SetProperty(ref _receivePort2Baud, value);
-    }
 
     public bool SendDataPortEnabled
     {
@@ -1104,6 +1122,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand ResetPreferencesCommand { get; }
     public ICommand SaveConfigurationCommand { get; }
     public ICommand TestConnectionCommand { get; }
+    public ICommand TestPrintCommand { get; }
     public ICommand TestEmailCommand { get; }
     public ICommand ImportLegacyDataCommand { get; }
     public ICommand RefreshPortsCommand { get; }
@@ -1158,6 +1177,25 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand SetHexDisplayModeCommand { get; }
     public ICommand AutoDetectScaleCommand { get; }
     public ICommand AdoptStreamAsLiveScaleCommand { get; }
+    public ICommand QuickBaudCommand { get; }
+
+    public string TerminalScaleWeight
+    {
+        get => _terminalScaleWeight;
+        set => SetProperty(ref _terminalScaleWeight, value);
+    }
+
+    public string TerminalScaleProtocol
+    {
+        get => _terminalScaleProtocol;
+        set => SetProperty(ref _terminalScaleProtocol, value);
+    }
+
+    public string TerminalLockStatus
+    {
+        get => _terminalLockStatus;
+        set => SetProperty(ref _terminalLockStatus, value);
+    }
 
     public bool IsDetectingScale
     {
@@ -1458,13 +1496,6 @@ public sealed class SettingsViewModel : ViewModelBase
         _minimumCharges = Weighment.MinimumCharges;
 
         var ports = Hardware.PortSettings;
-        _receivePort1Enabled = ports.ReceivePort1.Enabled;
-        _receivePort1Name = ports.ReceivePort1.PortName;
-        _receivePort1Baud = ports.ReceivePort1.BaudRate;
-
-        _receivePort2Enabled = ports.ReceivePort2.Enabled;
-        _receivePort2Name = ports.ReceivePort2.PortName;
-        _receivePort2Baud = ports.ReceivePort2.BaudRate;
 
         _sendDataPortEnabled = ports.SendDataPort.Enabled;
         _sendDataPortName = ports.SendDataPort.PortName;
@@ -1581,12 +1612,7 @@ public sealed class SettingsViewModel : ViewModelBase
                 ["Hardware:WeightIndicator:Decoding:BufferData"] = IndicatorBufferData,
                 ["Hardware:WeightIndicator:Decoding:DummyZero"] = IndicatorDummyZero,
                 ["Hardware:WeightIndicator:Decoding:StableWaitTime"] = IndicatorStableWaitTime,
-                ["Hardware:PortSettings:ReceivePort1:Enabled"] = ReceivePort1Enabled,
-                ["Hardware:PortSettings:ReceivePort1:PortName"] = ReceivePort1Name,
-                ["Hardware:PortSettings:ReceivePort1:BaudRate"] = ReceivePort1Baud,
-                ["Hardware:PortSettings:ReceivePort2:Enabled"] = ReceivePort2Enabled,
-                ["Hardware:PortSettings:ReceivePort2:PortName"] = ReceivePort2Name,
-                ["Hardware:PortSettings:ReceivePort2:BaudRate"] = ReceivePort2Baud,
+
                 ["Hardware:PortSettings:SendDataPort:Enabled"] = SendDataPortEnabled,
                 ["Hardware:PortSettings:SendDataPort:PortName"] = SendDataPortName,
                 ["Hardware:PortSettings:SendDataPort:BaudRate"] = SendDataPortBaud,
@@ -1752,7 +1778,7 @@ public sealed class SettingsViewModel : ViewModelBase
         if (!SmsFrequencyChoices.Contains(SmsFrequency))
             return "SMS frequency is not supported.";
 
-        if (ReceivePort1Baud <= 0 || ReceivePort2Baud <= 0 || SendDataPortBaud <= 0)
+        if (SendDataPortBaud <= 0)
             return "Configured serial port baud rates must be positive.";
 
         return null;
@@ -1859,13 +1885,6 @@ public sealed class SettingsViewModel : ViewModelBase
         Company.TaxId = CompanyTaxId;
 
         var ports = Hardware.PortSettings;
-        ports.ReceivePort1.Enabled = ReceivePort1Enabled;
-        ports.ReceivePort1.PortName = ReceivePort1Name;
-        ports.ReceivePort1.BaudRate = ReceivePort1Baud;
-
-        ports.ReceivePort2.Enabled = ReceivePort2Enabled;
-        ports.ReceivePort2.PortName = ReceivePort2Name;
-        ports.ReceivePort2.BaudRate = ReceivePort2Baud;
 
         ports.SendDataPort.Enabled = SendDataPortEnabled;
         ports.SendDataPort.PortName = SendDataPortName;
@@ -1905,6 +1924,7 @@ public sealed class SettingsViewModel : ViewModelBase
             }
 
             ApplyToOptions();
+            _indicator.UpdateOptions(Hardware.WeightIndicator);
 
             // Test strictly against the configured single port using the coordinated production indicator service
             await _indicator.DisconnectAsync().ConfigureAwait(true);
@@ -1927,6 +1947,95 @@ public sealed class SettingsViewModel : ViewModelBase
         finally
         {
             IsTestingConnection = false;
+        }
+    }
+
+    public async Task TestPrintAsync()
+    {
+        if (_printService is null)
+        {
+            await _dialogService.ShowWarningAsync("Printer Service", "Print service is not available.");
+            return;
+        }
+
+        var targetPrinter = DefaultPrinterName;
+        if (string.IsNullOrWhiteSpace(targetPrinter))
+        {
+            await _dialogService.ShowWarningAsync("Printer Not Selected", "Please select a Default Printer Name first.");
+            return;
+        }
+
+        try
+        {
+            ApplyToOptions();
+
+            var now = DateTime.Now;
+            var testData = new WeighmentPrintData(
+                WeighmentId: 0,
+                SlipNumber: "TEST-0001",
+                VehicleNumber: "MH 12 AB 1234",
+                VehicleTypeName: "10-Wheeler Truck",
+                PartyName: "Test Party Pvt Ltd",
+                MaterialName: "Sample Material",
+                DriverName: "Test Driver",
+                TransporterName: "Test Logistics",
+                GatePassNumber: "GP-12345",
+                CustomField1: "-",
+                CustomField2: "-",
+                CustomField3: "-",
+                CustomField4: "-",
+                GrossWeightKg: 25420m,
+                GrossCapturedAtLocal: now.AddMinutes(-15),
+                TareWeightKg: 8250m,
+                TareCapturedAtLocal: now,
+                NetWeightKg: 17170m,
+                NumberOfBags: null,
+                BagWeightKg: null,
+                TotalBagWeightKg: null,
+                ActualWeightKg: null,
+                FirstCharges: 100m,
+                SecondCharges: 50m,
+                TotalCharges: 150m,
+                OpenedAtLocal: now.AddMinutes(-15),
+                CompletedAtLocal: now,
+                OperatorUsername: _permissions.CurrentOperator.UserName,
+                OperatorDisplayName: _permissions.CurrentOperator.DisplayName,
+                Remarks: "TEST PRINT - WEIGHBRIDGE VERIFICATION",
+                IsDuplicate: false,
+                DuplicateWatermarkText: null,
+                CompanyName: string.IsNullOrWhiteSpace(WeighbridgeName) ? Company.CompanyName : WeighbridgeName,
+                AddressLine1: string.IsNullOrWhiteSpace(WeighbridgeAddress1) ? Company.AddressLine1 : WeighbridgeAddress1,
+                AddressLine2: string.IsNullOrWhiteSpace(WeighbridgeAddress2) ? Company.AddressLine2 : WeighbridgeAddress2
+            );
+
+            var profile = new PrinterProfile(
+                PrinterName: targetPrinter,
+                OutputMode: PrinterType.Contains("Dot Matrix", StringComparison.OrdinalIgnoreCase)
+                    ? PrinterOutputMode.RawSpool
+                    : PrinterOutputMode.Gdi,
+                Encoding: Encoding.ASCII,
+                PageWidthColumns: 80,
+                PageHeightLines: PaperSize.Contains("Half", StringComparison.OrdinalIgnoreCase) || PaperSize.Contains("A5", StringComparison.OrdinalIgnoreCase) ? 33 : 66,
+                PhysicalPaperProfile: PaperSize,
+                SideWisePrinting: SideWisePrinting
+            );
+
+            var result = await _printService.PrintSlipAsync(testData, profile: profile, copies: 1).ConfigureAwait(true);
+            if (result.Succeeded)
+            {
+                await _dialogService.ShowInformationAsync("Test Print Successful",
+                    $"Test weighment slip sent to '{targetPrinter}' via {(profile.OutputMode == PrinterOutputMode.RawSpool ? "Dot Matrix (Raw ESC/P)" : "Graphics (GDI)")}.\n\nPlease inspect the printed slip.");
+            }
+            else
+            {
+                await _dialogService.ShowWarningAsync("Test Print Failed",
+                    $"Printing to '{targetPrinter}' failed:\n{result.Message}\n\nPlease check printer status, paper, and connection.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send test print to {PrinterName}", targetPrinter);
+            await _dialogService.ShowWarningAsync("Test Print Error", $"Error sending test print: {ex.Message}");
         }
     }
 
@@ -2174,36 +2283,100 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private void OnTelemetryChunkReceived(DiagnosticDataChunk chunk)
     {
-        void Update()
-        {
-            if (_asciiLogBuilder.Length > MaxLogCharacters)
-            {
-                _asciiLogBuilder.Remove(0, _asciiLogBuilder.Length - (MaxLogCharacters / 2));
-            }
-            if (_hexLogBuilder.Length > MaxLogCharacters)
-            {
-                _hexLogBuilder.Remove(0, _hexLogBuilder.Length - (MaxLogCharacters / 2));
-            }
-
-            _asciiLogBuilder.Append(chunk.AsciiRepresentation);
-            _hexLogBuilder.Append(chunk.HexRepresentation);
-
-            DiagnosticAsciiLog = _asciiLogBuilder.ToString();
-            DiagnosticHexLog = _hexLogBuilder.ToString();
-            DiagnosticBytesReceivedCount += chunk.RawBytes.Length;
-
-            IsCtsHigh = chunk.CtsHolding;
-            IsDsrHigh = chunk.DsrHolding;
-            IsCdHigh = chunk.CdHolding;
-        }
+        _telemetryQueue.Enqueue(chunk);
 
         if (System.Windows.Application.Current?.Dispatcher != null)
         {
-            System.Windows.Application.Current.Dispatcher.InvokeAsync(Update);
+            if (_logFlushTimer == null)
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    _logFlushTimer = new System.Windows.Threading.DispatcherTimer(
+                        TimeSpan.FromMilliseconds(33),
+                        System.Windows.Threading.DispatcherPriority.Render,
+                        (s, e) => FlushTelemetryQueue(),
+                        System.Windows.Application.Current.Dispatcher);
+                    _logFlushTimer.Start();
+                });
+            }
         }
         else
         {
-            Update();
+            FlushTelemetryQueue();
+        }
+    }
+
+    private void FlushTelemetryQueue()
+    {
+        if (_telemetryQueue.IsEmpty) return;
+
+        DiagnosticDataChunk? latestChunk = null;
+        int totalBytes = 0;
+
+        while (_telemetryQueue.TryDequeue(out var chunk))
+        {
+            latestChunk = chunk;
+            totalBytes += chunk.RawBytes.Length;
+            _asciiLogBuilder.Append(chunk.AsciiRepresentation);
+            _hexLogBuilder.Append(chunk.HexRepresentation);
+        }
+
+        if (_asciiLogBuilder.Length > MaxLogCharacters)
+        {
+            _asciiLogBuilder.Remove(0, _asciiLogBuilder.Length - (MaxLogCharacters / 2));
+        }
+        if (_hexLogBuilder.Length > MaxLogCharacters)
+        {
+            _hexLogBuilder.Remove(0, _hexLogBuilder.Length - (MaxLogCharacters / 2));
+        }
+
+        DiagnosticAsciiLog = _asciiLogBuilder.ToString();
+        DiagnosticHexLog = _hexLogBuilder.ToString();
+        DiagnosticBytesReceivedCount += totalBytes;
+
+        if (latestChunk != null)
+        {
+            IsCtsHigh = latestChunk.CtsHolding;
+            IsDsrHigh = latestChunk.DsrHolding;
+            IsCdHigh = latestChunk.CdHolding;
+        }
+
+        if (TerminalLockStatus == "Idle" && IsDiagnosticMonitoring)
+        {
+            TerminalLockStatus = "Searching";
+            TerminalScaleProtocol = "Raw UART Stream";
+        }
+    }
+
+    private async Task QuickBaudAsync(object? param)
+    {
+        int baud = 0;
+        if (param is int b) baud = b;
+        else if (param is string s && int.TryParse(s, out var parsed)) baud = parsed;
+        else if (param != null && int.TryParse(param.ToString(), out var p2)) baud = p2;
+        if (baud <= 0) return;
+
+        DiagnosticBaudRate = baud;
+        if (IsDiagnosticMonitoring)
+        {
+            if (string.Equals(DiagnosticPort, PortName, StringComparison.OrdinalIgnoreCase))
+            {
+                bool ok = await _indicator.RetuneAsync(baud);
+                TerminalStatusMessage = ok
+                    ? $"Live scale retuned in-place to {baud} baud."
+                    : $"Switched target baud to {baud}.";
+            }
+            else
+            {
+                bool ok = _diagnosticMonitor.RetuneBaud(baud);
+                TerminalStatusMessage = ok
+                    ? $"Monitor retuned in-place to {baud} baud."
+                    : $"Switched target baud to {baud}.";
+            }
+        }
+        else
+        {
+            TerminalStatusMessage = $"Selected {baud} baud for {DiagnosticPort}.";
         }
     }
 
@@ -2222,6 +2395,8 @@ public sealed class SettingsViewModel : ViewModelBase
                 }
 
                 IsDiagnosticMonitoring = true;
+                TerminalLockStatus = _indicator.IsConnected ? "Locked" : "Searching";
+                TerminalScaleProtocol = _indicator.IsConnected ? "Live Scale" : "Connecting...";
                 DiagnosticStatus = $"Monitoring live scale stream on {DiagnosticPort} @ {BaudRate} bps";
                 return;
             }
@@ -2246,6 +2421,8 @@ public sealed class SettingsViewModel : ViewModelBase
             if (ok)
             {
                 IsDiagnosticMonitoring = true;
+                TerminalLockStatus = "Searching";
+                TerminalScaleProtocol = "Raw Stream";
                 DiagnosticStatus = $"Monitoring active on {DiagnosticPort} @ {DiagnosticBaudRate} bps";
             }
             else
@@ -2267,11 +2444,14 @@ public sealed class SettingsViewModel : ViewModelBase
         }
 
         IsDiagnosticMonitoring = false;
+        TerminalLockStatus = "Idle";
+        TerminalScaleProtocol = "Disconnected";
         DiagnosticStatus = "Monitoring stopped.";
     }
 
     private void ClearDiagnosticLog()
     {
+        while (_telemetryQueue.TryDequeue(out _)) { }
         _asciiLogBuilder.Clear();
         _hexLogBuilder.Clear();
         DiagnosticAsciiLog = string.Empty;
@@ -2386,7 +2566,7 @@ public sealed class SettingsViewModel : ViewModelBase
             var allPorts = _portScanner.GetAvailablePorts();
             var prioritizedPorts = WeighBridge.Hardware.WeightIndicators.FastHardwarePortDetector.PrioritizePorts(allPorts);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var probeResults = await _portScanner.ScanAsync(portNames: prioritizedPorts, cancellationToken: cts.Token);
 
             var matched = probeResults.FirstOrDefault(r => r.SpeaksProtocol);
@@ -2398,12 +2578,18 @@ public sealed class SettingsViewModel : ViewModelBase
                 BaudRate = matched.BaudRate;
 
                 ApplyToOptions();
+                _indicator.UpdateOptions(Hardware.WeightIndicator);
                 await SaveConfigurationAsync();
 
                 await _indicator.ConnectAsync();
                 var weightStr = matched.SampleWeightKg.HasValue ? $"{matched.SampleWeightKg.Value:F1} kg" : "valid reading";
                 DiagnosticStatus = $"Scale detected on {matched.PortName} at {matched.BaudRate} baud ({weightStr}). Adopted as live scale.";
                 ConnectionTestStatus = $"Detected: {matched.PortName} @ {matched.BaudRate} baud ({weightStr})";
+
+                TerminalScaleWeight = matched.SampleWeightKg.HasValue ? $"{matched.SampleWeightKg.Value:N1} kg" : "0.0 kg";
+                TerminalScaleProtocol = "GenericAscii";
+                TerminalLockStatus = "Locked";
+                await StartDiagnosticMonitoringAsync();
 
                 await _dialogService.ShowInformationAsync("Scale Detected & Connected",
                     $"Indicator automatically detected and adopted!\n\n" +
@@ -2421,6 +2607,16 @@ public sealed class SettingsViewModel : ViewModelBase
                     "No weighbridge indicator was detected responding on any available serial port.\n\n" +
                     "Please verify:\n1. The indicator is powered ON and in continuous send mode.\n2. The RS-232 / USB cable is securely connected.\n3. The correct COM port driver is installed.");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Auto-detect scale scan was cancelled or reached timeout");
+            DiagnosticStatus = "Auto-detect timed out or was cancelled.";
+            ConnectionTestStatus = "Detection cancelled.";
+            try { await _indicator.ConnectAsync(); } catch { }
+            await _dialogService.ShowWarningAsync("Auto-Detect Timed Out",
+                "The scale scan did not find a responding indicator before timing out.\n\n" +
+                "Please verify:\n1. The indicator is powered ON and sending data continuously.\n2. The cable is securely connected to the COM port.");
         }
         catch (Exception ex)
         {

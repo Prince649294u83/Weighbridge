@@ -90,7 +90,7 @@ public sealed class LoginDialogViewModel : ObservableObject
     /// </summary>
     public string WindowTitle => IsInitialSetup ? "Administrator setup" : "Login";
 
-    public string HeaderText => IsInitialSetup ? "Create the administrator account" : "System Login";
+    public string HeaderText => IsInitialSetup ? "Create the administrator account" : "Weighbridge Login";
 
     public string PromptText => IsInitialSetup
         ? $"This installation has no accounts yet. Choose the administrator's username and a password of at least {IAuthenticationService.MinimumPasswordLength} characters. Keep it safe: it cannot be recovered."

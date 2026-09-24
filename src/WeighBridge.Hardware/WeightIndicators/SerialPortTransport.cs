@@ -36,6 +36,25 @@ public sealed class SerialPortTransport : ISerialPortTransport
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetCommModemStatus(SafeFileHandle hFile, out uint lpModemStat);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool ClearCommError(SafeFileHandle hFile, out uint lpErrors, ref ComStat lpStat);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool ReadFile(
+        SafeFileHandle hFile,
+        [Out] byte[] lpBuffer,
+        uint nNumberOfBytesToRead,
+        out uint lpNumberOfBytesRead,
+        IntPtr lpOverlapped);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ComStat
+    {
+        public uint Flags;
+        public uint cbInQue;
+        public uint cbOutQue;
+    }
+
     private const uint GenericReadWrite = 0x80000000u | 0x40000000u;
     private const uint OpenExisting = 3;
     private const uint SetRts = 3;
@@ -263,7 +282,7 @@ public sealed class SerialPortTransport : ISerialPortTransport
         }
     }
 
-    internal static SafeFileHandle OpenRawHandle(string portName, int timeoutMs = 5000, bool rts = true, bool dtr = true)
+    internal static SafeFileHandle OpenRawHandle(string portName, int baudRate = 0, int timeoutMs = 5000, bool rts = true, bool dtr = true)
     {
         var devicePath = portName.StartsWith(@"\\", StringComparison.Ordinal)
             ? portName
@@ -282,6 +301,16 @@ public sealed class SerialPortTransport : ISerialPortTransport
         {
             int err = Marshal.GetLastWin32Error();
             throw new IOException($"Failed to open direct serial stream on {portName} (Win32 error {err})", err);
+        }
+
+        if (baudRate > 0)
+        {
+            var dcb = new Dcb { DCBlength = (uint)Marshal.SizeOf<Dcb>() };
+            if (GetCommState(handle, ref dcb))
+            {
+                dcb.BaudRate = (uint)baudRate;
+                SetCommState(handle, ref dcb);
+            }
         }
 
         if (dtr)
@@ -308,7 +337,7 @@ public sealed class SerialPortTransport : ISerialPortTransport
 
     private void OpenRawStream(int timeoutMs, bool rts)
     {
-        var handle = OpenRawHandle(_options.PortName, timeoutMs, rts, _options.DtrEnable);
+        var handle = OpenRawHandle(_options.PortName, _options.BaudRate, timeoutMs, rts, _options.DtrEnable);
         _rawHandle = handle;
         _baseStream = new FileStream(handle, FileAccess.ReadWrite, 4096, isAsync: false);
         _consecutiveOpenFailures = 0;
@@ -355,6 +384,88 @@ public sealed class SerialPortTransport : ISerialPortTransport
 
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
+        var sp = _serialPort;
+        if (sp is { IsOpen: true })
+        {
+            while (sp.IsOpen && !cancellationToken.IsCancellationRequested)
+            {
+                int available;
+                try
+                {
+                    available = sp.BytesToRead;
+                }
+                catch
+                {
+                    break;
+                }
+
+                if (available > 0)
+                {
+                    int toRead = Math.Min(buffer.Length, available);
+                    byte[] temp = System.Buffers.ArrayPool<byte>.Shared.Rent(toRead);
+                    try
+                    {
+                        int bytesRead = sp.Read(temp, 0, toRead);
+                        temp.AsMemory(0, bytesRead).CopyTo(buffer);
+                        return bytesRead;
+                    }
+                    finally
+                    {
+                        System.Buffers.ArrayPool<byte>.Shared.Return(temp);
+                    }
+                }
+
+                await Task.Delay(30, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            return 0;
+        }
+
+        var handle = _rawHandle;
+        if (handle is { IsInvalid: false, IsClosed: false })
+        {
+            while (!handle.IsClosed && !cancellationToken.IsCancellationRequested)
+            {
+                var stat = new ComStat();
+                if (!ClearCommError(handle, out _, ref stat))
+                {
+                    break;
+                }
+
+                if (stat.cbInQue > 0)
+                {
+                    int toRead = (int)Math.Min((uint)buffer.Length, stat.cbInQue);
+                    byte[] temp = System.Buffers.ArrayPool<byte>.Shared.Rent(toRead);
+                    try
+                    {
+                        if (ReadFile(handle, temp, (uint)toRead, out uint read, IntPtr.Zero) && read > 0)
+                        {
+                            temp.AsMemory(0, (int)read).CopyTo(buffer);
+                            return (int)read;
+                        }
+                    }
+                    finally
+                    {
+                        System.Buffers.ArrayPool<byte>.Shared.Return(temp);
+                    }
+                }
+
+                await Task.Delay(30, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            return 0;
+        }
+
         var stream = _baseStream;
         if (stream is null || !IsOpen)
         {
@@ -374,6 +485,55 @@ public sealed class SerialPortTransport : ISerialPortTransport
 
         await stream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> RetuneAsync(int baudRate, CancellationToken cancellationToken = default)
+    {
+        if (baudRate <= 0) return false;
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _options.BaudRate = baudRate;
+
+            if (_serialPort is { IsOpen: true })
+            {
+                _serialPort.BaudRate = baudRate;
+                _logger.LogInformation("SerialPort {PortName} retuned to {BaudRate} baud", _options.PortName, baudRate);
+                return true;
+            }
+
+            if (_rawHandle is { IsInvalid: false, IsClosed: false })
+            {
+                var dcb = new Dcb { DCBlength = (uint)Marshal.SizeOf<Dcb>() };
+                if (GetCommState(_rawHandle, ref dcb))
+                {
+                    dcb.BaudRate = (uint)baudRate;
+                    if (SetCommState(_rawHandle, ref dcb))
+                    {
+                        _logger.LogInformation("Direct stream {PortName} retuned to {BaudRate} baud via SetCommState", _options.PortName, baudRate);
+                        return true;
+                    }
+                    else
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        _logger.LogWarning("SetCommState failed while retuning {PortName} to {BaudRate} (Win32 error {Err})", _options.PortName, baudRate, err);
+                    }
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retune serial port {PortName} to {BaudRate}", _options.PortName, baudRate);
+            return false;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     public async ValueTask DisposeAsync()

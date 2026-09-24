@@ -223,7 +223,7 @@ public sealed class FullFeatureEndToEndTests : IDisposable
         Assert.True(vehicleEntryVm.IsF1Mode);
         Assert.Equal("F1", vehicleEntryVm.EntryModeText);
         Assert.NotNull(vehicleEntryVm.ActiveSlipNumber);
-        Assert.StartsWith("WB-", vehicleEntryVm.ActiveSlipNumber);
+        Assert.Matches(@"^\d{6}$", vehicleEntryVm.ActiveSlipNumber);
         var allocatedTicketNo = vehicleEntryVm.ActiveSlipNumber;
 
         // Enter dummy values into Vehicle Entry form
@@ -443,6 +443,7 @@ public sealed class FullFeatureEndToEndTests : IDisposable
         public event EventHandler<ConnectionState>? StateChanged;
         public event EventHandler<WeightReading>? ReadingReceived;
         public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
+        public event EventHandler<ScaleAutoDetectedEventArgs>? ScaleAutoDetected;
         public Task<HealthResult> CheckAsync(CancellationToken cancellationToken = default) => Task.FromResult(HealthResult.Healthy("OK"));
         public Task<bool> ConnectAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task DisconnectAsync() => Task.CompletedTask;

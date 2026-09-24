@@ -27,6 +27,8 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
     private TaskCompletionSource<bool>? _initialConnectTcs;
     private Task? _workerTask;
     private int _readingCount;
+    private int _consecutiveValidFrames;
+    private bool _hasEmittedScaleAutoDetected;
     private readonly object _lock = new();
 
     public WeightIndicatorService(
@@ -62,10 +64,7 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
         ArgumentNullException.ThrowIfNull(newOptions);
         _options = newOptions;
         _stabilityDetector.UpdateOptions(newOptions);
-        if (_transport is SerialPortTransport serialTransport)
-        {
-            serialTransport.UpdateOptions(newOptions);
-        }
+        _transport.UpdateOptions(newOptions);
         _logger.LogInformation("WeightIndicatorService updated live configuration: Port={Port}, Baud={Baud}",
             newOptions.PortName, newOptions.BaudRate);
     }
@@ -118,6 +117,20 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
 
     /// <inheritdoc />
     public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
+
+    /// <inheritdoc />
+    public event EventHandler<ScaleAutoDetectedEventArgs>? ScaleAutoDetected;
+
+    /// <inheritdoc />
+    public async Task<bool> RetuneAsync(int baudRate, CancellationToken cancellationToken = default)
+    {
+        if (baudRate <= 0) return false;
+        _logger.LogInformation("Retuning indicator transport to {BaudRate} baud", baudRate);
+        _options.BaudRate = baudRate;
+        _consecutiveValidFrames = 0;
+        _hasEmittedScaleAutoDetected = false;
+        return await _transport.RetuneAsync(baudRate, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
@@ -351,6 +364,8 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
             catch (Exception ex)
             {
                 State = ConnectionState.Disconnected;
+                _consecutiveValidFrames = 0;
+                _hasEmittedScaleAutoDetected = false;
                 _initialConnectTcs?.TrySetResult(false);
 
                 _logger.Log(
@@ -440,6 +455,24 @@ public sealed class WeightIndicatorService : IWeightIndicatorService, IDisposabl
                             System.Text.Encoding.ASCII.GetString(frame));
                     }
                     _readingCount++;
+
+                    _consecutiveValidFrames++;
+                    if (_consecutiveValidFrames >= 3 && !_hasEmittedScaleAutoDetected)
+                    {
+                        _hasEmittedScaleAutoDetected = true;
+                        try
+                        {
+                            ScaleAutoDetected?.Invoke(this, new ScaleAutoDetectedEventArgs(
+                                _protocolParser.Name ?? "Standard Scale",
+                                _options.BaudRate,
+                                _options.PortName,
+                                finalReading.Value));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug(ex, "Error dispatching ScaleAutoDetected event");
+                        }
+                    }
                 }
 
                 // Shift remaining bytes

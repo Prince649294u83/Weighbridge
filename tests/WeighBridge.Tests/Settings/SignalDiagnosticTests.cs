@@ -147,6 +147,45 @@ public sealed class SignalDiagnosticTests
         Assert.True(indicator.ConnectCalled);
     }
 
+    [Fact]
+    public async Task QuickBaudCommand_RetunesLiveIndicator_WhenMonitoringActivePort()
+    {
+        var indicator = new TestableWeightIndicator();
+        var vm = CreateViewModel(indicator);
+
+        vm.DiagnosticPort = vm.PortName;
+        await ((AsyncRelayCommand)vm.StartDiagnosticMonitoringCommand).ExecuteAsync();
+
+        // Trigger Quick Baud 9600
+        await ((AsyncRelayCommand<object>)vm.QuickBaudCommand).ExecuteAsync("9600");
+
+        Assert.Equal(9600, vm.DiagnosticBaudRate);
+        Assert.Equal(9600, indicator.RetunedBaudRate);
+        Assert.Contains("9600", vm.TerminalStatusMessage);
+    }
+
+    [Fact]
+    public void ScaleHudBanner_ReflectsScaleReadingsAndAutoDetection()
+    {
+        var indicator = new TestableWeightIndicator();
+        var vm = CreateViewModel(indicator);
+
+        Assert.Equal("0.0 kg", vm.TerminalScaleWeight);
+        Assert.Equal("Disconnected", vm.TerminalScaleProtocol);
+        Assert.Equal("Idle", vm.TerminalLockStatus);
+
+        // Simulate reading
+        indicator.EmitReading(new WeightReading(31250m, "kg", true, DateTime.UtcNow));
+        Assert.Contains("31,250", vm.TerminalScaleWeight);
+        Assert.Equal("Locked", vm.TerminalLockStatus);
+
+        // Simulate auto-detect lock
+        indicator.EmitScaleAutoDetected(new ScaleAutoDetectedEventArgs("Toledo Continuous", 9600, "COM10", 31250m));
+        Assert.Equal("Toledo Continuous", vm.TerminalScaleProtocol);
+        Assert.Equal("Locked", vm.TerminalLockStatus);
+        Assert.Contains("Toledo Continuous", vm.TerminalStatusMessage);
+    }
+
     private sealed class TestableWeightIndicator : IWeightIndicatorService
     {
 #pragma warning disable CS0067
@@ -155,9 +194,17 @@ public sealed class SignalDiagnosticTests
         public event EventHandler<WeightReading>? ReadingReceived;
         public event EventHandler<ConnectionState>? StateChanged;
         public event EventHandler<DiagnosticDataChunk>? RawTelemetryReceived;
+        public event EventHandler<ScaleAutoDetectedEventArgs>? ScaleAutoDetected;
 #pragma warning restore CS0067
         public bool ConnectCalled { get; private set; }
         public bool DisconnectCalled { get; private set; }
+        public int RetunedBaudRate { get; private set; }
+
+        public Task<bool> RetuneAsync(int baudRate, CancellationToken cancellationToken = default)
+        {
+            RetunedBaudRate = baudRate;
+            return Task.FromResult(true);
+        }
 
         public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
         {
@@ -181,6 +228,17 @@ public sealed class SignalDiagnosticTests
         public void EmitTelemetry(byte[] bytes)
         {
             RawTelemetryReceived?.Invoke(this, new DiagnosticDataChunk(bytes, bytes.Length, true, true, true));
+        }
+
+        public void EmitReading(WeightReading reading)
+        {
+            CurrentReading = reading;
+            ReadingReceived?.Invoke(this, reading);
+        }
+
+        public void EmitScaleAutoDetected(ScaleAutoDetectedEventArgs args)
+        {
+            ScaleAutoDetected?.Invoke(this, args);
         }
     }
 }

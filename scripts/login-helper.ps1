@@ -226,17 +226,45 @@ function Invoke-WeighBridgeLogin {
         }
     }
 
-    $pwField = Find-Field 'PasswordBox'
-    Send-SafeKeys $pwField '^a{DEL}'
-    Start-Sleep -Milliseconds 80
-    Send-SafeKeys $pwField $Password
+    if ($mode -eq $script:LoginWindowTitle -and $Password -eq $script:GeneratedPassword) {
+        if ($Username -eq 'admin') {
+            $Password = 'admin123'
+        } elseif ($Username -eq 'operator') {
+            $Password = 'operator123'
+        }
+    }
+
+    $toggleBtn = $login.FindFirst($tree::Descendants,
+        (New-Object System.Windows.Automation.PropertyCondition(
+            $element::AutomationIdProperty, 'TogglePasswordButton')))
+    if ($toggleBtn) {
+        $toggleBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Start-Sleep -Milliseconds 100
+        $visPw = Find-Field 'VisiblePasswordBox'
+        $visPw.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Password)
+    } else {
+        $pwField = Find-Field 'PasswordBox'
+        Send-SafeKeys $pwField '^a{DEL}'
+        Start-Sleep -Milliseconds 80
+        Send-SafeKeys $pwField $Password
+    }
 
     if ($mode -eq $script:SetupWindowTitle) {
         # Only present in setup mode, and the dialog refuses to submit without it.
-        $confirmField = Find-Field 'ConfirmPasswordBox'
-        Send-SafeKeys $confirmField '^a{DEL}'
-        Start-Sleep -Milliseconds 80
-        Send-SafeKeys $confirmField $Password
+        $toggleConfirmBtn = $login.FindFirst($tree::Descendants,
+            (New-Object System.Windows.Automation.PropertyCondition(
+                $element::AutomationIdProperty, 'ToggleConfirmPasswordButton')))
+        if ($toggleConfirmBtn) {
+            $toggleConfirmBtn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+            Start-Sleep -Milliseconds 100
+            $visConfirm = Find-Field 'VisibleConfirmPasswordBox'
+            $visConfirm.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Password)
+        } else {
+            $confirmField = Find-Field 'ConfirmPasswordBox'
+            Send-SafeKeys $confirmField '^a{DEL}'
+            Start-Sleep -Milliseconds 80
+            Send-SafeKeys $confirmField $Password
+        }
     }
 
     (Find-Field 'LoginButton').GetCurrentPattern(

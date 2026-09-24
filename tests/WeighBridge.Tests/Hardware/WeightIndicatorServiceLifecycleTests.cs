@@ -28,6 +28,11 @@ public sealed class WeightIndicatorServiceLifecycleTests
             Options = options;
         }
 
+        public void UpdateOptions(WeightIndicatorOptions newOptions)
+        {
+            Options = newOptions;
+        }
+
         public Task OpenAsync(CancellationToken cancellationToken = default)
         {
             OpenCount++;
@@ -408,6 +413,46 @@ public sealed class WeightIndicatorServiceLifecycleTests
         await service.ConnectAsync();
         Assert.Equal("COM3", transport.PortName);
         Assert.Equal(ConnectionState.Connected, service.State);
+
+        await service.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task UpdateOptions_InPlace_UpdatesTransportImmediately()
+    {
+        var options = new HardwareOptions
+        {
+            WeightIndicator = new WeightIndicatorOptions
+            {
+                Enabled = true,
+                DriverType = "Serial",
+                PortName = "COM1",
+                BaudRate = 2400
+            }
+        };
+
+        var transport = new FakeSerialTransport(options.WeightIndicator);
+        var service = new WeightIndicatorService(
+            Options.Create(options),
+            transport,
+            new DelimitedFrameExtractor(),
+            new GenericAsciiProtocolParser(),
+            NullLogger<WeightIndicatorService>.Instance);
+
+        await service.ConnectAsync();
+        Assert.Equal("COM1", transport.PortName);
+
+        var updated = new WeightIndicatorOptions
+        {
+            Enabled = true,
+            DriverType = "Serial",
+            PortName = "COM4",
+            BaudRate = 9600
+        };
+
+        service.UpdateOptions(updated);
+        Assert.Equal("COM4", transport.PortName);
+        Assert.Equal(9600, transport.Options.BaudRate);
 
         await service.DisconnectAsync();
     }

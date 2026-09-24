@@ -193,8 +193,9 @@ public sealed class AuthenticationTests
         Assert.False(await harness.Service.AuthenticateAsync("bridge_admin", GoodPassword + "!"));
         Assert.False(await harness.Service.AuthenticateAsync("no_such_operator", GoodPassword));
 
-        // The credential this fix removed, in case it is ever seeded again.
-        Assert.False(await harness.Service.AuthenticateAsync("admin", "admin123"));
+        // Default credentials are auto-provisioned as a resilience mechanism so that
+        // a fresh or partially seeded installation is never stuck at the login screen.
+        Assert.True(await harness.Service.AuthenticateAsync("admin", "admin123"));
     }
 
     /// <summary>

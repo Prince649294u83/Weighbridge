@@ -37,6 +37,7 @@ if (-not (Test-Path $publishBase)) {
 }
 
 $diagProject = Join-Path $projectRoot 'src\WeighBridge.SerialDiagnostic\WeighBridge.SerialDiagnostic.csproj'
+$auditProject = Join-Path $projectRoot 'src\WeighBridge.AuditCli\WeighBridge.AuditCli.csproj'
 $iconSource = Join-Path $projectRoot 'installer-assets\Icons\truck.ico'
 
 # Function to patch runtimeconfig.json with W^X mitigation for Win7
@@ -74,6 +75,18 @@ dotnet publish $diagProject `
     -o $modernDir `
     --nologo
 
+# Publish AuditCli into Tools subdirectory (installer shortcut expects {app}\Tools\WeighBridge.AuditCli.exe)
+$modernToolsDir = Join-Path $modernDir 'Tools'
+if (-not (Test-Path $modernToolsDir)) { New-Item -ItemType Directory -Path $modernToolsDir -Force | Out-Null }
+dotnet publish $auditProject `
+    -c Release `
+    -r win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=false `
+    -p:PublishReadyToRun=false `
+    -o $modernToolsDir `
+    --nologo
+
 if (Test-Path $iconSource) {
     Copy-Item $iconSource (Join-Path $modernDir 'truck.ico') -Force
 }
@@ -98,6 +111,18 @@ dotnet publish $diagProject `
     -p:PublishSingleFile=false `
     -p:PublishReadyToRun=false `
     -o $legacyX86Dir `
+    --nologo
+
+# Publish AuditCli into Tools subdirectory
+$legacyToolsDir = Join-Path $legacyX86Dir 'Tools'
+if (-not (Test-Path $legacyToolsDir)) { New-Item -ItemType Directory -Path $legacyToolsDir -Force | Out-Null }
+dotnet publish $auditProject `
+    -c Release `
+    -r win-x86 `
+    --self-contained true `
+    -p:PublishSingleFile=false `
+    -p:PublishReadyToRun=false `
+    -o $legacyToolsDir `
     --nologo
 
 if (Test-Path $iconSource) {

@@ -1317,7 +1317,11 @@ namespace DesktopAutomationHost
 
                             if (control != null)
                             {
-                                if (control.Patterns.Invoke.IsSupported)
+                                if (control.Patterns.SelectionItem.IsSupported)
+                                {
+                                    control.Patterns.SelectionItem.Pattern.Select();
+                                }
+                                else if (control.Patterns.Invoke.IsSupported)
                                 {
                                     control.Patterns.Invoke.Pattern.Invoke();
                                 }

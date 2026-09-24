@@ -60,15 +60,15 @@ public sealed class WeighmentCommandTests : IDisposable
         var opened = await Open();
 
         Assert.Equal(CommandOutcome.Succeeded, opened.Outcome);
-        Assert.Equal("WB-000001", opened.Value!.SlipNumber);
-        Assert.Contains("WB-000001", opened.Message!, StringComparison.Ordinal);
+        Assert.Equal("000001", opened.Value!.SlipNumber);
+        Assert.Contains("000001", opened.Message!, StringComparison.Ordinal);
         Assert.Contains("MH12AB1234", opened.Message!, StringComparison.Ordinal);
 
         var weighed = await First(opened.Value.Id, 32_500m);
 
         Assert.Equal(CommandOutcome.Succeeded, weighed.Outcome);
         Assert.Equal(WeighmentStatus.AwaitingSecondWeight, weighed.Value!.Status);
-        Assert.Contains("32500 kg recorded on WB-000001", weighed.Message!, StringComparison.Ordinal);
+        Assert.Contains("32500 kg recorded on 000001", weighed.Message!, StringComparison.Ordinal);
         Assert.Contains("Record tare weight", weighed.Message!, StringComparison.Ordinal);
 
         var completed = await Second(opened.Value.Id, 12_250.5m);
@@ -76,10 +76,10 @@ public sealed class WeighmentCommandTests : IDisposable
         Assert.Equal(CommandOutcome.Succeeded, completed.Outcome);
         Assert.Equal(WeighmentStatus.Completed, completed.Value!.Status);
         Assert.Equal(20_249.5m, completed.Value.NetWeightKg);
-        Assert.Equal("Weighment WB-000001 completed. Net 20249.5 kg.", completed.Message);
+        Assert.Equal("Weighment 000001 completed. Net 20249.5 kg.", completed.Message);
 
         // And it is on disk, not just in hand.
-        var saved = await _harness.Service.GetBySlipNumberAsync("WB-000001");
+        var saved = await _harness.Service.GetBySlipNumberAsync("000001");
         Assert.Equal(WeighmentStatus.Completed, saved!.Status);
         Assert.Equal(20_249.5m, saved.NetWeightKg);
     }
@@ -178,7 +178,7 @@ public sealed class WeighmentCommandTests : IDisposable
         var result = await Cancel(opened.Value!.Id, "Driver left without the second weighing");
 
         Assert.Equal(CommandOutcome.Succeeded, result.Outcome);
-        Assert.Contains("WB-000001", result.Message!, StringComparison.Ordinal);
+        Assert.Contains("000001", result.Message!, StringComparison.Ordinal);
 
         var cancelled = await _harness.Service.GetAsync(opened.Value.Id);
         Assert.Equal(WeighmentStatus.Cancelled, cancelled!.Status);

@@ -566,13 +566,13 @@ public sealed class ReportsViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(startSlip) &&
             CsvReportService.TryExtractSequenceNumber(startSlip) is null)
         {
-            return "Starting slip number must be a number such as 42, 000042, or WB-000042.";
+            return "Starting slip number must be a number such as 42 or 000042.";
         }
 
         if (!string.IsNullOrWhiteSpace(endSlip) &&
             CsvReportService.TryExtractSequenceNumber(endSlip) is null)
         {
-            return "Ending slip number must be a number such as 42, 000042, or WB-000042.";
+            return "Ending slip number must be a number such as 42 or 000042.";
         }
 
         var startSeq = CsvReportService.TryExtractSequenceNumber(startSlip);

@@ -181,7 +181,7 @@ public sealed class DocumentExportForensicTests : IDisposable
         {
             rows.Add(new ReportDocumentRow(
                 SerialNumber: i,
-                SlipNumber: $"WB-{i:D6}",
+                SlipNumber: $"{i:D6}",
                 VehicleNumber: $"MH12AB{i:D4}",
                 VehicleTypeName: "10 Wheeler",
                 PartyName: $"Party Number {i}",

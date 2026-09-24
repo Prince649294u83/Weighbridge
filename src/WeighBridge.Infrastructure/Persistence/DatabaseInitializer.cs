@@ -80,6 +80,11 @@ public sealed class DatabaseInitializer(
                     "Database ready at {DatabasePath}; no migrations are defined yet",
                     _connectionStrings.DatabaseFilePath);
 
+                // Seed default accounts and master data even on a no-migration build, so the
+                // first login is never stuck on an empty database.
+                await SeedDefaultUsersIfEmptyAsync(context, cancellationToken).ConfigureAwait(false);
+                await SeedDefaultMasterDataIfEmptyAsync(context, cancellationToken).ConfigureAwait(false);
+
                 return DatabaseInitializationResult.Success("Database created; no migrations defined.");
             }
 
@@ -103,7 +108,11 @@ public sealed class DatabaseInitializer(
                 _logger.LogInformation("Database schema is up to date ({Count} migration(s) applied previously)", known.Count);
             }
 
-            await SeedDefaultMastersIfEmptyAsync(context, cancellationToken).ConfigureAwait(false);
+            // User accounts are seeded first and independently — a failure in master data
+            // (vehicle types, parties, materials) must never prevent the admin and operator
+            // from being created.
+            await SeedDefaultUsersIfEmptyAsync(context, cancellationToken).ConfigureAwait(false);
+            await SeedDefaultMasterDataIfEmptyAsync(context, cancellationToken).ConfigureAwait(false);
 
             return DatabaseInitializationResult.Success(
                 pending.Count > 0
@@ -151,7 +160,56 @@ public sealed class DatabaseInitializer(
         }
     }
 
-    private async Task SeedDefaultMastersIfEmptyAsync(WeighBridgeDbContext context, CancellationToken cancellationToken)
+    /// <summary>
+    /// Seeds the default administrator and operator accounts when the Users table is empty.
+    /// </summary>
+    /// <remarks>
+    /// Separated from master data seeding so that a failure in vehicle types, parties, or
+    /// materials can never silently prevent the admin and operator accounts from being created.
+    /// Without these accounts the login screen is unusable on a fresh installation.
+    /// </remarks>
+    private async Task SeedDefaultUsersIfEmptyAsync(WeighBridgeDbContext context, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userSet = context.Set<Domain.Security.User>();
+            if (await userSet.AnyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            _logger.LogInformation("Seeding default administrator and operator accounts...");
+            var defaultUsers = new[]
+            {
+                Domain.Security.User.Create(
+                    "admin",
+                    "System Administrator",
+                    Core.Security.PasswordHasher.HashPassword("admin123"),
+                    Core.Security.Roles.Administrator.Name),
+                Domain.Security.User.Create(
+                    "operator",
+                    "Weighbridge Operator",
+                    Core.Security.PasswordHasher.HashPassword("operator123"),
+                    Core.Security.Roles.Operator.Name)
+            };
+
+            await userSet.AddRangeAsync(defaultUsers, cancellationToken).ConfigureAwait(false);
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("Seeded default administrator and operator accounts successfully");
+        }
+        catch (Exception ex)
+        {
+            // User seeding is critical — log as error, not warning, so it is visible in diagnostics.
+            _logger.LogError(ex, "CRITICAL: Failed to seed default user accounts; login with default credentials will not work on this installation");
+        }
+    }
+
+    /// <summary>
+    /// Seeds sample master data (vehicle types, parties, materials, vehicles) when the
+    /// respective tables are empty. Non-critical — a failure here leaves the application
+    /// usable, just without sample data.
+    /// </summary>
+    private async Task SeedDefaultMasterDataIfEmptyAsync(WeighBridgeDbContext context, CancellationToken cancellationToken)
     {
         try
         {
@@ -215,10 +273,11 @@ public sealed class DatabaseInitializer(
             if (!await vehicleSet.AnyAsync(cancellationToken).ConfigureAwait(false))
             {
                 _logger.LogInformation("Seeding sample vehicles with standard tare weights...");
-                var wheel10 = await vehicleTypeSet.FirstOrDefaultAsync(t => t.TypeName == "10 Wheeler", cancellationToken).ConfigureAwait(false);
-                var wheel12 = await vehicleTypeSet.FirstOrDefaultAsync(t => t.TypeName == "12 Wheeler", cancellationToken).ConfigureAwait(false);
-                var wheel6 = await vehicleTypeSet.FirstOrDefaultAsync(t => t.TypeName == "6 Wheeler", cancellationToken).ConfigureAwait(false);
-                var trailer = await vehicleTypeSet.FirstOrDefaultAsync(t => t.TypeName == "Trailer", cancellationToken).ConfigureAwait(false);
+                var vehicleTypeSet2 = context.Set<Domain.Masters.VehicleType>();
+                var wheel10 = await vehicleTypeSet2.FirstOrDefaultAsync(t => t.TypeName == "10 Wheeler", cancellationToken).ConfigureAwait(false);
+                var wheel12 = await vehicleTypeSet2.FirstOrDefaultAsync(t => t.TypeName == "12 Wheeler", cancellationToken).ConfigureAwait(false);
+                var wheel6 = await vehicleTypeSet2.FirstOrDefaultAsync(t => t.TypeName == "6 Wheeler", cancellationToken).ConfigureAwait(false);
+                var trailer = await vehicleTypeSet2.FirstOrDefaultAsync(t => t.TypeName == "Trailer", cancellationToken).ConfigureAwait(false);
 
                 var defaultVehicles = new[]
                 {
@@ -231,29 +290,6 @@ public sealed class DatabaseInitializer(
                 await vehicleSet.AddRangeAsync(defaultVehicles, cancellationToken).ConfigureAwait(false);
                 await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("Seeded {Count} sample vehicles successfully", defaultVehicles.Length);
-            }
-
-            var userSet = context.Set<Domain.Security.User>();
-            if (!await userSet.AnyAsync(cancellationToken).ConfigureAwait(false))
-            {
-                _logger.LogInformation("Seeding default administrator and operator accounts...");
-                var defaultUsers = new[]
-                {
-                    Domain.Security.User.Create(
-                        "admin",
-                        "System Administrator",
-                        Core.Security.PasswordHasher.HashPassword("admin123"),
-                        Core.Security.Roles.Administrator.Name),
-                    Domain.Security.User.Create(
-                        "operator",
-                        "Weighbridge Operator",
-                        Core.Security.PasswordHasher.HashPassword("operator123"),
-                        Core.Security.Roles.Operator.Name)
-                };
-
-                await userSet.AddRangeAsync(defaultUsers, cancellationToken).ConfigureAwait(false);
-                await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                _logger.LogInformation("Seeded default administrator and operator accounts successfully");
             }
         }
         catch (Exception ex)

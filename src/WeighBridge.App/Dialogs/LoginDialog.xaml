@@ -8,8 +8,8 @@
                           mc:Ignorable="d"
                           d:DataContext="{d:DesignInstance Type=dialogs:LoginDialogViewModel}"
                           Title="{Binding WindowTitle}"
-                          Width="460"
-                          MinHeight="250">
+                          Width="740"
+                          MinHeight="340">
 
   <Window.Resources>
     <converters:BooleanToVisibilityConverter x:Key="Converter.BooleanToVisibility" />
@@ -26,70 +26,64 @@
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
         <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
 
       <!--  Header: title, message  -->
       <Grid Grid.Row="0"
-            Margin="24,24,24,16"
+            Margin="24,20,24,16"
             Background="Transparent"
             MouseLeftButtonDown="OnHeaderMouseLeftButtonDown">
         <StackPanel>
-          <TextBlock Style="{StaticResource Text.Subtitle}" Text="{Binding HeaderText}" />
-          <TextBlock Margin="0,8,0,0"
+          <TextBlock Style="{StaticResource Text.Subtitle}"
+                     FontSize="20"
+                     FontWeight="SemiBold"
+                     Text="{Binding HeaderText}" />
+          <TextBlock Margin="0,6,0,0"
                      Style="{StaticResource Text.Body.Wrapped}"
                      Foreground="{DynamicResource Brush.Text.Secondary}"
                      Text="{Binding PromptText}" />
         </StackPanel>
       </Grid>
 
-      <!--  Form fields  -->
-      <StackPanel Grid.Row="1" Margin="24,0,24,16">
+      <!--  Body: Side-by-side Layout (Hero Truck Image on Left, Form Fields on Right)  -->
+      <Grid Grid.Row="1" Margin="24,0,24,18">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="310" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <TextBlock Text="Username" Style="{StaticResource Text.Body}" Margin="0,0,0,4" />
-        <TextBox x:Name="UsernameBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+        <!--  Left Column: Truck Photo  -->
+        <Border Grid.Column="0"
+                Margin="0,0,16,0"
+                VerticalAlignment="Top"
+                CornerRadius="{StaticResource Radius.MD}"
+                BorderBrush="{DynamicResource Brush.Border.Default}"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Surface.Sunken}"
+                ClipToBounds="True">
+          <Image Source="/Assets/truck_login.jpg"
+                 Stretch="Uniform"
+                 RenderOptions.BitmapScalingMode="HighQuality" />
+        </Border>
 
-        <TextBlock Text="Password" Style="{StaticResource Text.Body}" Margin="0,16,0,4" />
-        <Grid>
-          <PasswordBox x:Name="PasswordBox"
-                       Padding="8,0,36,0"
-                       PasswordChanged="OnPasswordChanged" />
-          <TextBox x:Name="VisiblePasswordBox"
-                   Padding="8,0,36,0"
-                   Visibility="Collapsed"
-                   TextChanged="OnVisiblePasswordChanged" />
-          <Button x:Name="TogglePasswordButton"
-                  HorizontalAlignment="Right"
-                  VerticalAlignment="Center"
-                  Width="30"
-                  Height="30"
-                  Margin="0,0,3,0"
-                  Background="Transparent"
-                  BorderThickness="0"
-                  Focusable="False"
-                  Click="OnTogglePasswordVisibilityClicked"
-                  ToolTip="Show / Hide password">
-            <Viewbox Width="16" Height="16">
-              <Path x:Name="PasswordEyeIcon"
-                    Fill="{DynamicResource Brush.Text.Secondary}"
-                    Data="{StaticResource Geometry.Eye}" />
-            </Viewbox>
-          </Button>
-        </Grid>
+        <!--  Right Column: Form fields  -->
+        <StackPanel Grid.Column="1" VerticalAlignment="Top">
 
-        <!--  Shown only while appointing the first administrator  -->
-        <StackPanel Visibility="{Binding IsInitialSetup, Converter={StaticResource Converter.BooleanToVisibility}}">
-          <TextBlock Text="Confirm password" Style="{StaticResource Text.Body}" Margin="0,16,0,4" />
+          <TextBlock Text="Username" Style="{StaticResource Text.Body}" Margin="0,0,0,4" />
+          <TextBox x:Name="UsernameBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" />
+
+          <TextBlock Text="Password" Style="{StaticResource Text.Body}" Margin="0,12,0,4" />
           <Grid>
-            <PasswordBox x:Name="ConfirmPasswordBox"
+            <PasswordBox x:Name="PasswordBox"
                          Padding="8,0,36,0"
-                         PasswordChanged="OnConfirmPasswordChanged" />
-            <TextBox x:Name="VisibleConfirmPasswordBox"
+                         PasswordChanged="OnPasswordChanged" />
+            <TextBox x:Name="VisiblePasswordBox"
                      Padding="8,0,36,0"
                      Visibility="Collapsed"
-                     TextChanged="OnVisibleConfirmPasswordChanged" />
-            <Button x:Name="ToggleConfirmPasswordButton"
+                     TextChanged="OnVisiblePasswordChanged" />
+            <Button x:Name="TogglePasswordButton"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     Width="30"
@@ -98,29 +92,60 @@
                     Background="Transparent"
                     BorderThickness="0"
                     Focusable="False"
-                    Click="OnToggleConfirmPasswordVisibilityClicked"
+                    Click="OnTogglePasswordVisibilityClicked"
                     ToolTip="Show / Hide password">
               <Viewbox Width="16" Height="16">
-                <Path x:Name="ConfirmPasswordEyeIcon"
+                <Path x:Name="PasswordEyeIcon"
                       Fill="{DynamicResource Brush.Text.Secondary}"
                       Data="{StaticResource Geometry.Eye}" />
               </Viewbox>
             </Button>
           </Grid>
+
+          <!--  Shown only while appointing the first administrator  -->
+          <StackPanel Visibility="{Binding IsInitialSetup, Converter={StaticResource Converter.BooleanToVisibility}}">
+            <TextBlock Text="Confirm password" Style="{StaticResource Text.Body}" Margin="0,12,0,4" />
+            <Grid>
+              <PasswordBox x:Name="ConfirmPasswordBox"
+                           Padding="8,0,36,0"
+                           PasswordChanged="OnConfirmPasswordChanged" />
+              <TextBox x:Name="VisibleConfirmPasswordBox"
+                       Padding="8,0,36,0"
+                       Visibility="Collapsed"
+                       TextChanged="OnVisibleConfirmPasswordChanged" />
+              <Button x:Name="ToggleConfirmPasswordButton"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Center"
+                      Width="30"
+                      Height="30"
+                      Margin="0,0,3,0"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      Focusable="False"
+                      Click="OnToggleConfirmPasswordVisibilityClicked"
+                      ToolTip="Show / Hide password">
+                <Viewbox Width="16" Height="16">
+                  <Path x:Name="ConfirmPasswordEyeIcon"
+                        Fill="{DynamicResource Brush.Text.Secondary}"
+                        Data="{StaticResource Geometry.Eye}" />
+                </Viewbox>
+              </Button>
+            </Grid>
+          </StackPanel>
+
+          <!-- Error Message -->
+          <TextBlock Margin="0,12,0,0"
+                     Foreground="{DynamicResource Brush.Danger.Text}"
+                     Text="{Binding ErrorMessage}"
+                     Visibility="{Binding HasError, Converter={StaticResource Converter.BooleanToVisibility}}"
+                     TextWrapping="Wrap" />
+
         </StackPanel>
-
-        <!-- Error Message -->
-        <TextBlock Margin="0,16,0,0"
-                   Foreground="{DynamicResource Brush.Danger.Text}"
-                   Text="{Binding ErrorMessage}"
-                   Visibility="{Binding HasError, Converter={StaticResource Converter.BooleanToVisibility}}"
-                   TextWrapping="Wrap" />
-
-      </StackPanel>
+      </Grid>
 
       <!--  Command bar  -->
       <Border Grid.Row="2"
-              Padding="24,16"
+              Padding="24,14"
               Background="{DynamicResource Brush.Surface.Sunken}"
               CornerRadius="0,0,14,14">
         <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
@@ -133,7 +158,7 @@
                   IsCancel="True" />
 
           <Button x:Name="LoginButton"
-                  MinWidth="96"
+                  MinWidth="110"
                   Click="OnLoginClicked"
                   Content="{Binding SubmitLabel}"
                   IsDefault="True"

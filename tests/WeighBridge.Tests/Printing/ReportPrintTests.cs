@@ -22,8 +22,8 @@ public sealed class ReportPrintTests
         string rendered = ReportPrintTextRenderer.Render(document, paperSize: "A4", sideWisePrinting: true);
 
         Assert.Contains("Deterministic Report", rendered);
-        Assert.Contains("WB-000001", rendered);
-        Assert.Contains("WB-000002", rendered);
+        Assert.Contains("000001", rendered);
+        Assert.Contains("000002", rendered);
         Assert.Contains("MH12AB1001", rendered);
         Assert.Contains("10 Wheeler", rendered);
         Assert.Contains("Acme Minerals", rendered);
@@ -73,7 +73,7 @@ public sealed class ReportPrintTests
         Assert.Contains("disabled", result.Message);
         Assert.Equal(2, document.TotalRecordCount);
         Assert.Equal(37_000m, document.TotalNetWeightKg);
-        Assert.Equal("WB-000001", document.Rows[0].SlipNumber);
+        Assert.Equal("000001", document.Rows[0].SlipNumber);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class ReportPrintTests
         {
             new(
                 SerialNumber: 1,
-                SlipNumber: "WB-000001",
+                SlipNumber: "000001",
                 VehicleNumber: "MH12AB1001",
                 VehicleTypeName: "10 Wheeler",
                 PartyName: "Acme Minerals",
@@ -126,7 +126,7 @@ public sealed class ReportPrintTests
                 Status: "Completed"),
             new(
                 SerialNumber: 2,
-                SlipNumber: "WB-000002",
+                SlipNumber: "000002",
                 VehicleNumber: "MH12AB1002",
                 VehicleTypeName: "Truck",
                 PartyName: "Zenith Logistics",
